@@ -5,13 +5,22 @@ const navItems = ['How It Works', 'Community', 'About'];
 type NavbarProps = {
   onNavigate?: (path: string) => void;
   showUserHeader?: boolean;
+  ctaLabel?: string;
+  ctaPath?: string;
 };
 
-export function Navbar({ onNavigate, showUserHeader = false }: NavbarProps) {
+export function Navbar({ onNavigate, showUserHeader = false, ctaLabel, ctaPath }: NavbarProps) {
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, item: string) => {
     if (onNavigate) {
       e.preventDefault();
       onNavigate('/#' + item.toLowerCase().replaceAll(' ', '-'));
+    }
+  };
+
+  const handleCtaClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (ctaPath && onNavigate) {
+      e.preventDefault();
+      onNavigate(ctaPath);
     }
   };
 
@@ -48,8 +57,13 @@ export function Navbar({ onNavigate, showUserHeader = false }: NavbarProps) {
           </div>
         </div>
       ) : (
-        <a className="header-cta" href="#early-access" aria-label="Get Started placeholder">
-          Get Started
+        <a
+          className="header-cta"
+          href={ctaPath || '#early-access'}
+          onClick={handleCtaClick}
+          aria-label={ctaLabel || 'Get Started placeholder'}
+        >
+          {ctaLabel || 'Get Started'}
         </a>
       )}
     </header>
