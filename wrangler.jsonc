@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "skillswap",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-08-28",
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS"
+  }
+}
