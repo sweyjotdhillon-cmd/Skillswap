@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Home } from './pages/Home';
 import { CreateSwapPage } from './pages/CreateSwap';
+import { ExploreSwapsPage } from './pages/ExploreSwaps';
 
 export default function App() {
   const [path, setPath] = useState(window.location.pathname);
@@ -21,6 +22,10 @@ export default function App() {
 
   if (path === '/create-swap') {
     return <CreateSwapPage onNavigate={navigate} />;
+  }
+
+  if (path === '/explore') {
+    return <ExploreSwapsPage onNavigate={navigate} />;
   }
 
   return <Home onNavigate={navigate} />;
