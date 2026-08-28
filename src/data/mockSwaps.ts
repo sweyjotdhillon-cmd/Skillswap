@@ -5,7 +5,7 @@ export interface Swap {
   rating: number;
   needSkill: string;
   description: string;
-  offerSkill: string;
+  offerSkill?: string;
   skillCredits: number;
   category: string;
 }
