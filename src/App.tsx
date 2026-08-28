@@ -20,6 +20,14 @@ export default function App() {
     window.scrollTo(0, 0);
   };
 
+  useEffect(() => {
+    if (path === '/create-swap') {
+      document.title = 'Create Swap — Skillswap';
+    } else {
+      document.title = 'Skillswap — Skills are your currency';
+    }
+  }, [path]);
+
   if (path === '/create-swap') {
     return <CreateSwapPage onNavigate={navigate} />;
   }

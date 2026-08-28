@@ -37,7 +37,7 @@ export function ChatPermissionSelector({ value, onChange, error }: ChatPermissio
         role="radiogroup"
         aria-label="Who can start the conversation"
       >
-        {options.map((option) => {
+        {options.map((option, idx) => {
           const isSelected = value === option.id;
           return (
             <div
@@ -51,6 +51,10 @@ export function ChatPermissionSelector({ value, onChange, error }: ChatPermissio
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   onChange(option.id);
+                } else if (['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'].includes(e.key)) {
+                  e.preventDefault();
+                  const nextIdx = idx === 0 ? 1 : 0;
+                  onChange(options[nextIdx].id);
                 }
               }}
             >

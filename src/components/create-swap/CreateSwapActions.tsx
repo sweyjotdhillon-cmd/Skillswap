@@ -1,10 +1,10 @@
 type CreateSwapActionsProps = {
   onSaveDraft: () => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit?: (e: React.FormEvent) => void;
   isSubmitting?: boolean;
 };
 
-export function CreateSwapActions({ onSaveDraft, onSubmit, isSubmitting = false }: CreateSwapActionsProps) {
+export function CreateSwapActions({ onSaveDraft, isSubmitting = false }: CreateSwapActionsProps) {
   return (
     <div className="create-swap-actions">
       <button
@@ -18,7 +18,6 @@ export function CreateSwapActions({ onSaveDraft, onSubmit, isSubmitting = false 
         type="submit"
         className="btn-create-swap"
         disabled={isSubmitting}
-        onClick={onSubmit}
       >
         Create Swap
       </button>

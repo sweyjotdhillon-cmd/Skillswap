@@ -59,10 +59,36 @@ function getFileIcon(fileName: string, type: string) {
 export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAttachment }: AttachmentUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
+
+  const filterAndAddFiles = (files: FileList | File[]) => {
+    const validFiles: File[] = [];
+    let oversized = false;
+
+    Array.from(files).forEach((file) => {
+      if (file.size > MAX_FILE_SIZE) {
+        oversized = true;
+      } else {
+        validFiles.push(file);
+      }
+    });
+
+    if (oversized) {
+      setFileError('Some files exceeded the 10MB limit and were skipped.');
+    } else {
+      setFileError(null);
+    }
+
+    if (validFiles.length > 0) {
+      onAddAttachments(validFiles);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      onAddAttachments(e.target.files);
+      filterAndAddFiles(e.target.files);
       e.target.value = '';
     }
   };
@@ -81,7 +107,7 @@ export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAtta
     e.preventDefault();
     setIsDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      onAddAttachments(e.dataTransfer.files);
+      filterAndAddFiles(e.dataTransfer.files);
     }
   };
 
@@ -93,6 +119,14 @@ export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAtta
         </label>
         <span className="badge-optional">(optional)</span>
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden-file-input"
+        onChange={handleFileChange}
+      />
 
       <div className="attachments-wrapper">
         <div
@@ -111,18 +145,12 @@ export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAtta
             }
           }}
         >
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden-file-input"
-            onChange={handleFileChange}
-          />
           <div className="dropzone-content">
             <span className="dropzone-add-text">+ Add attachments</span>
-            <span className="dropzone-subtext">Upload files or drag and drop</span>
+            <span className="dropzone-subtext">Upload files or drag and drop (Max 10MB per file)</span>
           </div>
         </div>
+        {fileError && <p className="error-message" role="alert">{fileError}</p>}
 
         {attachments.length > 0 && (
           <div className="attachment-list" aria-label="Attached files">
