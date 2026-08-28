@@ -6,16 +6,23 @@ const navItems = ['How It Works', 'Community', 'About'];
 type NavbarProps = {
   onNavigate?: (path: string) => void;
   showUserHeader?: boolean;
+  ctaLabel?: string;
+  ctaPath?: string;
 };
 
-export function Navbar({ onNavigate, showUserHeader = false }: NavbarProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, item: string) => {
     setMobileMenuOpen(false);
     if (onNavigate) {
       e.preventDefault();
       onNavigate('/#' + item.toLowerCase().replaceAll(' ', '-'));
+    }
+  };
+
+  const handleCtaClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (ctaPath && onNavigate) {
+      e.preventDefault();
+      onNavigate(ctaPath);
     }
   };
 
@@ -111,6 +118,7 @@ export function Navbar({ onNavigate, showUserHeader = false }: NavbarProps) {
             )}
           </nav>
         </div>
+
       )}
     </header>
   );
