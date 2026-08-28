@@ -48,7 +48,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
       !query ||
       swap.needSkill.toLowerCase().includes(query) ||
       swap.description.toLowerCase().includes(query) ||
-      swap.offerSkill.toLowerCase().includes(query) ||
+      (swap.offerSkill && swap.offerSkill.toLowerCase().includes(query)) ||
       swap.personName.toLowerCase().includes(query) ||
       swap.category.toLowerCase().includes(query);
     return matchesCategory && matchesSearch;
@@ -60,7 +60,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
       {
         id: '1',
         sender: 'other',
-        text: `Hi! I saw you're looking at my listing for ${swap.needSkill}. I can offer ${swap.offerSkill} in exchange. How can I help?`,
+        text: `Hi! I saw you're interested in my listing for ${swap.needSkill}. How can I help?`,
         time: 'Just now',
       },
     ]);
@@ -188,15 +188,9 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                     <div className="swap-card-need-section">
                       <img src={swap.avatar} alt={swap.personName} className="swap-avatar" />
                       <div className="swap-need-details">
-                        <span className="swap-section-tag">I NEED</span>
                         <h3 className="swap-need-title">{swap.needSkill}</h3>
                         <p className="swap-description">{swap.description}</p>
                       </div>
-                    </div>
-
-                    <div className="swap-card-offer-section">
-                      <span className="swap-section-tag">I CAN OFFER</span>
-                      <h4 className="swap-offer-title">{swap.offerSkill}</h4>
                     </div>
 
                     <div className="swap-credits-badge">
@@ -273,10 +267,6 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                     <span className="modal-label">You’re requesting:</span>
                     <strong>{selectedSwapForAccept.needSkill}</strong>
                   </div>
-                  <div className="modal-detail-row">
-                    <span className="modal-label">In exchange for:</span>
-                    <strong>{selectedSwapForAccept.offerSkill}</strong>
-                  </div>
                   <div className="modal-detail-user">
                     <span>Offered by:</span> {selectedSwapForAccept.personName} • {selectedSwapForAccept.skillCredits} SkillCredits
                   </div>
@@ -329,7 +319,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                 <div>
                   <h3 className="chat-title">Chat with {selectedSwapForChat.personName}</h3>
                   <p className="chat-subtitle">
-                    {selectedSwapForChat.needSkill} ↔ {selectedSwapForChat.offerSkill}
+                    {selectedSwapForChat.needSkill}
                   </p>
                 </div>
               </div>

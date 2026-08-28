@@ -10,6 +10,8 @@ type NavbarProps = {
   ctaPath?: string;
 };
 
+export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath }: NavbarProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, item: string) => {
     setMobileMenuOpen(false);
