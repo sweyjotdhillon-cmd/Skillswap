@@ -64,8 +64,8 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath }: Navbar
             </div>
           </div>
         ) : (
-          <a className="header-cta" href="#early-access" aria-label="Get Started placeholder">
-            Get Started
+          <a className="header-cta" href={ctaPath || "#early-access"} onClick={handleCtaClick} aria-label="Get Started placeholder">
+            {ctaLabel || "Get Started"}
           </a>
         )}
 
@@ -120,7 +120,6 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath }: Navbar
             )}
           </nav>
         </div>
-
       )}
     </header>
   );
