@@ -27,7 +27,24 @@ Skillswap should feel like a new community and exchange ecosystem, not a traditi
 
 ## Current MVP
 
-The current milestone is a polished homepage and a clean Cloudflare-ready project foundation. The homepage introduces the brand, the SkillCredits concept, and the two future entry points: **Create Swap** and **Explore Swaps**.
+The current milestone is a polished homepage, a production-quality **Create Swap** page, and a clean Cloudflare-ready project foundation. The homepage introduces the brand, the SkillCredits concept, and links directly to **Create Swap**.
+
+## Create Swap Feature
+
+- **Route:** `/create-swap`
+- **Access:** Accessible by clicking "Create Swap" on the homepage. Supports browser back navigation and header logo navigation back to homepage (`/`). Not displayed inline on homepage.
+- **Form Fields & Initial State:**
+  - Starts completely empty (no demo values or hardcoded defaults).
+  - **Topic:** Required text input (max 120 chars) with live dynamic character counter.
+  - **Description:** Required textarea (max 2000 chars) with live dynamic character counter.
+  - **Attachments:** Optional file upload area supporting drag-and-drop and multiple file selection. Displays file cards with icons, filenames, formatted file sizes, and individual remove buttons.
+  - **Chat Permission:** Required dual radio-card selection ("Anyone can chat with me" vs. "Ask for permission first"). Initialized to `null` with no default preselection.
+  - **Credits:** Required numeric stepper input (`[-] [ ] [+] Credits`). Starts empty. Accepts positive integers.
+  - **Completion Requirements:** Required textarea (max 1000 chars) with live dynamic character counter.
+  - **Additional Message:** Optional textarea (max 1000 chars) with live dynamic character counter.
+- **Validation:** Validates required fields upon submission and displays user-friendly inline error messages.
+- **Actions:** Secondary "Save Draft" button and primary "Create Swap" button.
+- **Backend Persistence:** UI and form state architecture are fully implemented. Backend persistent storage/API submission will be connected in future database milestones.
 
 ## Future Roadmap
 
