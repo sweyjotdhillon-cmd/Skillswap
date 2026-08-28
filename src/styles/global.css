@@ -153,16 +153,16 @@ h1 span { color: #a8781d; }
   white-space: nowrap;
   pointer-events: none;
 }
-.person--top { left: 55%; top: 22%; }
-.quote--top { left: 18px; top: -46px; text-align: left; }
+.person--top { left: 24%; top: 19%; }
+.quote--top { left: 22px; top: -46px; text-align: left; }
 
-.person--right { right: 12.5%; top: 43%; }
+.person--right { left: 83%; top: 41%; }
 .quote--right { left: 28px; top: 18px; text-align: left; }
 
-.person--bottom { left: 60%; top: 73%; }
-.quote--bottom { left: -22px; top: 60px; text-align: center; }
+.person--bottom { left: 29.5%; top: 72%; }
+.quote--bottom { left: -32px; top: 58px; text-align: center; }
 
-.person--left { left: 26%; top: 48%; }
+.person--left { left: 10%; top: 47%; }
 .mvp-note { max-width: 760px; margin: -2.5rem auto 0; text-align: center; color: rgba(17,22,28,.7); font-size: .95rem; }
 
 @keyframes float { 50% { transform: translateY(-9px) rotate(1deg); } }
