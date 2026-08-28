@@ -123,14 +123,46 @@ h1 span { color: #a8781d; }
 .credit-initials { width: 112px; height: 112px; display: grid; place-items: center; border: 2px solid rgba(214,166,74,.62); border-radius: 999px; font-size: 3.2rem; }
 .credit-core strong { font-size: 1.25rem; }
 .credit-core small { color: #11161c; font-size: 1rem; line-height: 1.35; }
-.person { position: absolute; width: 54px; height: 92px; animation: float 7s ease-in-out infinite; }
-.person-glow { position: absolute; inset: 13px 2px auto; height: 48px; border-radius: 999px; background: rgba(214,166,74,.7); filter: blur(1px); }
-.person-body { position: absolute; left: 22px; top: 22px; width: 10px; height: 58px; border-radius: 10px; background: #11161c; box-shadow: 0 -12px 0 2px #11161c, -7px 23px 0 -2px #11161c, 7px 23px 0 -2px #11161c; }
-.person em { position: absolute; width: 130px; color: #11161c; font-family: 'Comic Sans MS', 'Bradley Hand', cursive; font-size: .95rem; line-height: 1.1; font-style: normal; white-space: pre-line; }
-.person--one { left: 24%; top: 12%; }.person--one em { left: 36px; top: -46px; transform: rotate(-13deg); }
-.person--two { right: 5%; top: 34%; animation-delay: -2s; }.person--two em { left: 55px; top: 30px; transform: rotate(10deg); }
-.person--three { left: 28%; bottom: 12%; animation-delay: -4s; }.person--three em { left: -12px; top: 82px; transform: rotate(-5deg); }
-.person--four { left: 15%; top: 39%; animation-delay: -1s; }.person--four em { left: -75px; top: -35px; transform: rotate(-8deg); }
+.person { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
+.person-halo {
+  position: absolute;
+  top: -8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(214,166,74,0.72) 0%, rgba(214,166,74,0.3) 60%, transparent 100%);
+  filter: blur(2px);
+  z-index: 1;
+}
+.person-halo--subtle {
+  background: radial-gradient(circle, rgba(214,166,74,0.45) 0%, rgba(214,166,74,0.15) 60%, transparent 100%);
+}
+.person-silhouette {
+  width: 22px;
+  height: 58px;
+  position: relative;
+  z-index: 2;
+}
+.quote {
+  position: absolute;
+  color: #11161c;
+  font-family: 'Comic Sans MS', 'Bradley Hand', 'Caveat', cursive, sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.15;
+  font-style: normal;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.person--top { left: 55%; top: 22%; }
+.quote--top { left: 18px; top: -46px; text-align: left; }
+
+.person--right { right: 12.5%; top: 43%; }
+.quote--right { left: 28px; top: 18px; text-align: left; }
+
+.person--bottom { left: 60%; top: 73%; }
+.quote--bottom { left: -22px; top: 60px; text-align: center; }
+
+.person--left { left: 26%; top: 48%; }
 .mvp-note { max-width: 760px; margin: -2.5rem auto 0; text-align: center; color: rgba(17,22,28,.7); font-size: .95rem; }
 
 @keyframes float { 50% { transform: translateY(-9px) rotate(1deg); } }

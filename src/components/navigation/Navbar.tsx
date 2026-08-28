@@ -10,6 +10,8 @@ type NavbarProps = {
   ctaPath?: string;
 };
 
+export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath }: NavbarProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, item: string) => {
     setMobileMenuOpen(false);
@@ -62,8 +64,8 @@ type NavbarProps = {
             </div>
           </div>
         ) : (
-          <a className="header-cta" href="#early-access" aria-label="Get Started placeholder">
-            Get Started
+          <a className="header-cta" href={ctaPath || "#early-access"} onClick={handleCtaClick} aria-label="Get Started placeholder">
+            {ctaLabel || "Get Started"}
           </a>
         )}
 
@@ -118,7 +120,6 @@ type NavbarProps = {
             )}
           </nav>
         </div>
-
       )}
     </header>
   );
