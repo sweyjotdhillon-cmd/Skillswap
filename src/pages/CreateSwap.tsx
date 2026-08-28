@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { CreateSwapHeader } from '../components/create-swap/CreateSwapHeader';
 import { TopicField } from '../components/create-swap/TopicField';
@@ -9,6 +9,7 @@ import { CreditsInput } from '../components/create-swap/CreditsInput';
 import { RequirementsField } from '../components/create-swap/RequirementsField';
 import { AdditionalMessageField } from '../components/create-swap/AdditionalMessageField';
 import { CreateSwapActions } from '../components/create-swap/CreateSwapActions';
+import { SwapPreviewCard } from '../components/create-swap/SwapPreviewCard';
 
 export interface CreateSwapFormState {
   topic: string;
@@ -33,18 +34,48 @@ type CreateSwapPageProps = {
 };
 
 export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
-  const [formState, setFormState] = useState<CreateSwapFormState>({
-    topic: '',
-    description: '',
-    attachments: [],
-    chatPermission: null,
-    credits: '',
-    requirements: '',
-    additionalMessage: '',
+  const DRAFT_KEY = 'skillswap_create_swap_draft';
+
+  const [formState, setFormState] = useState<CreateSwapFormState>(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          topic: parsed.topic || '',
+          description: parsed.description || '',
+          attachments: [],
+          chatPermission: parsed.chatPermission || null,
+          credits: parsed.credits || '',
+          requirements: parsed.requirements || '',
+          additionalMessage: parsed.additionalMessage || '',
+        };
+      }
+    } catch {
+      // Ignore JSON parse errors
+    }
+    return {
+      topic: '',
+      description: '',
+      attachments: [],
+      chatPermission: null,
+      credits: '',
+      requirements: '',
+      additionalMessage: '',
+    };
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'info'; text: string } | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(DRAFT_KEY);
+    if (saved) {
+      setStatusMessage({ type: 'info', text: 'Restored your previously saved draft.' });
+      const timer = setTimeout(() => setStatusMessage(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
@@ -79,8 +110,20 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
   };
 
   const handleSaveDraft = () => {
-    // Save draft locally
-    setStatusMessage({ type: 'info', text: 'Draft saved locally.' });
+    try {
+      const draftData = {
+        topic: formState.topic,
+        description: formState.description,
+        chatPermission: formState.chatPermission,
+        credits: formState.credits,
+        requirements: formState.requirements,
+        additionalMessage: formState.additionalMessage,
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+      setStatusMessage({ type: 'info', text: 'Draft saved locally to browser storage!' });
+    } catch {
+      setStatusMessage({ type: 'info', text: 'Failed to save draft locally.' });
+    }
     setTimeout(() => {
       setStatusMessage(null);
     }, 4000);
@@ -89,8 +132,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validate()) {
-      // Backend persistence is not yet in place as specified in architecture specs.
-      // Display clean form state validation result.
+      localStorage.removeItem(DRAFT_KEY);
       setStatusMessage({
         type: 'success',
         text: 'Swap creation form submitted successfully! (Backend persistence will connect in future milestone)',
@@ -132,77 +174,80 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
     <div className="page-shell">
       <Navbar onNavigate={onNavigate} showUserHeader />
       <main className="create-swap-page">
-        <div className="create-swap-card">
-          <CreateSwapHeader />
+        <div className="create-swap-layout">
+          <div className="create-swap-card">
+            <CreateSwapHeader />
 
-          {statusMessage && (
-            <div className={`status-banner status-banner--${statusMessage.type}`} role="status">
-              {statusMessage.text}
-            </div>
-          )}
+            {statusMessage && (
+              <div className={`status-banner status-banner--${statusMessage.type}`} role="status">
+                {statusMessage.text}
+              </div>
+            )}
 
-          <form onSubmit={handleSubmit} noValidate className="create-swap-form">
-            <TopicField
-              value={formState.topic}
-              onChange={(val) => {
-                setFormState((prev) => ({ ...prev, topic: val }));
-                if (errors.topic) setErrors((prev) => ({ ...prev, topic: undefined }));
-              }}
-              error={errors.topic}
-            />
+            <form onSubmit={handleSubmit} noValidate className="create-swap-form">
+              <TopicField
+                value={formState.topic}
+                onChange={(val) => {
+                  setFormState((prev) => ({ ...prev, topic: val }));
+                  if (errors.topic) setErrors((prev) => ({ ...prev, topic: undefined }));
+                }}
+                error={errors.topic}
+              />
 
-            <DescriptionField
-              value={formState.description}
-              onChange={(val) => {
-                setFormState((prev) => ({ ...prev, description: val }));
-                if (errors.description) setErrors((prev) => ({ ...prev, description: undefined }));
-              }}
-              error={errors.description}
-            />
+              <DescriptionField
+                value={formState.description}
+                onChange={(val) => {
+                  setFormState((prev) => ({ ...prev, description: val }));
+                  if (errors.description) setErrors((prev) => ({ ...prev, description: undefined }));
+                }}
+                error={errors.description}
+              />
 
-            <AttachmentUploader
-              attachments={formState.attachments}
-              onAddAttachments={handleAddAttachments}
-              onRemoveAttachment={handleRemoveAttachment}
-            />
+              <AttachmentUploader
+                attachments={formState.attachments}
+                onAddAttachments={handleAddAttachments}
+                onRemoveAttachment={handleRemoveAttachment}
+              />
 
-            <ChatPermissionSelector
-              value={formState.chatPermission}
-              onChange={(val) => {
-                setFormState((prev) => ({ ...prev, chatPermission: val }));
-                if (errors.chatPermission) setErrors((prev) => ({ ...prev, chatPermission: undefined }));
-              }}
-              error={errors.chatPermission}
-            />
+              <ChatPermissionSelector
+                value={formState.chatPermission}
+                onChange={(val) => {
+                  setFormState((prev) => ({ ...prev, chatPermission: val }));
+                  if (errors.chatPermission) setErrors((prev) => ({ ...prev, chatPermission: undefined }));
+                }}
+                error={errors.chatPermission}
+              />
 
-            <CreditsInput
-              value={formState.credits}
-              onChange={(val) => {
-                setFormState((prev) => ({ ...prev, credits: val }));
-                if (errors.credits) setErrors((prev) => ({ ...prev, credits: undefined }));
-              }}
-              error={errors.credits}
-            />
+              <CreditsInput
+                value={formState.credits}
+                onChange={(val) => {
+                  setFormState((prev) => ({ ...prev, credits: val }));
+                  if (errors.credits) setErrors((prev) => ({ ...prev, credits: undefined }));
+                }}
+                error={errors.credits}
+              />
 
-            <RequirementsField
-              value={formState.requirements}
-              onChange={(val) => {
-                setFormState((prev) => ({ ...prev, requirements: val }));
-                if (errors.requirements) setErrors((prev) => ({ ...prev, requirements: undefined }));
-              }}
-              error={errors.requirements}
-            />
+              <RequirementsField
+                value={formState.requirements}
+                onChange={(val) => {
+                  setFormState((prev) => ({ ...prev, requirements: val }));
+                  if (errors.requirements) setErrors((prev) => ({ ...prev, requirements: undefined }));
+                }}
+                error={errors.requirements}
+              />
 
-            <AdditionalMessageField
-              value={formState.additionalMessage}
-              onChange={(val) => setFormState((prev) => ({ ...prev, additionalMessage: val }))}
-            />
+              <AdditionalMessageField
+                value={formState.additionalMessage}
+                onChange={(val) => setFormState((prev) => ({ ...prev, additionalMessage: val }))}
+              />
 
-            <CreateSwapActions
-              onSaveDraft={handleSaveDraft}
-              onSubmit={handleSubmit}
-            />
-          </form>
+              <CreateSwapActions
+                onSaveDraft={handleSaveDraft}
+              />
+            </form>
+          </div>
+
+          <SwapPreviewCard formState={formState} />
         </div>
       </main>
     </div>
