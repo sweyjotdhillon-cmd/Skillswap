@@ -1,7 +1,18 @@
 import { HeroVisual } from './HeroVisual';
 import { ActionButton } from '../ui/ActionButton';
 
-export function Hero() {
+type HeroProps = {
+  onNavigate?: (path: string) => void;
+};
+
+export function Hero({ onNavigate }: HeroProps) {
+  const handleCreateSwapClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (onNavigate) {
+      e.preventDefault();
+      onNavigate('/create-swap');
+    }
+  };
+
   return (
     <main className="hero">
       <section className="hero-copy" aria-labelledby="hero-title">
@@ -10,7 +21,7 @@ export function Hero() {
         <p className="lede">Exchange skills. Earn SkillCredits.<br />Get what you need.</p>
         <p className="support">A community where value flows<br />through people, not money.</p>
         <div className="hero-actions" id="early-access" aria-label="Skillswap entry points coming soon">
-          <ActionButton href="#current-mvp" variant="filled">Create Swap</ActionButton>
+          <ActionButton href="/create-swap" variant="filled" onClick={handleCreateSwapClick}>Create Swap</ActionButton>
           <ActionButton href="#current-mvp" variant="outline">Explore Swaps</ActionButton>
         </div>
       </section>

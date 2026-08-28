@@ -1,6 +1,17 @@
-export function Logo() {
+type LogoProps = {
+  onNavigate?: (path: string) => void;
+};
+
+export function Logo({ onNavigate }: LogoProps) {
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (onNavigate) {
+      e.preventDefault();
+      onNavigate('/');
+    }
+  };
+
   return (
-    <a className="brand" href="/" aria-label="Skillswap home">
+    <a className="brand" href="/" onClick={handleClick} aria-label="Skillswap home">
       <svg className="brand-mark" viewBox="0 0 48 48" role="img" aria-hidden="true">
         <path d="M24 7c6 0 10 4 10 9 0 4-3 7-7 8l-6 2c-4 1-7 4-7 8s4 7 9 7c6 0 10-4 10-9" />
         <path d="M24 7c-6 0-10 4-10 9 0 4 3 7 7 8l6 2c4 1 7 4 7 8s-4 7-9 7c-6 0-10-4-10-9" />
