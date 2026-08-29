@@ -17,7 +17,11 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath }: Navbar
     setMobileMenuOpen(false);
     if (onNavigate) {
       e.preventDefault();
-      onNavigate('/#' + item.toLowerCase().replaceAll(' ', '-'));
+      if (item === 'About') {
+        onNavigate('/about');
+      } else {
+        onNavigate('/#' + item.toLowerCase().replaceAll(' ', '-'));
+      }
     }
   };
 
