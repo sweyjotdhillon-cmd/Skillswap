@@ -114,28 +114,41 @@ h1 span { color: #a8781d; }
 .action-button--outline { background: rgba(247,245,240,.62); }
 
 .ecosystem { position: relative; flex: 1 1 58%; min-height: 610px; }
-.exchange-loop { position: absolute; inset: 2% 0 0 0; width: 100%; height: 100%; }
-.loop { fill: none; stroke: rgba(150,132,104,.25); stroke-linecap: round; }
-.loop--wide { stroke-width: 54; }
-.loop--soft { stroke-width: 28; opacity: .72; }
-.loop--thin { stroke-width: 7; opacity: .5; }
-.credit-core { position: absolute; left: 51%; top: 48%; transform: translate(-50%,-50%); text-align: center; display: grid; gap: .55rem; color: #a8781d; }
-.credit-initials { width: 112px; height: 112px; display: grid; place-items: center; border: 2px solid rgba(214,166,74,.62); border-radius: 999px; font-size: 3.2rem; }
-.credit-core strong { font-size: 1.25rem; }
-.credit-core small { color: #11161c; font-size: 1rem; line-height: 1.35; }
+.exchange-loop { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.credit-core { position: absolute; left: 49.5%; top: 48.5%; transform: translate(-50%,-50%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.45rem; color: #b2822a; z-index: 8; }
+.credit-initials-wrapper {
+  width: 105px;
+  height: 105px;
+  border-radius: 50%;
+  border: 1.8px solid #cbb287;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 2px 12px rgba(180, 150, 100, 0.08);
+  margin-bottom: 0.2rem;
+}
+.credit-initials { font-size: 3rem; font-weight: 500; font-family: 'Georgia', 'Times New Roman', serif; color: #b88628; letter-spacing: -0.5px; }
+.credit-core strong { font-size: 1.35rem; font-weight: 700; color: #ab7827; letter-spacing: -0.2px; font-family: system-ui, -apple-system, sans-serif; }
+.credit-core small { color: #2b2621; font-size: 1.05rem; font-weight: 500; line-height: 1.35; font-family: system-ui, -apple-system, sans-serif; opacity: 0.9; }
+
 .person { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
 .person-halo {
   position: absolute;
-  top: -8px;
-  width: 32px;
-  height: 32px;
+  top: -14px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(214,166,74,0.72) 0%, rgba(214,166,74,0.3) 60%, transparent 100%);
-  filter: blur(2px);
+  background: radial-gradient(circle, rgba(228,175,60,0.78) 0%, rgba(228,175,60,0.4) 50%, rgba(228,175,60,0) 80%);
+  filter: blur(1px);
   z-index: 1;
 }
-.person-halo--subtle {
-  background: radial-gradient(circle, rgba(214,166,74,0.45) 0%, rgba(214,166,74,0.15) 60%, transparent 100%);
+.person-halo--large {
+  top: -18px;
+  width: 62px;
+  height: 62px;
+  background: radial-gradient(circle, rgba(232,170,50,0.85) 0%, rgba(232,170,50,0.45) 55%, rgba(232,170,50,0) 85%);
+  filter: blur(2px);
 }
 .person-silhouette {
   width: 22px;
@@ -145,24 +158,25 @@ h1 span { color: #a8781d; }
 }
 .quote {
   position: absolute;
-  color: #11161c;
-  font-family: 'Comic Sans MS', 'Bradley Hand', 'Caveat', cursive, sans-serif;
-  font-size: 0.92rem;
+  color: #24201b;
+  font-family: 'Comic Sans MS', 'Bradley Hand', 'Caveat', 'Comic Neue', cursive, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
   line-height: 1.15;
   font-style: normal;
   white-space: nowrap;
   pointer-events: none;
 }
-.person--top { left: 55%; top: 22%; }
-.quote--top { left: 18px; top: -46px; text-align: left; }
+.person--top { left: 28.5%; top: 23%; }
+.quote--top { left: 42px; top: -52px; text-align: left; }
 
-.person--right { right: 12.5%; top: 43%; }
-.quote--right { left: 28px; top: 18px; text-align: left; }
+.person--right { right: 21%; top: 34%; }
+.quote--right { left: 45px; top: 34px; text-align: left; }
 
-.person--bottom { left: 60%; top: 73%; }
-.quote--bottom { left: -22px; top: 60px; text-align: center; }
+.person--bottom { left: 41.5%; top: 72.5%; }
+.quote--bottom { left: -110px; top: 40px; text-align: left; }
 
-.person--left { left: 26%; top: 48%; }
+.person--left { left: 8.5%; top: 44%; }
 .mvp-note { max-width: 760px; margin: -2.5rem auto 0; text-align: center; color: rgba(17,22,28,.7); font-size: .95rem; }
 
 @keyframes float { 50% { transform: translateY(-9px) rotate(1deg); } }
