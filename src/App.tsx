@@ -11,6 +11,7 @@ import { LoginPage } from './pages/Login';
 import { SignupPage } from './pages/Signup';
 import { ForgotPasswordPage } from './pages/ForgotPassword';
 import { ResetPasswordPage } from './pages/ResetPassword';
+import { ThemeToggle } from './components/ui/ThemeToggle';
 
 function AppContent() {
   const [path, setPath] = useState(window.location.pathname);
@@ -117,6 +118,7 @@ export default function App() {
   return (
     <AuthProvider>
       <AppContent />
+      <ThemeToggle />
     </AuthProvider>
   );
 }
