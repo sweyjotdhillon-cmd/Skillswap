@@ -4,6 +4,7 @@ import { Logo } from '../brand/Logo';
 const navItems = [
   { label: 'Explore Swaps', path: '/explore' },
   { label: 'Swap Requests', path: '/swap-requests' },
+  { label: 'Active Swaps', path: '/active-swaps' },
   { label: 'How It Works', path: '/how-it-works' },
   { label: 'About', path: '/about' },
 ];
