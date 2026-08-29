@@ -65,6 +65,7 @@ The current milestone is a polished homepage, a production-quality **Create Swap
 - TypeScript
 - Vite
 - Tailwind CSS
+- Supabase (Authentication)
 - Cloudflare Workers
 - Cloudflare Vite plugin
 - Wrangler
@@ -106,17 +107,19 @@ npm run deploy
 
 ```text
 /
-├── public/                  Static public assets
 ├── src/
-│   ├── assets/              Future local design assets
 │   ├── components/
 │   │   ├── brand/           Logo and brand primitives
+│   │   ├── create-swap/     Create Swap page components
 │   │   ├── hero/            Homepage hero and ecosystem visual
 │   │   ├── navigation/      Header/navigation components
 │   │   └── ui/              Shared UI primitives
+│   ├── context/             React contexts (e.g., AuthContext)
+│   ├── data/                Mock data
+│   ├── lib/                 External service clients (e.g., Supabase)
 │   ├── pages/               Page-level React views
 │   ├── styles/              Global Tailwind/CSS foundation
-│   ├── App.tsx              App composition
+│   ├── App.tsx              App composition and routing
 │   └── main.tsx             React entry point
 ├── worker/                  Cloudflare Worker entry point
 ├── vite.config.ts           Vite + React + Tailwind + Cloudflare config
