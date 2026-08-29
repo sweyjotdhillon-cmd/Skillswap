@@ -73,37 +73,43 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
   return (
     <div className="page-shell">
       <Navbar onNavigate={onNavigate} />
-      <main className="auth-page-container">
-        <div className="auth-card">
-          <div className="auth-header">
-            <span className="section-eyebrow">Set New Password</span>
-            <h1 className="auth-title">Update Your Password</h1>
-            <p className="auth-subtitle">
-              Enter a new secure password for your SkillSwap account.
-            </p>
+      <main className="auth-layout-grid" style={{ gridTemplateColumns: '1fr', maxWidth: '600px' }}>
+        <section className="auth-card-container">
+          <div className="auth-card-header">
+            <h2 className="auth-card-title">Update your password</h2>
+            <p className="auth-card-subtitle">Enter a new secure password for your SkillSwap account.</p>
           </div>
 
           {errorMessage && (
-            <div className="status-banner status-banner--error" role="alert">
-              {errorMessage}
+            <div className="auth-alert auth-alert--error" role="alert">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{errorMessage}</span>
             </div>
           )}
 
           {successMessage && (
-            <div className="status-banner status-banner--success" role="status">
-              {successMessage}
+            <div className="auth-alert auth-alert--success" role="status">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>{successMessage}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} noValidate className="auth-form">
-            <div className="form-group">
-              <label htmlFor="new-password" className="form-label">
+          <form onSubmit={handleSubmit} noValidate>
+            <div className="auth-form-group">
+              <label htmlFor="new-password" className="auth-label">
                 New Password
               </label>
               <input
                 id="new-password"
                 type="password"
-                className={`form-input ${errors.password ? 'input-error' : ''}`}
+                className={`auth-input ${errors.password ? 'input-error' : ''}`}
                 placeholder="At least 6 characters"
                 value={password}
                 onChange={(e) => {
@@ -112,17 +118,17 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
                 }}
                 disabled={loading}
               />
-              {errors.password && <p className="error-message">{errors.password}</p>}
+              {errors.password && <p className="error-message" style={{ color: '#e53e3e', fontSize: '0.8rem', marginTop: '0.25rem' }}>{errors.password}</p>}
             </div>
 
-            <div className="form-group">
-              <label htmlFor="confirm-new-password" className="form-label">
+            <div className="auth-form-group">
+              <label htmlFor="confirm-new-password" className="auth-label">
                 Confirm New Password
               </label>
               <input
                 id="confirm-new-password"
                 type="password"
-                className={`form-input ${errors.confirmPassword ? 'input-error' : ''}`}
+                className={`auth-input ${errors.confirmPassword ? 'input-error' : ''}`}
                 placeholder="Repeat new password"
                 value={confirmPassword}
                 onChange={(e) => {
@@ -131,39 +137,37 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
                 }}
                 disabled={loading}
               />
-              {errors.confirmPassword && <p className="error-message">{errors.confirmPassword}</p>}
+              {errors.confirmPassword && <p className="error-message" style={{ color: '#e53e3e', fontSize: '0.8rem', marginTop: '0.25rem' }}>{errors.confirmPassword}</p>}
             </div>
 
             <button type="submit" className="auth-submit-btn" disabled={loading}>
               {loading ? (
-                <span className="auth-btn-loading">
-                  <svg className="spinner" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <svg className="spinner" viewBox="0 0 24 24" width="16" height="16" style={{ animation: 'spin 1s linear infinite' }}>
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" opacity="0.25" />
+                    <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" opacity="0.75" />
                   </svg>
                   Updating password...
                 </span>
               ) : (
-                'Update Password'
+                'Update password →'
               )}
             </button>
           </form>
 
-          <div className="auth-footer">
-            <p>
-              <a
-                href="/login"
-                className="auth-link-bold"
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (onNavigate) onNavigate('/login');
-                }}
-              >
-                Back to Log in
-              </a>
-            </p>
-          </div>
-        </div>
+          <p className="auth-footer-text">
+            <a
+              href="/login"
+              className="auth-link"
+              onClick={(e) => {
+                e.preventDefault();
+                if (onNavigate) onNavigate('/login');
+              }}
+            >
+              Back to log in
+            </a>
+          </p>
+        </section>
       </main>
     </div>
   );

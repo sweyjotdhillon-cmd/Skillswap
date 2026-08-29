@@ -69,8 +69,8 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
       <div className="header-right-group">
 
         {user ? (
-          <div className="auth-user-menu">
-            <span className="auth-user-email" title={user.email}>
+          <div className="auth-user-menu" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <span className="auth-user-email" title={user.email} style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user.email}
             </span>
             {showUserHeader && (
@@ -108,7 +108,7 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
             </button>
           </div>
         ) : (
-          <div className="auth-user-menu">
+          <div className="auth-user-menu" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <a
               className="auth-link-bold"
               style={{ fontSize: '0.925rem', marginRight: '0.5rem' }}
@@ -179,17 +179,35 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                 Sign Out
               </button>
             ) : (
-              <a
-                href="/login"
-                className="mobile-drawer-cta"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setMobileMenuOpen(false);
-                  if (onNavigate) onNavigate('/login');
-                }}
-              >
-                Log In
-              </a>
+              <>
+                <a
+                  href="/login"
+                  className="mobile-drawer-cta"
+                  style={{ background: 'transparent', color: '#11161c', border: '1px solid #11161c' }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setMobileMenuOpen(false);
+                    if (onNavigate) onNavigate('/login');
+                  }}
+                >
+                  Log In
+                </a>
+                <a
+                  href={ctaPath || "/signup"}
+                  className="mobile-drawer-cta"
+                  onClick={(e) => {
+                    if (ctaPath) {
+                       handleCtaClick(e);
+                    } else {
+                       e.preventDefault();
+                       setMobileMenuOpen(false);
+                       if (onNavigate) onNavigate('/signup');
+                    }
+                  }}
+                >
+                  {ctaLabel || "Get Started"}
+                </a>
+              </>
             )}
           </nav>
         </div>
