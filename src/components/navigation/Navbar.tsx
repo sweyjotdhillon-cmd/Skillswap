@@ -13,12 +13,20 @@ type NavbarProps = {
 export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const getItemHref = (item: string) => {
+    if (item === 'About') return '/about';
+    if (item === 'How It Works') return '/how-it-works';
+    return `/#${item.toLowerCase().replaceAll(' ', '-')}`;
+  };
+
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, item: string) => {
     setMobileMenuOpen(false);
     if (onNavigate) {
       e.preventDefault();
       if (item === 'About') {
         onNavigate('/about');
+      } else if (item === 'How It Works') {
+        onNavigate('/how-it-works');
       } else {
         onNavigate('/#' + item.toLowerCase().replaceAll(' ', '-'));
       }
@@ -40,7 +48,7 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath }: Navbar
         {navItems.map((item) => (
           <a
             key={item}
-            href={`#${item.toLowerCase().replaceAll(' ', '-')}`}
+            href={getItemHref(item)}
             onClick={(e) => handleNavClick(e, item)}
           >
             {item}
@@ -103,7 +111,7 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath }: Navbar
             {navItems.map((item) => (
               <a
                 key={item}
-                href={`#${item.toLowerCase().replaceAll(' ', '-')}`}
+                href={getItemHref(item)}
                 onClick={(e) => handleNavClick(e, item)}
               >
                 {item}
