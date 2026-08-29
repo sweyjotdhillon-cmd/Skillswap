@@ -8,16 +8,20 @@ type SignupPageProps = {
 };
 
 export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string }>({});
+  const [errors, setErrors] = useState<{ fullName?: string; email?: string; password?: string; confirmPassword?: string }>({});
 
   const validate = () => {
-    const newErrors: { email?: string; password?: string; confirmPassword?: string } = {};
+    const newErrors: { fullName?: string; email?: string; password?: string; confirmPassword?: string } = {};
+
+    if (!fullName.trim()) {
+      newErrors.fullName = 'Please enter your full name.';
+    }
 
     if (!email.trim()) {
       newErrors.email = 'Please enter your email address.';
@@ -44,8 +48,8 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
-    setSuccessMessage(null);
 
+    if (loading) return;
     if (!validate()) return;
 
     setLoading(true);
@@ -58,6 +62,11 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+          },
+        },
       });
 
       if (error) {
@@ -66,8 +75,8 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
         } else {
           setErrorMessage(error.message);
         }
-      } else if (data.session) {
-        // Logged in immediately
+      } else if (data.session && data.user?.email_confirmed_at) {
+        // Logged in immediately & verified (e.g. if email confirmation is disabled in Supabase)
         const dest = redirectTo || '/explore';
         if (onNavigate) {
           onNavigate(dest);
@@ -75,8 +84,13 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
           window.location.href = dest;
         }
       } else {
-        // Confirmation email sent or account created
-        setSuccessMessage('Account created successfully! Please check your email inbox to confirm your account, then log in.');
+        // Verification email / code sent
+        const verifyUrl = `/verify-email?email=${encodeURIComponent(email)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+        if (onNavigate) {
+          onNavigate(verifyUrl);
+        } else {
+          window.location.href = verifyUrl;
+        }
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'An unexpected error occurred during signup.');
@@ -133,16 +147,6 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
             </div>
           )}
 
-          {successMessage && (
-            <div className="auth-alert auth-alert--success" role="status">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-              </svg>
-              <span>{successMessage}</span>
-            </div>
-          )}
-
           <button type="button" className="auth-google-btn" onClick={handleGoogleSignIn}>
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -156,6 +160,25 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
           <div className="auth-divider">Or</div>
 
           <form onSubmit={handleSubmit} noValidate>
+            <div className="auth-form-group">
+              <label htmlFor="signup-fullname" className="auth-label">
+                Full Name
+              </label>
+              <input
+                id="signup-fullname"
+                type="text"
+                className={`auth-input ${errors.fullName ? 'input-error' : ''}`}
+                placeholder="Alex Morgan"
+                value={fullName}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  if (errors.fullName) setErrors((prev) => ({ ...prev, fullName: undefined }));
+                }}
+                disabled={loading}
+              />
+              {errors.fullName && <p className="error-message" style={{ color: '#e53e3e', fontSize: '0.8rem', marginTop: '0.25rem' }}>{errors.fullName}</p>}
+            </div>
+
             <div className="auth-form-group">
               <label htmlFor="signup-email" className="auth-label">
                 Email Address

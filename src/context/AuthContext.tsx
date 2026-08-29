@@ -6,14 +6,18 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isVerified: boolean;
   signOut: () => Promise<void>;
+  refreshSession: () => Promise<Session | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   loading: true,
+  isVerified: false,
   signOut: async () => {},
+  refreshSession: async () => null,
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -64,6 +68,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  const refreshSession = async () => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return null;
+
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (!userError && userData.user) {
+        setUser(userData.user);
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) {
+        setSession(sessionData.session);
+        setUser(sessionData.session.user);
+      }
+      return sessionData.session;
+    } catch (err) {
+      console.error('Error refreshing session:', err);
+      return null;
+    }
+  };
+
   const signOut = async () => {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
@@ -72,8 +98,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSession(null);
   };
 
+  const isVerified = Boolean(
+    user &&
+      (Boolean(user.email_confirmed_at) ||
+        user.app_metadata?.provider === 'google' ||
+        (Array.isArray(user.app_metadata?.providers) && user.app_metadata.providers.includes('google')) ||
+        (Array.isArray(user.identities) && user.identities.some((id) => id.provider === 'google')))
+  );
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isVerified, signOut, refreshSession }}>
       {children}
     </AuthContext.Provider>
   );
