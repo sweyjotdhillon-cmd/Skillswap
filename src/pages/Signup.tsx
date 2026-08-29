@@ -51,6 +51,10 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
     setLoading(true);
     try {
       const supabase = getSupabaseBrowserClient();
+      if (!supabase) {
+        setErrorMessage('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY environment variables.');
+        return;
+      }
       const { data, error } = await supabase.auth.signUp({
         email,
         password,

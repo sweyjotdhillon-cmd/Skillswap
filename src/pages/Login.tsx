@@ -39,6 +39,10 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
     setLoading(true);
     try {
       const supabase = getSupabaseBrowserClient();
+      if (!supabase) {
+        setErrorMessage('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY environment variables.');
+        return;
+      }
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,

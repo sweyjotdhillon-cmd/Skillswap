@@ -34,6 +34,10 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
     setLoading(true);
     try {
       const supabase = getSupabaseBrowserClient();
+      if (!supabase) {
+        setErrorMessage('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY environment variables.');
+        return;
+      }
       const redirectUrl = `${window.location.origin}/reset-password`;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,

@@ -23,20 +23,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
 
     let mounted = true;
 
     // Fetch initial session once on mount
-    supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
-      if (mounted) {
-        setSession(data.session);
-        setUser(data.session?.user ?? null);
-        setLoading(false);
-      }
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }: { data: { session: Session | null } }) => {
+        if (mounted) {
+          setSession(data.session);
+          setUser(data.session?.user ?? null);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error('Error getting Supabase session:', err);
+        if (mounted) {
+          setLoading(false);
+        }
+      });
 
     // Subscribe to auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, currentSession: Session | null) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, currentSession: Session | null) => {
       if (mounted) {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
@@ -52,6 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
