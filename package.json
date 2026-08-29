@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "latest",
+    "@supabase/ssr": "^0.12.5",
+    "@supabase/supabase-js": "^2.112.4",
     "@tailwindcss/vite": "latest",
     "@vitejs/plugin-react": "latest",
     "react": "latest",

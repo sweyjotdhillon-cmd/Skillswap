@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Logo } from '../brand/Logo';
+import { useAuth } from '../../context/AuthContext';
 import { ThemeToggle } from '../ui/ThemeToggle';
 
 const navItems = [
@@ -21,6 +22,7 @@ type NavbarProps = {
 export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentPath }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const activePath = currentPath || window.location.pathname;
+  const { user, signOut } = useAuth();
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, itemPath: string) => {
     setMobileMenuOpen(false);
@@ -34,6 +36,13 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
     if (ctaPath && onNavigate) {
       e.preventDefault();
       onNavigate(ctaPath);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    if (onNavigate) {
+      onNavigate('/login');
     }
   };
 
@@ -59,43 +68,69 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
 
       <div className="header-right-group">
         <ThemeToggle />
-        {showUserHeader ? (
-          <div className="header-user-actions" aria-label="User profile and notifications">
+        {user ? (
+          <div className="auth-user-menu">
+            <span className="auth-user-email" title={user.email}>
+              {user.email}
+            </span>
+            {showUserHeader && (
+              <div className="header-user-actions" aria-label="User profile and notifications">
+                <button
+                  type="button"
+                  className="header-icon-btn"
+                  aria-label="Notifications"
+                  onClick={() => onNavigate && onNavigate('/swap-requests')}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav-icon">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className="header-icon-btn"
+                  aria-label="Messages"
+                  onClick={() => onNavigate && onNavigate('/swap-requests')}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav-icon">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                </button>
+              </div>
+            )}
             <button
               type="button"
-              className="header-icon-btn"
-              aria-label="Notifications"
-              onClick={() => onNavigate && onNavigate('/swap-requests')}
+              className="btn-signout"
+              onClick={handleSignOut}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav-icon">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
+              Sign Out
             </button>
-            <button
-              type="button"
-              className="header-icon-btn"
-              aria-label="Messages"
-              onClick={() => onNavigate && onNavigate('/swap-requests')}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav-icon">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                <polyline points="22,6 12,13 2,6" />
-              </svg>
-            </button>
-            <div
-              className="header-avatar"
-              title="User profile"
-              style={{ cursor: 'pointer' }}
-              onClick={() => onNavigate && onNavigate('/swap-requests')}
-            >
-              <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="User avatar" />
-            </div>
           </div>
         ) : (
-          <a className="header-cta" href={ctaPath || "#early-access"} onClick={handleCtaClick} aria-label="Get Started placeholder">
-            {ctaLabel || "Get Started"}
-          </a>
+          <div className="auth-user-menu">
+            <a
+              className="auth-link-bold"
+              style={{ fontSize: '0.925rem', marginRight: '0.5rem' }}
+              href="/login"
+              onClick={(e) => {
+                e.preventDefault();
+                if (onNavigate) onNavigate('/login');
+              }}
+            >
+              Log In
+            </a>
+            <a className="header-cta" href={ctaPath || "/signup"} onClick={(e) => {
+              if (ctaPath) {
+                handleCtaClick(e);
+              } else {
+                e.preventDefault();
+                if (onNavigate) onNavigate('/signup');
+              }
+            }} aria-label="Get Started">
+              {ctaLabel || "Get Started"}
+            </a>
+          </div>
         )}
 
         <button
@@ -135,17 +170,25 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                 {item.label}
               </a>
             ))}
-            {onNavigate && (
+            {user ? (
+              <button
+                type="button"
+                className="mobile-drawer-cta"
+                onClick={handleSignOut}
+              >
+                Sign Out
+              </button>
+            ) : (
               <a
-                href="/create-swap"
+                href="/login"
                 className="mobile-drawer-cta"
                 onClick={(e) => {
                   e.preventDefault();
                   setMobileMenuOpen(false);
-                  onNavigate('/create-swap');
+                  if (onNavigate) onNavigate('/login');
                 }}
               >
-                Create Swap
+                Log In
               </a>
             )}
           </nav>
