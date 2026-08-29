@@ -43,6 +43,10 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
     setLoading(true);
     try {
       const supabase = getSupabaseBrowserClient();
+      if (!supabase) {
+        setErrorMessage('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY environment variables.');
+        return;
+      }
       const { error } = await supabase.auth.updateUser({
         password,
       });

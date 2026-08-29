@@ -1,17 +1,22 @@
-import { createBrowserClient as createBrowserClientSSR } from '@supabase/ssr';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-export function createBrowserClient() {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
+let browserClient: SupabaseClient | null = null;
 
-  return createBrowserClientSSR(supabaseUrl, supabaseAnonKey);
-}
+export function getSupabaseBrowserClient(): SupabaseClient | null {
+  if (browserClient) return browserClient;
 
-let browserClient: ReturnType<typeof createBrowserClient> | null = null;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-export function getSupabaseBrowserClient() {
-  if (!browserClient) {
-    browserClient = createBrowserClient();
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return null;
   }
-  return browserClient;
+
+  try {
+    browserClient = createClient(supabaseUrl, supabaseAnonKey);
+    return browserClient;
+  } catch (err) {
+    console.error('Failed to initialize Supabase client:', err);
+    return null;
+  }
 }
