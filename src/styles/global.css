@@ -116,43 +116,43 @@ h1 span { color: #a8781d; }
 .ecosystem { position: relative; flex: 1 1 58%; min-height: 610px; }
 .exchange-loop { position: absolute; inset: 0; width: 100%; height: 100%; }
 
-.credit-core { position: absolute; left: 49.5%; top: 48.5%; transform: translate(-50%,-50%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.45rem; color: #b2822a; z-index: 8; }
+.credit-core { position: absolute; left: 53%; top: 50%; transform: translate(-50%,-50%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.45rem; color: #b2822a; z-index: 8; }
 .credit-initials-wrapper {
-  width: 105px;
-  height: 105px;
+  width: 110px;
+  height: 110px;
   border-radius: 50%;
-  border: 1.8px solid #cbb287;
+  border: 1.5px solid #d4be9b;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.45);
-  box-shadow: 0 2px 12px rgba(180, 150, 100, 0.08);
-  margin-bottom: 0.2rem;
+  background: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 2px 10px rgba(180, 150, 100, 0.05);
+  margin-bottom: 0.15rem;
 }
-.credit-initials { font-size: 3rem; font-weight: 500; font-family: 'Georgia', 'Times New Roman', serif; color: #b88628; letter-spacing: -0.5px; }
-.credit-core strong { font-size: 1.35rem; font-weight: 700; color: #ab7827; letter-spacing: -0.2px; font-family: system-ui, -apple-system, sans-serif; }
-.credit-core small { color: #2b2621; font-size: 1.05rem; font-weight: 500; line-height: 1.35; font-family: system-ui, -apple-system, sans-serif; opacity: 0.9; }
+.credit-initials { font-size: 3.2rem; font-weight: 500; font-family: 'Georgia', 'Times New Roman', serif; color: #ba8a2e; letter-spacing: -0.5px; }
+.credit-core strong { font-size: 1.4rem; font-weight: 700; color: #b38228; letter-spacing: -0.2px; font-family: system-ui, -apple-system, sans-serif; }
+.credit-core small { color: #2b2621; font-size: 1.1rem; font-weight: 600; line-height: 1.35; font-family: system-ui, -apple-system, sans-serif; opacity: 0.9; }
 
 .person { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
 .person-halo {
   position: absolute;
   top: -14px;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(228,175,60,0.78) 0%, rgba(228,175,60,0.4) 50%, rgba(228,175,60,0) 80%);
+  background: radial-gradient(circle, rgba(228,175,60,0.85) 0%, rgba(228,175,60,0.45) 50%, rgba(228,175,60,0) 80%);
   filter: blur(1px);
   z-index: 1;
 }
 .person-halo--large {
-  top: -18px;
-  width: 62px;
-  height: 62px;
-  background: radial-gradient(circle, rgba(232,170,50,0.85) 0%, rgba(232,170,50,0.45) 55%, rgba(232,170,50,0) 85%);
+  top: -20px;
+  width: 68px;
+  height: 68px;
+  background: radial-gradient(circle, rgba(232,170,50,0.88) 0%, rgba(232,170,50,0.48) 55%, rgba(232,170,50,0) 85%);
   filter: blur(2px);
 }
 .person-silhouette {
-  width: 22px;
-  height: 58px;
+  width: 24px;
+  height: 62px;
   position: relative;
   z-index: 2;
 }
@@ -160,23 +160,23 @@ h1 span { color: #a8781d; }
   position: absolute;
   color: #24201b;
   font-family: 'Comic Sans MS', 'Bradley Hand', 'Caveat', 'Comic Neue', cursive, sans-serif;
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 600;
   line-height: 1.15;
   font-style: normal;
   white-space: nowrap;
   pointer-events: none;
 }
-.person--top { left: 28.5%; top: 23%; }
-.quote--top { left: 42px; top: -52px; text-align: left; }
+.person--top { left: 34.5%; top: 22.5%; }
+.quote--top { left: 24px; top: -52px; text-align: left; }
 
-.person--right { right: 21%; top: 34%; }
-.quote--right { left: 45px; top: 34px; text-align: left; }
+.person--right { right: 15.5%; top: 38%; }
+.quote--right { left: 28px; top: 32px; text-align: left; }
 
-.person--bottom { left: 41.5%; top: 72.5%; }
-.quote--bottom { left: -110px; top: 40px; text-align: left; }
+.person--bottom { left: 39.5%; top: 73.5%; }
+.quote--bottom { left: -115px; top: 42px; text-align: left; }
 
-.person--left { left: 8.5%; top: 44%; }
+.person--left { left: 16%; top: 44.5%; }
 .mvp-note { max-width: 760px; margin: -2.5rem auto 0; text-align: center; color: rgba(17,22,28,.7); font-size: .95rem; }
 
 @keyframes float { 50% { transform: translateY(-9px) rotate(1deg); } }
