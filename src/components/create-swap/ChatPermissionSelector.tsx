@@ -39,13 +39,14 @@ export function ChatPermissionSelector({ value, onChange, error }: ChatPermissio
       >
         {options.map((option, idx) => {
           const isSelected = value === option.id;
+          const isFocusable = isSelected || (!value && idx === 0);
           return (
             <div
               key={option.id}
               className={`permission-card ${isSelected ? 'permission-card--selected' : ''} ${error ? 'permission-card--error' : ''}`}
               role="radio"
               aria-checked={isSelected}
-              tabIndex={0}
+              tabIndex={isFocusable ? 0 : -1}
               onClick={() => onChange(option.id)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -69,7 +70,7 @@ export function ChatPermissionSelector({ value, onChange, error }: ChatPermissio
           );
         })}
       </div>
-      {error && <p className="error-message" role="alert">{error}</p>}
+      {error && <p id="permission-error" className="error-message" role="alert">{error}</p>}
     </div>
   );
 }

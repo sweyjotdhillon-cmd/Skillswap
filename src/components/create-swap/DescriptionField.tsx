@@ -24,12 +24,14 @@ export function DescriptionField({ value, onChange, error }: DescriptionFieldPro
           maxLength={maxLength}
           rows={5}
           onChange={(e) => onChange(e.target.value)}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? 'description-error' : undefined}
         />
         <div className="counter-row">
           <span className="char-counter">{value.length}/{maxLength}</span>
         </div>
       </div>
-      {error && <p className="error-message" role="alert">{error}</p>}
+      {error && <p id="description-error" className="error-message" role="alert">{error}</p>}
     </div>
   );
 }

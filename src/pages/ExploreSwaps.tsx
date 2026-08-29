@@ -69,8 +69,9 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
+    if (!chatInput.trim() || !selectedSwapForChat) return;
 
+    const currentSwapId = selectedSwapForChat.id;
     const newMsg: ChatMessage = {
       id: Date.now().toString(),
       sender: 'user',
@@ -81,19 +82,22 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
     setChatMessages((prev) => [...prev, newMsg]);
     setChatInput('');
 
-    // Fictional automated reply
+    // Fictional automated reply only if the same swap chat remains open
     setTimeout(() => {
-      if (selectedSwapForChat) {
-        setChatMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            sender: 'other',
-            text: `Sounds great! Let's coordinate details soon.`,
-            time: 'Just now',
-          },
-        ]);
-      }
+      setSelectedSwapForChat((current) => {
+        if (current && current.id === currentSwapId) {
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              id: (Date.now() + 1).toString(),
+              sender: 'other',
+              text: `Sounds great! Let's coordinate details soon.`,
+              time: 'Just now',
+            },
+          ]);
+        }
+        return current;
+      });
     }, 1000);
   };
 

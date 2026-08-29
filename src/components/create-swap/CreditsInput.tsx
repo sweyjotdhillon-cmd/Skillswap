@@ -70,6 +70,8 @@ export function CreditsInput({ value, onChange, error }: CreditsInputProps) {
             placeholder="—"
             value={value}
             onChange={handleInputChange}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'credits-error' : undefined}
           />
           <button
             type="button"
@@ -82,7 +84,7 @@ export function CreditsInput({ value, onChange, error }: CreditsInputProps) {
         </div>
         <span className="credits-label">Credits</span>
       </div>
-      {error && <p className="error-message" role="alert">{error}</p>}
+      {error && <p id="credits-error" className="error-message" role="alert">{error}</p>}
     </div>
   );
 }

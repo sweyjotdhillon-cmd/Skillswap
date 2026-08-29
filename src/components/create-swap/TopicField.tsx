@@ -24,12 +24,14 @@ export function TopicField({ value, onChange, error }: TopicFieldProps) {
           value={value}
           maxLength={maxLength}
           onChange={(e) => onChange(e.target.value)}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? 'topic-error' : undefined}
         />
         <div className="counter-row">
           <span className="char-counter">{value.length}/{maxLength}</span>
         </div>
       </div>
-      {error && <p className="error-message" role="alert">{error}</p>}
+      {error && <p id="topic-error" className="error-message" role="alert">{error}</p>}
     </div>
   );
 }

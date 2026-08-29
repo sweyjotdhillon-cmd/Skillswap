@@ -71,9 +71,24 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
   useEffect(() => {
     const saved = localStorage.getItem(DRAFT_KEY);
     if (saved) {
-      setStatusMessage({ type: 'info', text: 'Restored your previously saved draft.' });
-      const timer = setTimeout(() => setStatusMessage(null), 4000);
-      return () => clearTimeout(timer);
+      try {
+        const parsed = JSON.parse(saved);
+        const hasContent = Boolean(
+          (parsed.topic && parsed.topic.trim()) ||
+          (parsed.description && parsed.description.trim()) ||
+          (parsed.credits && parsed.credits.trim()) ||
+          (parsed.requirements && parsed.requirements.trim()) ||
+          (parsed.additionalMessage && parsed.additionalMessage.trim()) ||
+          parsed.chatPermission !== null
+        );
+        if (hasContent) {
+          setStatusMessage({ type: 'info', text: 'Restored your previously saved draft.' });
+          const timer = setTimeout(() => setStatusMessage(null), 4000);
+          return () => clearTimeout(timer);
+        }
+      } catch {
+        // Ignore parse error
+      }
     }
   }, []);
 
