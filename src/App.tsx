@@ -4,6 +4,7 @@ import { CreateSwapPage } from './pages/CreateSwap';
 import { ExploreSwapsPage } from './pages/ExploreSwaps';
 import { AboutPage } from './pages/About';
 import { HowItWorksPage } from './pages/HowItWorks';
+import { SwapRequestsPage } from './pages/SwapRequests';
 
 export default function App() {
   const [path, setPath] = useState(window.location.pathname);
@@ -23,8 +24,12 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (path === '/create-swap') {
+    if (path === '/swap-requests') {
+      document.title = 'Swap Requests — SkillSwap';
+    } else if (path === '/create-swap') {
       document.title = 'Create Swap — Skillswap';
+    } else if (path === '/explore') {
+      document.title = 'Explore Swaps — SkillSwap';
     } else if (path === '/about') {
       document.title = 'About — SkillSwap';
     } else if (path === '/how-it-works') {
@@ -33,6 +38,10 @@ export default function App() {
       document.title = 'Skillswap — Skills are your currency';
     }
   }, [path]);
+
+  if (path === '/swap-requests') {
+    return <SwapRequestsPage onNavigate={navigate} />;
+  }
 
   if (path === '/create-swap') {
     return <CreateSwapPage onNavigate={navigate} />;

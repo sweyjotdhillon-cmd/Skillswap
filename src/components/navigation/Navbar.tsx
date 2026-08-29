@@ -1,35 +1,30 @@
 import { useState } from 'react';
 import { Logo } from '../brand/Logo';
 
-const navItems = ['How It Works', 'Community', 'About'];
+const navItems = [
+  { label: 'Explore Swaps', path: '/explore' },
+  { label: 'Swap Requests', path: '/swap-requests' },
+  { label: 'How It Works', path: '/how-it-works' },
+  { label: 'About', path: '/about' },
+];
 
 type NavbarProps = {
   onNavigate?: (path: string) => void;
   showUserHeader?: boolean;
   ctaLabel?: string;
   ctaPath?: string;
+  currentPath?: string;
 };
 
-export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath }: NavbarProps) {
+export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentPath }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const activePath = currentPath || window.location.pathname;
 
-  const getItemHref = (item: string) => {
-    if (item === 'About') return '/about';
-    if (item === 'How It Works') return '/how-it-works';
-    return `/#${item.toLowerCase().replaceAll(' ', '-')}`;
-  };
-
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, item: string) => {
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, itemPath: string) => {
     setMobileMenuOpen(false);
     if (onNavigate) {
       e.preventDefault();
-      if (item === 'About') {
-        onNavigate('/about');
-      } else if (item === 'How It Works') {
-        onNavigate('/how-it-works');
-      } else {
-        onNavigate('/#' + item.toLowerCase().replaceAll(' ', '-'));
-      }
+      onNavigate(itemPath);
     }
   };
 
@@ -45,33 +40,52 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath }: Navbar
       <Logo onNavigate={onNavigate} />
 
       <nav className="main-nav" aria-label="Primary navigation">
-        {navItems.map((item) => (
-          <a
-            key={item}
-            href={getItemHref(item)}
-            onClick={(e) => handleNavClick(e, item)}
-          >
-            {item}
-          </a>
-        ))}
+        {navItems.map((item) => {
+          const isActive = activePath === item.path;
+          return (
+            <a
+              key={item.label}
+              href={item.path}
+              className={isActive ? 'nav-link--active' : ''}
+              onClick={(e) => handleNavClick(e, item.path)}
+            >
+              {item.label}
+            </a>
+          );
+        })}
       </nav>
 
       <div className="header-right-group">
         {showUserHeader ? (
           <div className="header-user-actions" aria-label="User profile and notifications">
-            <button type="button" className="header-icon-btn" aria-label="Notifications">
+            <button
+              type="button"
+              className="header-icon-btn"
+              aria-label="Notifications"
+              onClick={() => onNavigate && onNavigate('/swap-requests')}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav-icon">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
             </button>
-            <button type="button" className="header-icon-btn" aria-label="Messages">
+            <button
+              type="button"
+              className="header-icon-btn"
+              aria-label="Messages"
+              onClick={() => onNavigate && onNavigate('/swap-requests')}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav-icon">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                 <polyline points="22,6 12,13 2,6" />
               </svg>
             </button>
-            <div className="header-avatar" title="User profile">
+            <div
+              className="header-avatar"
+              title="User profile"
+              style={{ cursor: 'pointer' }}
+              onClick={() => onNavigate && onNavigate('/swap-requests')}
+            >
               <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="User avatar" />
             </div>
           </div>
@@ -110,11 +124,12 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath }: Navbar
           <nav className="mobile-drawer-nav">
             {navItems.map((item) => (
               <a
-                key={item}
-                href={getItemHref(item)}
-                onClick={(e) => handleNavClick(e, item)}
+                key={item.label}
+                href={item.path}
+                className={activePath === item.path ? 'nav-link--active' : ''}
+                onClick={(e) => handleNavClick(e, item.path)}
               >
-                {item}
+                {item.label}
               </a>
             ))}
             {onNavigate && (
