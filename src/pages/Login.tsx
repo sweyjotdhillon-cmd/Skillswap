@@ -43,7 +43,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
         setErrorMessage('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY environment variables.');
         return;
       }
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -51,15 +51,40 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
           setErrorMessage('Invalid email or password. Please check your details and try again.');
+        } else if (error.message.includes('Email not confirmed')) {
+          const verifyUrl = `/verify-email?email=${encodeURIComponent(email)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+          if (onNavigate) {
+            onNavigate(verifyUrl);
+          } else {
+            window.location.href = verifyUrl;
+          }
         } else {
           setErrorMessage(error.message);
         }
       } else {
-        const dest = redirectTo || '/explore';
-        if (onNavigate) {
-          onNavigate(dest);
+        const user = data.user;
+        const isVerified = Boolean(
+          user &&
+            (Boolean(user.email_confirmed_at) ||
+              user.app_metadata?.provider === 'google' ||
+              (Array.isArray(user.app_metadata?.providers) && user.app_metadata.providers.includes('google')) ||
+              (Array.isArray(user.identities) && user.identities.some((id) => id.provider === 'google')))
+        );
+
+        if (!isVerified) {
+          const verifyUrl = `/verify-email?email=${encodeURIComponent(email)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+          if (onNavigate) {
+            onNavigate(verifyUrl);
+          } else {
+            window.location.href = verifyUrl;
+          }
         } else {
-          window.location.href = dest;
+          const dest = redirectTo || '/explore';
+          if (onNavigate) {
+            onNavigate(dest);
+          } else {
+            window.location.href = dest;
+          }
         }
       }
     } catch (err: any) {

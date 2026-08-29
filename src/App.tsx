@@ -9,13 +9,14 @@ import { SwapRequestsPage } from './pages/SwapRequests';
 import { ActiveSwapsPage } from './pages/ActiveSwaps';
 import { LoginPage } from './pages/Login';
 import { SignupPage } from './pages/Signup';
+import { VerifyEmailPage } from './pages/VerifyEmail';
 import { ForgotPasswordPage } from './pages/ForgotPassword';
 import { ResetPasswordPage } from './pages/ResetPassword';
 import { ThemeToggle } from './components/ui/ThemeToggle';
 
 function AppContent() {
   const [path, setPath] = useState(window.location.pathname);
-  const { user, loading } = useAuth();
+  const { user, loading, isVerified } = useAuth();
 
   useEffect(() => {
     const handlePopState = () => {
@@ -48,6 +49,8 @@ function AppContent() {
       document.title = 'Log In — SkillSwap';
     } else if (path.startsWith('/signup')) {
       document.title = 'Sign Up — SkillSwap';
+    } else if (path.startsWith('/verify-email')) {
+      document.title = 'Verify Email — SkillSwap';
     } else if (path === '/forgot-password') {
       document.title = 'Forgot Password — SkillSwap';
     } else if (path === '/reset-password') {
@@ -65,10 +68,18 @@ function AppContent() {
   const redirectToParam = urlParams.get('redirectTo') || undefined;
 
   // Protected route enforcement
-  if (!loading && !user && protectedRoutes.some((route) => path.startsWith(route))) {
-    const loginUrl = `/login?redirectTo=${encodeURIComponent(path)}`;
-    window.history.replaceState({}, '', loginUrl);
-    return <LoginPage onNavigate={navigate} redirectTo={path} />;
+  if (!loading && protectedRoutes.some((route) => path.startsWith(route))) {
+    if (!user) {
+      const loginUrl = `/login?redirectTo=${encodeURIComponent(path)}`;
+      window.history.replaceState({}, '', loginUrl);
+      return <LoginPage onNavigate={navigate} redirectTo={path} />;
+    }
+
+    if (!isVerified) {
+      const verifyUrl = `/verify-email?email=${encodeURIComponent(user.email || '')}&redirectTo=${encodeURIComponent(path)}`;
+      window.history.replaceState({}, '', verifyUrl);
+      return <VerifyEmailPage onNavigate={navigate} redirectTo={path} email={user.email || undefined} />;
+    }
   }
 
   if (path.startsWith('/login')) {
@@ -77,6 +88,10 @@ function AppContent() {
 
   if (path.startsWith('/signup')) {
     return <SignupPage onNavigate={navigate} redirectTo={redirectToParam} />;
+  }
+
+  if (path.startsWith('/verify-email')) {
+    return <VerifyEmailPage onNavigate={navigate} redirectTo={redirectToParam} />;
   }
 
   if (path === '/forgot-password') {
