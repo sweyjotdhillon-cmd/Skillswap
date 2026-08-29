@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Logo } from '../brand/Logo';
+import { ThemeToggle } from '../ui/ThemeToggle';
 
 const navItems = [
   { label: 'Explore Swaps', path: '/explore' },
@@ -57,6 +58,7 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
       </nav>
 
       <div className="header-right-group">
+        <ThemeToggle />
         {showUserHeader ? (
           <div className="header-user-actions" aria-label="User profile and notifications">
             <button
