@@ -3,6 +3,7 @@ import { Home } from './pages/Home';
 import { CreateSwapPage } from './pages/CreateSwap';
 import { ExploreSwapsPage } from './pages/ExploreSwaps';
 import { AboutPage } from './pages/About';
+import { SupportPage } from './pages/Support';
 
 export default function App() {
   const [path, setPath] = useState(window.location.pathname);
@@ -26,6 +27,8 @@ export default function App() {
       document.title = 'Create Swap — Skillswap';
     } else if (path === '/about') {
       document.title = 'About — SkillSwap';
+    } else if (path === '/support') {
+      document.title = 'Support — SkillSwap';
     } else {
       document.title = 'Skillswap — Skills are your currency';
     }
@@ -41,6 +44,10 @@ export default function App() {
 
   if (path === '/about') {
     return <AboutPage onNavigate={navigate} />;
+  }
+
+  if (path === '/support') {
+    return <SupportPage onNavigate={navigate} />;
   }
 
   return <Home onNavigate={navigate} />;

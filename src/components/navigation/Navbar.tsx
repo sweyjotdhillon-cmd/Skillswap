@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Logo } from '../brand/Logo';
 
-const navItems = ['How It Works', 'Community', 'About'];
+const navItems = ['How It Works', 'Community', 'About', 'Support'];
 
 type NavbarProps = {
   onNavigate?: (path: string) => void;
@@ -19,6 +19,8 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath }: Navbar
       e.preventDefault();
       if (item === 'About') {
         onNavigate('/about');
+      } else if (item === 'Support') {
+        onNavigate('/support');
       } else {
         onNavigate('/#' + item.toLowerCase().replaceAll(' ', '-'));
       }
@@ -40,7 +42,13 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath }: Navbar
         {navItems.map((item) => (
           <a
             key={item}
-            href={`#${item.toLowerCase().replaceAll(' ', '-')}`}
+            href={
+              item === 'About'
+                ? '/about'
+                : item === 'Support'
+                ? '/support'
+                : `#${item.toLowerCase().replaceAll(' ', '-')}`
+            }
             onClick={(e) => handleNavClick(e, item)}
           >
             {item}
@@ -103,7 +111,13 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath }: Navbar
             {navItems.map((item) => (
               <a
                 key={item}
-                href={`#${item.toLowerCase().replaceAll(' ', '-')}`}
+                href={
+                  item === 'About'
+                    ? '/about'
+                    : item === 'Support'
+                    ? '/support'
+                    : `#${item.toLowerCase().replaceAll(' ', '-')}`
+                }
                 onClick={(e) => handleNavClick(e, item)}
               >
                 {item}
