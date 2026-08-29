@@ -14,6 +14,22 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string }>({});
 
+  const calculateStrength = (pwd: string) => {
+    if (!pwd) return { score: 0, label: '', color: '' };
+    let score = 0;
+    if (pwd.length >= 6) score += 1;
+    if (pwd.length >= 10) score += 1;
+    if (/[A-Z]/.test(pwd)) score += 1;
+    if (/[0-9]/.test(pwd)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+
+    if (score <= 1) return { score: 1, label: 'Weak', color: '#e53e3e' };
+    if (score <= 3) return { score: 2, label: 'Medium', color: '#dd6b20' };
+    return { score: 3, label: 'Strong', color: '#38a169' };
+  };
+
+  const strength = calculateStrength(password);
+
   const validate = () => {
     const newErrors: { password?: string; confirmPassword?: string } = {};
 
@@ -44,7 +60,7 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
     try {
       const supabase = getSupabaseBrowserClient();
       if (!supabase) {
-        setErrorMessage('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY environment variables.');
+        setErrorMessage('Supabase is not configured.');
         return;
       }
       const { error } = await supabase.auth.updateUser({
@@ -54,17 +70,19 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
       if (error) {
         setErrorMessage(error.message);
       } else {
-        setSuccessMessage('Your password has been reset successfully! Redirecting to login...');
+        setSuccessMessage('Password updated successfully! Please log in with your new password.');
+        // Sign out recovery session to enforce fresh login with new password
+        await supabase.auth.signOut();
         setTimeout(() => {
           if (onNavigate) {
             onNavigate('/login');
           } else {
             window.location.href = '/login';
           }
-        }, 3000);
+        }, 2000);
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'An error occurred while setting your new password.');
+      setErrorMessage(err.message || 'An error occurred while updating your password.');
     } finally {
       setLoading(false);
     }
@@ -76,8 +94,8 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
       <main className="auth-layout-grid" style={{ gridTemplateColumns: '1fr', maxWidth: '600px' }}>
         <section className="auth-card-container">
           <div className="auth-card-header">
-            <h2 className="auth-card-title">Update your password</h2>
-            <p className="auth-card-subtitle">Enter a new secure password for your SkillSwap account.</p>
+            <h2 className="auth-card-title">Create New Password</h2>
+            <p className="auth-card-subtitle">Enter a secure new password for your SkillSwap account.</p>
           </div>
 
           {errorMessage && (
@@ -93,7 +111,7 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
 
           {successMessage && (
             <div className="auth-alert auth-alert--success" role="status">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
               </svg>
@@ -118,7 +136,17 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
                 }}
                 disabled={loading}
               />
-              {errors.password && <p className="error-message" style={{ color: '#e53e3e', fontSize: '0.8rem', marginTop: '0.25rem' }}>{errors.password}</p>}
+              {password && (
+                <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>Strength:</span>
+                  <span style={{ color: strength.color, fontWeight: 600 }}>{strength.label}</span>
+                </div>
+              )}
+              {errors.password && (
+                <p className="error-message" style={{ color: '#e53e3e', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                  {errors.password}
+                </p>
+              )}
             </div>
 
             <div className="auth-form-group">
@@ -137,12 +165,16 @@ export function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
                 }}
                 disabled={loading}
               />
-              {errors.confirmPassword && <p className="error-message" style={{ color: '#e53e3e', fontSize: '0.8rem', marginTop: '0.25rem' }}>{errors.confirmPassword}</p>}
+              {errors.confirmPassword && (
+                <p className="error-message" style={{ color: '#e53e3e', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                  {errors.confirmPassword}
+                </p>
+              )}
             </div>
 
             <button type="submit" className="auth-submit-btn" disabled={loading}>
               {loading ? (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
                   <svg className="spinner" viewBox="0 0 24 24" width="16" height="16" style={{ animation: 'spin 1s linear infinite' }}>
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" opacity="0.25" />
                     <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" opacity="0.75" />

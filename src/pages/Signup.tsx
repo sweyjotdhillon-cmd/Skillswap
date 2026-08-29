@@ -75,16 +75,8 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
         } else {
           setErrorMessage(error.message);
         }
-      } else if (data.session && data.user?.email_confirmed_at) {
-        // Logged in immediately & verified (e.g. if email confirmation is disabled in Supabase)
-        const dest = redirectTo || '/explore';
-        if (onNavigate) {
-          onNavigate(dest);
-        } else {
-          window.location.href = dest;
-        }
       } else {
-        // Verification email / code sent
+        // Always navigate to email OTP verification screen on email/password signup
         const verifyUrl = `/verify-email?email=${encodeURIComponent(email)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
         if (onNavigate) {
           onNavigate(verifyUrl);
