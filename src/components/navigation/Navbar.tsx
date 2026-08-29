@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Logo } from '../brand/Logo';
 import { useAuth } from '../../context/AuthContext';
 
+
 const navItems = [
   { label: 'Explore Swaps', path: '/explore' },
   { label: 'Swap Requests', path: '/swap-requests' },
@@ -66,6 +67,7 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
       </nav>
 
       <div className="header-right-group">
+
         {user ? (
           <div className="auth-user-menu">
             <span className="auth-user-email" title={user.email}>
