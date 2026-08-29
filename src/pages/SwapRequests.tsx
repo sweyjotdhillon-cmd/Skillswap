@@ -278,7 +278,12 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
             </div>
 
             <div className="sr-cards-list">
-              {receivedRequests.map((req) => (
+              {receivedRequests.length === 0 ? (
+                <div className="sr-empty-state">
+                  <p>You haven’t received any swap requests yet.</p>
+                </div>
+              ) : (
+                receivedRequests.map((req) => (
                 <div key={req.id} className={`sr-card ${req.status !== 'Pending' ? 'sr-card--handled' : ''}`}>
                   {/* CARD HEADER */}
                   <div className="sr-card-header">
@@ -366,7 +371,8 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
                     </button>
                   </div>
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </section>
         )}

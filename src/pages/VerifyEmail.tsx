@@ -243,7 +243,7 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
             </button>
           </form>
 
-          <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1fr solid rgba(255, 255, 255, 0.1)', display: 'flex', flexDirection: 'column', gap: '0.75rem', textAlign: 'center' }}>
+          <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--shell-border, rgba(17, 22, 28, 0.12))', display: 'flex', flexDirection: 'column', gap: '0.75rem', textAlign: 'center' }}>
             <p style={{ fontSize: '0.9rem', opacity: 0.85 }}>
               Didn't receive a code?{' '}
               <button

@@ -171,13 +171,22 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
               </a>
             ))}
             {user ? (
-              <button
-                type="button"
-                className="mobile-drawer-cta"
-                onClick={handleSignOut}
-              >
-                Sign Out
-              </button>
+              <>
+                <div className="mobile-drawer-user-info">
+                  <span className="mobile-user-label">Signed in as</span>
+                  <strong className="mobile-user-email">{user.email}</strong>
+                </div>
+                <button
+                  type="button"
+                  className="mobile-drawer-cta"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleSignOut();
+                  }}
+                >
+                  Sign Out
+                </button>
+              </>
             ) : (
               <>
                 <a

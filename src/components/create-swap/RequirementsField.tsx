@@ -27,12 +27,14 @@ export function RequirementsField({ value, onChange, error }: RequirementsFieldP
           maxLength={maxLength}
           rows={4}
           onChange={(e) => onChange(e.target.value)}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? 'requirements-error' : undefined}
         />
         <div className="counter-row">
           <span className="char-counter">{value.length}/{maxLength}</span>
         </div>
       </div>
-      {error && <p className="error-message" role="alert">{error}</p>}
+      {error && <p id="requirements-error" className="error-message" role="alert">{error}</p>}
     </div>
   );
 }

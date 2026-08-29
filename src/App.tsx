@@ -67,17 +67,25 @@ function AppContent() {
   const urlParams = new URLSearchParams(window.location.search);
   const redirectToParam = urlParams.get('redirectTo') || undefined;
 
+  useEffect(() => {
+    if (!loading && protectedRoutes.some((route) => path.startsWith(route))) {
+      if (!user) {
+        const loginUrl = `/login?redirectTo=${encodeURIComponent(path)}`;
+        window.history.replaceState({}, '', loginUrl);
+      } else if (!isVerified) {
+        const verifyUrl = `/verify-email?email=${encodeURIComponent(user.email || '')}&redirectTo=${encodeURIComponent(path)}`;
+        window.history.replaceState({}, '', verifyUrl);
+      }
+    }
+  }, [loading, user, isVerified, path]);
+
   // Protected route enforcement
   if (!loading && protectedRoutes.some((route) => path.startsWith(route))) {
     if (!user) {
-      const loginUrl = `/login?redirectTo=${encodeURIComponent(path)}`;
-      window.history.replaceState({}, '', loginUrl);
       return <LoginPage onNavigate={navigate} redirectTo={path} />;
     }
 
     if (!isVerified) {
-      const verifyUrl = `/verify-email?email=${encodeURIComponent(user.email || '')}&redirectTo=${encodeURIComponent(path)}`;
-      window.history.replaceState({}, '', verifyUrl);
       return <VerifyEmailPage onNavigate={navigate} redirectTo={path} email={user.email || undefined} />;
     }
   }

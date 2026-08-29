@@ -187,9 +187,9 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
 
-  // Selected swap getters
-  const currentAcceptedSwap = acceptedSwaps.find((s) => s.id === selectedAcceptedId) || acceptedSwaps[0];
-  const currentGivenSwap = givenSwaps.find((s) => s.id === selectedGivenId) || givenSwaps[0];
+  // Selected swap getters with safe null fallback
+  const currentAcceptedSwap = acceptedSwaps.find((s) => s.id === selectedAcceptedId) || acceptedSwaps[0] || null;
+  const currentGivenSwap = givenSwaps.find((s) => s.id === selectedGivenId) || givenSwaps[0] || null;
 
   const handleOpenChat = (participant: SwapParticipant, title: string) => {
     setActiveChatUser({
@@ -333,87 +333,95 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
             {/* SWAP CARDS LIST */}
             <div className="as-list-container">
               {activeTab === 'accepted' ? (
-                acceptedSwaps.map((swap) => {
-                  const isSelected = swap.id === selectedAcceptedId;
-                  return (
-                    <div
-                      key={swap.id}
-                      tabIndex={0}
-                      role="button"
-                      aria-pressed={isSelected}
-                      className={`as-list-card ${isSelected ? 'as-list-card--selected' : ''}`}
-                      onClick={() => setSelectedAcceptedId(swap.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setSelectedAcceptedId(swap.id);
-                        }
-                      }}
-                    >
-                      <div className="as-card-header-row">
-                        <div className="as-card-user">
-                          <img src={swap.participant.avatar} alt={swap.participant.name} className="as-card-avatar" />
-                          <div className="as-card-user-meta">
-                            <span className="as-card-user-name">{swap.participant.name}</span>
-                            <span className="as-card-time">{swap.timeAgo}</span>
+                acceptedSwaps.length === 0 ? (
+                  <div className="sr-empty-state"><p>No accepted swaps found.</p></div>
+                ) : (
+                  acceptedSwaps.map((swap) => {
+                    const isSelected = swap.id === selectedAcceptedId;
+                    return (
+                      <div
+                        key={swap.id}
+                        tabIndex={0}
+                        role="button"
+                        aria-pressed={isSelected}
+                        className={`as-list-card ${isSelected ? 'as-list-card--selected' : ''}`}
+                        onClick={() => setSelectedAcceptedId(swap.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedAcceptedId(swap.id);
+                          }
+                        }}
+                      >
+                        <div className="as-card-header-row">
+                          <div className="as-card-user">
+                            <img src={swap.participant.avatar} alt={swap.participant.name} className="as-card-avatar" />
+                            <div className="as-card-user-meta">
+                              <span className="as-card-user-name">{swap.participant.name}</span>
+                              <span className="as-card-time">{swap.timeAgo}</span>
+                            </div>
                           </div>
-                        </div>
-                        <span className={`as-status-badge as-status-badge--${swap.status.toLowerCase().replace(' ', '-')}`}>
-                          ● {swap.status}
-                        </span>
-                      </div>
-
-                      <div className="as-card-body">
-                        <h3 className="as-card-title">{swap.title}</h3>
-                        <div className="as-card-meta-row">
-                          <span className="as-card-credits">{swap.credits} Credits</span>
-                          <span className="as-card-progress">{swap.progress}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                givenSwaps.map((swap) => {
-                  const isSelected = swap.id === selectedGivenId;
-                  return (
-                    <div
-                      key={swap.id}
-                      tabIndex={0}
-                      role="button"
-                      aria-pressed={isSelected}
-                      className={`as-list-card ${isSelected ? 'as-list-card--selected' : ''}`}
-                      onClick={() => setSelectedGivenId(swap.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setSelectedGivenId(swap.id);
-                        }
-                      }}
-                    >
-                      <div className="as-card-header-row">
-                        <div className="as-card-user">
-                          <img src={swap.participant.avatar} alt={swap.participant.name} className="as-card-avatar" />
-                          <div className="as-card-user-meta">
-                            <span className="as-card-user-name">{swap.participant.name}</span>
-                            <span className="as-card-time">{swap.timeAgo}</span>
-                          </div>
-                        </div>
-                        <span className="as-card-arrow-icon" aria-hidden="true">→</span>
-                      </div>
-
-                      <div className="as-card-body">
-                        <h3 className="as-card-title">{swap.title}</h3>
-                        <div className="as-card-meta-row">
-                          <span className="as-card-credits">{swap.creditsOffered} Credits</span>
-                          <span className="as-status-badge as-status-badge--waiting">
-                            ● {swap.submissionStatus}
+                          <span className={`as-status-badge as-status-badge--${swap.status.toLowerCase().replace(' ', '-')}`}>
+                            ● {swap.status}
                           </span>
                         </div>
+
+                        <div className="as-card-body">
+                          <h3 className="as-card-title">{swap.title}</h3>
+                          <div className="as-card-meta-row">
+                            <span className="as-card-credits">{swap.credits} Credits</span>
+                            <span className="as-card-progress">{swap.progress}%</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })
+                )
+              ) : (
+                givenSwaps.length === 0 ? (
+                  <div className="sr-empty-state"><p>No given swaps found.</p></div>
+                ) : (
+                  givenSwaps.map((swap) => {
+                    const isSelected = swap.id === selectedGivenId;
+                    return (
+                      <div
+                        key={swap.id}
+                        tabIndex={0}
+                        role="button"
+                        aria-pressed={isSelected}
+                        className={`as-list-card ${isSelected ? 'as-list-card--selected' : ''}`}
+                        onClick={() => setSelectedGivenId(swap.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedGivenId(swap.id);
+                          }
+                        }}
+                      >
+                        <div className="as-card-header-row">
+                          <div className="as-card-user">
+                            <img src={swap.participant.avatar} alt={swap.participant.name} className="as-card-avatar" />
+                            <div className="as-card-user-meta">
+                              <span className="as-card-user-name">{swap.participant.name}</span>
+                              <span className="as-card-time">{swap.timeAgo}</span>
+                            </div>
+                          </div>
+                          <span className="as-card-arrow-icon" aria-hidden="true">→</span>
+                        </div>
+
+                        <div className="as-card-body">
+                          <h3 className="as-card-title">{swap.title}</h3>
+                          <div className="as-card-meta-row">
+                            <span className="as-card-credits">{swap.creditsOffered} Credits</span>
+                            <span className="as-status-badge as-status-badge--waiting">
+                              ● {swap.submissionStatus}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )
               )}
             </div>
           </section>
