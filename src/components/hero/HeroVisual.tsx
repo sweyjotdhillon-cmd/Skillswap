@@ -2,41 +2,91 @@ export function HeroVisual() {
   return (
     <section className="ecosystem" aria-label="SkillCredits circular skill exchange illustration">
       <svg className="exchange-loop" viewBox="0 0 640 560" aria-hidden="true">
-        {/* Circular watercolor loops */}
-        <path className="loop loop--wide" d="M131 279c6-112 99-190 226-183 112 6 205 78 207 177 2 109-98 190-224 187-131-3-216-72-209-181Z" />
-        <path className="loop loop--soft" d="M111 295c19-118 124-190 253-176 108 12 184 85 182 170-3 107-108 175-234 170-125-5-217-66-201-164Z" />
-        <path className="loop loop--thin" d="M152 260c26-104 125-157 237-142 99 13 164 76 166 153 3 91-85 159-205 163-119 4-222-65-198-174Z" />
+        <defs>
+          {/* Broad watercolor gradient for the left/thick side of Enso loop */}
+          <radialGradient id="ensoGrad" cx="25%" cy="50%" r="55%" fx="20%" fy="50%">
+            <stop offset="0%" stopColor="#ded2bf" stopOpacity="0.85" />
+            <stop offset="45%" stopColor="#e8ded0" stopOpacity="0.65" />
+            <stop offset="80%" stopColor="#f2ece1" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#f7f5f0" stopOpacity="0" />
+          </radialGradient>
 
-        {/* Hand-drawn annotation pointer lines matching reference image */}
-        {/* Top figure pointer line: curves from label down to figure head */}
-        <path
-          d="M 345 88 C 350 102, 353 112, 355 125"
-          fill="none"
-          stroke="#11161c"
-          strokeWidth="1.2"
-        />
-        <circle cx="345" cy="88" r="1.5" fill="#11161c" />
+          {/* Soft blur for watercolor edges */}
+          <filter id="ensoBlur" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="4" />
+          </filter>
+          <filter id="fineGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="1.2" />
+          </filter>
+        </defs>
 
-        {/* Right figure pointer line */}
+        {/* 1. Main broad watercolor sweep (thickest on left, tapering around) */}
         <path
-          d="M 568 282 C 564 274, 560 268, 558 260"
+          d="M 310 75 C 445 75, 545 165, 545 280 C 545 395, 445 485, 310 485 C 160 485, 110 380, 110 280 C 110 170, 175 75, 310 75 Z"
           fill="none"
-          stroke="#11161c"
-          strokeWidth="1.2"
+          stroke="url(#ensoGrad)"
+          strokeWidth="70"
+          strokeLinecap="round"
+          filter="url(#ensoBlur)"
         />
 
-        {/* Bottom figure pointer line: curves up to feet with arrow head */}
+        {/* 2. Secondary brush layer creating ring texture */}
         <path
-          d="M 368 472 C 374 460, 378 448, 381 438"
+          d="M 320 88 C 440 88, 532 170, 532 280 C 532 390, 440 472, 320 472 C 180 472, 135 375, 135 280 C 135 180, 195 88, 320 88 Z"
           fill="none"
-          stroke="#11161c"
-          strokeWidth="1.2"
+          stroke="#e2d5c3"
+          strokeWidth="42"
+          strokeLinecap="round"
+          opacity="0.75"
         />
-        <polygon points="381,435 377,443 384,442" fill="#11161c" />
+
+        {/* 3. Fine circular strokes on right edge (Enso ring detail) */}
+        <circle cx="340" cy="280" r="195" fill="none" stroke="#d3c3ad" strokeWidth="2.5" opacity="0.45" />
+        <circle cx="340" cy="280" r="192" fill="none" stroke="#dfd2bf" strokeWidth="6" opacity="0.5" filter="url(#fineGlow)" />
+        <circle cx="340" cy="280" r="186" fill="none" stroke="#e8ded0" strokeWidth="12" opacity="0.6" />
+        <circle cx="340" cy="280" r="152" fill="none" stroke="#e0d2c0" strokeWidth="2" opacity="0.35" />
+
+        {/* 4. Hand-drawn Pointer Lines & Arrows inside SVG */}
+        {/* Top figure pointer line: from top figure head area (352, 126) curving up-right toward "I need a logo design" label */}
+        <g className="pointer-group">
+          <path
+            d="M 353 125 C 358 108, 362 98, 368 88"
+            fill="none"
+            stroke="#221e1a"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+          />
+        </g>
+
+        {/* Right figure pointer line: from right figure torso area (535, 260) curving down-right toward "I can design logos" label */}
+        <g className="pointer-group">
+          <path
+            d="M 536 262 C 542 270, 546 276, 552 282"
+            fill="none"
+            stroke="#221e1a"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+          />
+        </g>
+
+        {/* Bottom figure pointer line with arrowhead: from "I can help with SEO" quote up to bottom figure's feet (382, 422) */}
+        <g className="pointer-group">
+          <path
+            d="M 364 472 C 372 458, 377 444, 381 428"
+            fill="none"
+            stroke="#221e1a"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+          />
+          <polygon points="381,424 376,432 384,431" fill="#221e1a" />
+        </g>
       </svg>
 
+      {/* Center SC Core Badge */}
       <div className="credit-core" aria-label="SkillCredits: Value flows. Skills grow.">
-        <span className="credit-initials">SC</span>
+        <div className="credit-initials-wrapper">
+          <span className="credit-initials">SC</span>
+        </div>
         <strong>SkillCredits</strong>
         <small>Value flows.<br />Skills grow.</small>
       </div>
@@ -45,8 +95,8 @@ export function HeroVisual() {
       <div className="person person--top">
         <span className="person-halo" />
         <svg className="person-silhouette" viewBox="0 0 24 64" aria-hidden="true">
-          <ellipse cx="12" cy="61" rx="8" ry="2" fill="rgba(17,22,28,0.22)" filter="blur(1px)" />
-          <circle cx="12" cy="7" r="4" fill="#11161c" />
+          <ellipse cx="12" cy="61" rx="7" ry="2" fill="rgba(17,22,28,0.22)" filter="blur(1px)" />
+          <circle cx="12" cy="7" r="4.2" fill="#11161c" />
           <path d="M10.8 11h2.4v2.5h-2.4z" fill="#11161c" />
           <path
             d="M6.5 14 C6.5 13 8.2 12.8 12 12.8 C15.8 12.8 17.5 13 17.5 14 L17 27 C17 29.5 16.5 30.5 16 33.5 L15.2 45.5 L15.5 59.5 C15.5 60 14.2 60 13.2 59.5 L12.3 45 L11.7 45 L10.8 59.5 C9.8 60 8.5 60 8.5 59.5 L8.8 45.5 L8 33.5 C7.5 30.5 7 29.5 7 27 Z"
@@ -62,8 +112,8 @@ export function HeroVisual() {
       <div className="person person--right">
         <span className="person-halo" />
         <svg className="person-silhouette" viewBox="0 0 24 64" aria-hidden="true">
-          <ellipse cx="12" cy="61" rx="8" ry="2" fill="rgba(17,22,28,0.22)" filter="blur(1px)" />
-          <circle cx="12" cy="7" r="4" fill="#11161c" />
+          <ellipse cx="6" cy="61" rx="8" ry="2" fill="rgba(17,22,28,0.22)" filter="blur(1px)" />
+          <circle cx="12" cy="7" r="4.2" fill="#11161c" />
           <path d="M10.8 11h2.4v2.5h-2.4z" fill="#11161c" />
           <path
             d="M6.5 14 C6.5 13 8.2 12.8 12 12.8 C15.8 12.8 17.5 13 17.5 14 L17 27 C17 29.5 16.5 30.5 16 33.5 L15.2 45.5 L15.5 59.5 C15.5 60 14.2 60 13.2 59.5 L12.3 45 L11.7 45 L10.8 59.5 C9.8 60 8.5 60 8.5 59.5 L8.8 45.5 L8 33.5 C7.5 30.5 7 29.5 7 27 Z"
@@ -77,10 +127,9 @@ export function HeroVisual() {
 
       {/* Bottom Figure: "I can help with SEO" */}
       <div className="person person--bottom">
-        <span className="person-halo person-halo--subtle" />
         <svg className="person-silhouette" viewBox="0 0 24 64" aria-hidden="true">
-          <ellipse cx="12" cy="61" rx="8" ry="2" fill="rgba(17,22,28,0.22)" filter="blur(1px)" />
-          <circle cx="12" cy="7" r="4" fill="#11161c" />
+          <ellipse cx="12" cy="61" rx="7" ry="2" fill="rgba(17,22,28,0.22)" filter="blur(1px)" />
+          <circle cx="12" cy="7" r="4.2" fill="#11161c" />
           <path d="M10.8 11h2.4v2.5h-2.4z" fill="#11161c" />
           <path
             d="M6.5 14 C6.5 13 8.2 12.8 12 12.8 C15.8 12.8 17.5 13 17.5 14 L17 27 C17 29.5 16.5 30.5 16 33.5 L15.2 45.5 L15.5 59.5 C15.5 60 14.2 60 13.2 59.5 L12.3 45 L11.7 45 L10.8 59.5 C9.8 60 8.5 60 8.5 59.5 L8.8 45.5 L8 33.5 C7.5 30.5 7 29.5 7 27 Z"
@@ -92,12 +141,12 @@ export function HeroVisual() {
         </em>
       </div>
 
-      {/* Left Figure: Standing man with halo, no quote label */}
+      {/* Left Figure: Standing man with glowing golden halo */}
       <div className="person person--left">
-        <span className="person-halo" />
+        <span className="person-halo person-halo--large" />
         <svg className="person-silhouette" viewBox="0 0 24 64" aria-hidden="true">
-          <ellipse cx="12" cy="61" rx="8" ry="2" fill="rgba(17,22,28,0.22)" filter="blur(1px)" />
-          <circle cx="12" cy="7" r="4" fill="#11161c" />
+          <ellipse cx="12" cy="61" rx="9" ry="2.5" fill="rgba(17,22,28,0.28)" filter="blur(1px)" />
+          <circle cx="12" cy="7" r="4.2" fill="#11161c" />
           <path d="M10.8 11h2.4v2.5h-2.4z" fill="#11161c" />
           <path
             d="M6.5 14 C6.5 13 8.2 12.8 12 12.8 C15.8 12.8 17.5 13 17.5 14 L17 27 C17 29.5 16.5 30.5 16 33.5 L15.2 45.5 L15.5 59.5 C15.5 60 14.2 60 13.2 59.5 L12.3 45 L11.7 45 L10.8 59.5 C9.8 60 8.5 60 8.5 59.5 L8.8 45.5 L8 33.5 C7.5 30.5 7 29.5 7 27 Z"
