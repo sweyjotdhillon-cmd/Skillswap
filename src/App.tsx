@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Home } from './pages/Home';
 import { CreateSwapPage } from './pages/CreateSwap';
 import { ExploreSwapsPage } from './pages/ExploreSwaps';
+import { AboutPage } from './pages/About';
 
 export default function App() {
   const [path, setPath] = useState(window.location.pathname);
@@ -23,6 +24,8 @@ export default function App() {
   useEffect(() => {
     if (path === '/create-swap') {
       document.title = 'Create Swap — Skillswap';
+    } else if (path === '/about') {
+      document.title = 'About — SkillSwap';
     } else {
       document.title = 'Skillswap — Skills are your currency';
     }
@@ -34,6 +37,10 @@ export default function App() {
 
   if (path === '/explore') {
     return <ExploreSwapsPage onNavigate={navigate} />;
+  }
+
+  if (path === '/about') {
+    return <AboutPage onNavigate={navigate} />;
   }
 
   return <Home onNavigate={navigate} />;
