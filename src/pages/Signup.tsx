@@ -108,15 +108,19 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
         setErrorMessage('Supabase is not configured.');
         return;
       }
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}${redirectTo ? redirectTo : '/explore'}`,
-        },
-      });
+      // Create/use anonymous session for Google Signup onboarding flow
+      const { error } = await supabase.auth.signInAnonymously();
       if (error) throw error;
+
+      // Navigate to 4-step onboarding flow
+      const targetPath = '/onboarding';
+      if (onNavigate) {
+        onNavigate(targetPath);
+      } else {
+        window.location.href = targetPath;
+      }
     } catch (err: any) {
-      setErrorMessage(err.message || 'An unexpected error occurred. Please try again.');
+      setErrorMessage(err.message || 'An unexpected error occurred during Google onboarding start.');
     }
   };
 
