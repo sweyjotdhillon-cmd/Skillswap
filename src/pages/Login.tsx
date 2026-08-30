@@ -56,14 +56,16 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
       });
 
       if (error) {
-
+        if (error.message.includes('Email not confirmed')) {
           const verifyUrl = `/verify-email?email=${encodeURIComponent(cleanEmail)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
           if (onNavigate) {
             onNavigate(verifyUrl);
           } else {
             window.location.href = verifyUrl;
           }
-
+        } else {
+          setErrorType('incorrect_password');
+          setErrorMessage(error.message || 'Invalid login credentials.');
         }
       } else {
         const user = data.user;
@@ -148,19 +150,6 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
                 </svg>
                 <span>{errorMessage}</span>
               </div>
-
-                    className="auth-link"
-                    style={{ fontWeight: 600, textDecoration: 'underline' }}
-                    onClick={(e) => {
-                      e.preventDefault();
-
-                      }
-                    }}
-                  >
-                    Create account →
-                  </a>
-                </div>
-              )}
 
               {(errorType === 'ambiguous_credentials' || (!errorType && errorMessage.includes("Account doesn't exist"))) && (
                 <div style={{ marginTop: '0.25rem', fontSize: '0.9rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
