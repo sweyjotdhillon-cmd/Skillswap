@@ -165,8 +165,38 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_user_custom_skills_unique
 
 
 -- ============================================================================
--- 5. TRUSTED STORED PROCEDURES (add_user_skill & complete_profile)
+-- 5. TRUSTED STORED PROCEDURES (check_username_available, add_user_skill & complete_profile)
 -- ============================================================================
+
+-- Procedure: Check Username Availability (Atomic, Case-Insensitive, Security Definer)
+CREATE OR REPLACE FUNCTION public.check_username_available(p_username TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_clean TEXT;
+  v_current_uid UUID;
+BEGIN
+  v_clean := LOWER(TRIM(p_username));
+  IF v_clean IS NULL OR v_clean = '' THEN
+    RETURN FALSE;
+  END IF;
+
+  v_current_uid := auth.uid();
+
+  RETURN NOT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE LOWER(username) = v_clean
+      AND (v_current_uid IS NULL OR id <> v_current_uid)
+  );
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.check_username_available(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.check_username_available(TEXT) TO anon, authenticated, service_role;
+
 
 -- Procedure: Add User Skill (Atomic, Concurrency-Safe)
 CREATE OR REPLACE FUNCTION public.add_user_skill(
