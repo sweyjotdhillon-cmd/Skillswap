@@ -5680,6 +5680,57 @@ h1 span { color: #a8781d; }
   padding-left: 2.5rem !important;
   font-weight: 600;
   letter-spacing: 0.02em;
+  background-color: #ffffff;
+  color: #11161c;
+  caret-color: #11161c;
+  border-color: rgba(17, 22, 28, 0.15);
+}
+
+.username-input::placeholder {
+  color: rgba(17, 22, 28, 0.4);
+}
+
+.username-input:focus {
+  background-color: #ffffff;
+  color: #11161c;
+  border-color: #d6a64a;
+  box-shadow: 0 0 0 3px rgba(214, 166, 74, 0.2);
+}
+
+.username-input:-webkit-autofill,
+.username-input:-webkit-autofill:hover,
+.username-input:-webkit-autofill:focus,
+.username-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #11161c !important;
+  caret-color: #11161c !important;
+}
+
+[data-theme='dark'] .username-input {
+  background-color: #161b22;
+  color: #f0f6fc;
+  caret-color: #f0f6fc;
+  border-color: rgba(240, 246, 252, 0.2);
+}
+
+[data-theme='dark'] .username-input::placeholder {
+  color: rgba(240, 246, 252, 0.4);
+}
+
+[data-theme='dark'] .username-input:focus {
+  background-color: #21262d;
+  color: #f0f6fc;
+  border-color: #d6a64a;
+  box-shadow: 0 0 0 4px rgba(214, 166, 74, 0.25);
+}
+
+[data-theme='dark'] .username-input:-webkit-autofill,
+[data-theme='dark'] .username-input:-webkit-autofill:hover,
+[data-theme='dark'] .username-input:-webkit-autofill:focus,
+[data-theme='dark'] .username-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #161b22 inset !important;
+  -webkit-text-fill-color: #f0f6fc !important;
+  caret-color: #f0f6fc !important;
 }
 
 /* Compact Username Status Indicator Box */
