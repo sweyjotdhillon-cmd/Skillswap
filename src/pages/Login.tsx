@@ -10,8 +10,11 @@ type LoginPageProps = {
 export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  type ErrorType = 'incorrect_password' | 'account_not_found' | 'ambiguous_credentials' | 'rate_limit' | 'network_error' | 'unconfirmed_email' | 'generic' | null;
+
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<ErrorType>(null);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   const validate = () => {
@@ -33,6 +36,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    setErrorType(null);
 
     if (!validate()) return;
 
@@ -40,7 +44,8 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
     try {
       const supabase = getSupabaseBrowserClient();
       if (!supabase) {
-        setErrorMessage('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY environment variables.');
+        setErrorType('ambiguous_credentials');
+        setErrorMessage("Account doesn't exist or invalid credentials.");
         return;
       }
       const cleanEmail = email.trim().toLowerCase();
@@ -50,20 +55,36 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
       });
 
       if (error) {
-        if (error.message.includes('Email not confirmed')) {
+        const errCode = (error as any).code;
+        const errStatus = error.status;
+        const msg = error.message || '';
+        const lowerMsg = msg.toLowerCase();
+
+        if (msg.includes('Email not confirmed') || errCode === 'email_not_confirmed') {
           const verifyUrl = `/verify-email?email=${encodeURIComponent(cleanEmail)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
           if (onNavigate) {
             onNavigate(verifyUrl);
           } else {
             window.location.href = verifyUrl;
           }
-        } else if (
-          error.message.includes('Invalid login credentials') ||
-          error.status === 400
-        ) {
+        } else if (errCode === 'invalid_password' || lowerMsg.includes('invalid password') || lowerMsg.includes('incorrect password')) {
+          setErrorType('incorrect_password');
+          setErrorMessage('Incorrect password. Please try again.');
+        } else if (errCode === 'user_not_found' || lowerMsg.includes('user not found') || lowerMsg.includes('account not found')) {
+          setErrorType('account_not_found');
+          setErrorMessage("This account doesn't exist.");
+        } else if (errStatus === 429 || errCode === 'over_email_send_rate_limit' || lowerMsg.includes('rate limit') || lowerMsg.includes('too many requests')) {
+          setErrorType('rate_limit');
+          setErrorMessage('Too many login attempts. Please wait a moment and try again.');
+        } else if ((errStatus && errStatus >= 500) || lowerMsg.includes('failed to fetch') || lowerMsg.includes('networkerror') || error.name === 'AuthRetryableFetchError') {
+          setErrorType('network_error');
+          setErrorMessage('Network or server error. Please check your connection and try again.');
+        } else if (errCode === 'invalid_credentials' || lowerMsg.includes('invalid login credentials') || errStatus === 400) {
+          setErrorType('ambiguous_credentials');
           setErrorMessage("Account doesn't exist or invalid credentials.");
         } else {
-          setErrorMessage(error.message || 'Invalid email or password. Please check your credentials and try again.');
+          setErrorType('generic');
+          setErrorMessage(msg || 'Invalid email or password. Please check your credentials and try again.');
         }
       } else {
         const user = data.user;
@@ -92,6 +113,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
         }
       }
     } catch (err: any) {
+      setErrorType('generic');
       setErrorMessage(err.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -140,31 +162,97 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
           {errorMessage && (
             <div className="auth-alert auth-alert--error" role="alert" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20" style={{ flexShrink: 0 }}>
                   <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
                 <span>{errorMessage}</span>
               </div>
-              {errorMessage.includes("Account doesn't exist") && (
+
+              {errorType === 'incorrect_password' && (
                 <div style={{ marginTop: '0.25rem', fontSize: '0.9rem' }}>
-                  Need an account?{' '}
+                  Forgot your password?{' '}
                   <a
-                    href="/signup"
+                    href="/forgot-password"
                     className="auth-link"
                     style={{ fontWeight: 600, textDecoration: 'underline' }}
                     onClick={(e) => {
                       e.preventDefault();
                       if (onNavigate) {
-                        onNavigate(`/signup${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`);
+                        onNavigate('/forgot-password');
                       } else {
-                        window.location.href = `/signup${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+                        window.location.href = '/forgot-password';
+                      }
+                    }}
+                  >
+                    Reset password →
+                  </a>
+                </div>
+              )}
+
+              {errorType === 'account_not_found' && (
+                <div style={{ marginTop: '0.25rem', fontSize: '0.9rem' }}>
+                  Need an account?{' '}
+                  <a
+                    href={`/signup?email=${encodeURIComponent(email.trim())}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`}
+                    className="auth-link"
+                    style={{ fontWeight: 600, textDecoration: 'underline' }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const signupUrl = `/signup?email=${encodeURIComponent(email.trim())}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+                      if (onNavigate) {
+                        onNavigate(signupUrl);
+                      } else {
+                        window.location.href = signupUrl;
                       }
                     }}
                   >
                     Create account →
                   </a>
+                </div>
+              )}
+
+              {(errorType === 'ambiguous_credentials' || (!errorType && errorMessage.includes("Account doesn't exist"))) && (
+                <div style={{ marginTop: '0.25rem', fontSize: '0.9rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <span>
+                    Forgot password?{' '}
+                    <a
+                      href="/forgot-password"
+                      className="auth-link"
+                      style={{ fontWeight: 600, textDecoration: 'underline' }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (onNavigate) {
+                          onNavigate('/forgot-password');
+                        } else {
+                          window.location.href = '/forgot-password';
+                        }
+                      }}
+                    >
+                      Reset password
+                    </a>
+                  </span>
+                  <span>•</span>
+                  <span>
+                    Need an account?{' '}
+                    <a
+                      href={`/signup?email=${encodeURIComponent(email.trim())}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`}
+                      className="auth-link"
+                      style={{ fontWeight: 600, textDecoration: 'underline' }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const signupUrl = `/signup?email=${encodeURIComponent(email.trim())}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+                        if (onNavigate) {
+                          onNavigate(signupUrl);
+                        } else {
+                          window.location.href = signupUrl;
+                        }
+                      }}
+                    >
+                      Create account →
+                    </a>
+                  </span>
                 </div>
               )}
             </div>
