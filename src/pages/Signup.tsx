@@ -77,7 +77,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
           error.message.toLowerCase().includes('already exists') ||
           error.status === 422
         ) {
-          setErrorMessage('Account already exists with this email address.');
+          setErrorMessage('Account already exists');
         } else {
           setErrorMessage(error.message);
         }
@@ -135,13 +135,35 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
           </div>
 
           {errorMessage && (
-            <div className="auth-alert auth-alert--error" role="alert">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span>{errorMessage}</span>
+            <div className="auth-alert auth-alert--error" role="alert" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{errorMessage}</span>
+              </div>
+              {errorMessage.includes('Account already exists') && (
+                <div style={{ marginTop: '0.25rem', fontSize: '0.9rem' }}>
+                  Already registered?{' '}
+                  <a
+                    href="/login"
+                    className="auth-link"
+                    style={{ fontWeight: 600, textDecoration: 'underline' }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (onNavigate) {
+                        onNavigate(`/login${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`);
+                      } else {
+                        window.location.href = `/login${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+                      }
+                    }}
+                  >
+                    Log in →
+                  </a>
+                </div>
+              )}
             </div>
           )}
 

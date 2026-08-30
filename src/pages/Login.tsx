@@ -61,7 +61,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
           error.message.includes('Invalid login credentials') ||
           error.status === 400
         ) {
-          setErrorMessage('Account not found or invalid credentials. If you do not have an account yet, please create one.');
+          setErrorMessage("Account doesn't exist or invalid credentials.");
         } else {
           setErrorMessage(error.message || 'Invalid email or password. Please check your credentials and try again.');
         }
@@ -138,13 +138,35 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
           </div>
 
           {errorMessage && (
-            <div className="auth-alert auth-alert--error" role="alert">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span>{errorMessage}</span>
+            <div className="auth-alert auth-alert--error" role="alert" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{errorMessage}</span>
+              </div>
+              {errorMessage.includes("Account doesn't exist") && (
+                <div style={{ marginTop: '0.25rem', fontSize: '0.9rem' }}>
+                  Need an account?{' '}
+                  <a
+                    href="/signup"
+                    className="auth-link"
+                    style={{ fontWeight: 600, textDecoration: 'underline' }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (onNavigate) {
+                        onNavigate(`/signup${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`);
+                      } else {
+                        window.location.href = `/signup${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+                      }
+                    }}
+                  >
+                    Create account →
+                  </a>
+                </div>
+              )}
             </div>
           )}
 
