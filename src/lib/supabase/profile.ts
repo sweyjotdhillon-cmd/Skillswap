@@ -90,7 +90,15 @@ export async function checkUsernameAvailability(username: string): Promise<Usern
     }
 
     if (rpcError) {
-      console.warn('check_username_available RPC error, falling back to direct profiles query:', rpcError);
+      console.error('[DEBUG checkUsernameAvailability] RPC check_username_available failed:', {
+        rpc: 'check_username_available',
+        params: { p_username: cleanUsername },
+        message: rpcError.message,
+        code: rpcError.code,
+        details: rpcError.details,
+        hint: rpcError.hint,
+        errorObj: rpcError,
+      });
     }
 
     // 2. Secondary fallback: direct query on profiles table
@@ -101,8 +109,17 @@ export async function checkUsernameAvailability(username: string): Promise<Usern
       .maybeSingle();
 
     if (error) {
-      console.error('Error checking username availability directly on public.profiles:', error);
-      return { status: 'error', message: 'Unable to check username right now. Please try again.' };
+      console.error('[DEBUG checkUsernameAvailability] Direct profiles query failed:', {
+        table: 'public.profiles',
+        query: `select id from profiles where username = '${cleanUsername}'`,
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        errorObj: error,
+      });
+      const rawMsg = error.message || rpcError?.message || 'Unable to check username right now.';
+      return { status: 'error', message: `Database error (${error.code || 'UNKNOWN'}): ${rawMsg}` };
     }
 
     if (data === null) {
@@ -110,9 +127,9 @@ export async function checkUsernameAvailability(username: string): Promise<Usern
     }
 
     return { status: 'unavailable' };
-  } catch (err) {
-    console.error('Unexpected error checking username availability:', err);
-    return { status: 'error', message: 'Unable to check username right now. Please try again.' };
+  } catch (err: any) {
+    console.error('[DEBUG checkUsernameAvailability] Unexpected error:', err);
+    return { status: 'error', message: err?.message || 'Unable to check username right now. Please try again.' };
   }
 }
 
