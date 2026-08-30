@@ -76,6 +76,8 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
     setErrorMessage(null);
     setSuccessMessage(null);
 
+    if (loading) return;
+
     if (!user) {
       setErrorMessage('You must be signed in to change your password.');
       return;

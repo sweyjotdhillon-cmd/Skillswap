@@ -5450,12 +5450,19 @@ h1 span { color: #a8781d; }
 @media (max-width: 900px) {
   .auth-layout-grid {
     grid-template-columns: 1fr;
-    gap: 2rem;
+    gap: 1.5rem;
     padding-top: 1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 
   .auth-hero-section {
     display: none; /* Hide hero on small screens to focus on the auth form */
+  }
+
+  .auth-card-container {
+    padding: 1.5rem 1.25rem;
+    border-radius: 16px;
   }
 }
 
