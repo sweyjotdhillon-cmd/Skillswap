@@ -65,34 +65,55 @@ export type UsernameCheckResult =
 /**
  * Checks if a username is available (case-insensitive search).
  * Distinguishes invalid format, unavailable, available, and database/network errors.
+ * Queries RPC check_username_available first with fallback to direct profiles query.
  */
 export async function checkUsernameAvailability(username: string): Promise<UsernameCheckResult> {
   const cleanUsername = username.trim().toLowerCase();
   if (!validateUsernameFormat(cleanUsername)) {
-    return { status: 'invalid', message: 'Use 3–30 lowercase letters, numbers, underscore or period.' };
+    return { status: 'invalid', message: 'Use 3–30 lowercase letters, numbers, dots, or underscores.' };
   }
 
   const supabase = getSupabaseBrowserClient();
   if (!supabase) {
-    return { status: 'error', message: 'Database/network error — please try again' };
+    console.error('Error checking username availability: Supabase browser client unavailable');
+    return { status: 'error', message: 'Unable to check username right now. Please try again.' };
   }
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('username', cleanUsername)
-    .maybeSingle();
+  try {
+    // 1. Primary path: query via SECURITY DEFINER RPC check_username_available
+    const { data: rpcData, error: rpcError } = await supabase.rpc('check_username_available', {
+      p_username: cleanUsername,
+    });
 
-  if (error) {
-    console.error('Error checking username availability:', error);
-    return { status: 'error', message: 'Database/network error — please try again' };
+    if (!rpcError && typeof rpcData === 'boolean') {
+      return rpcData ? { status: 'available' } : { status: 'unavailable' };
+    }
+
+    if (rpcError) {
+      console.warn('check_username_available RPC error, falling back to direct profiles query:', rpcError);
+    }
+
+    // 2. Secondary fallback: direct query on profiles table
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', cleanUsername)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error checking username availability directly on public.profiles:', error);
+      return { status: 'error', message: 'Unable to check username right now. Please try again.' };
+    }
+
+    if (data === null) {
+      return { status: 'available' };
+    }
+
+    return { status: 'unavailable' };
+  } catch (err) {
+    console.error('Unexpected error checking username availability:', err);
+    return { status: 'error', message: 'Unable to check username right now. Please try again.' };
   }
-
-  if (data === null) {
-    return { status: 'available' };
-  }
-
-  return { status: 'unavailable' };
 }
 
 /**
