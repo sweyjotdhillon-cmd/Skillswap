@@ -255,6 +255,162 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
     setStep(4);
   };
 
+  // Execute database profile finalization
+  const executeProfileFinalization = async (
+    targetUserId: string,
+    data: {
+      fullName: string;
+      bio: string;
+      username: string;
+      phoneNumber: string;
+      selectedSkills: SelectedSkill[];
+      avatarUrl?: string | null;
+    }
+  ) => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      throw new Error('Supabase client unavailable.');
+    }
+
+    // 1. Upsert Profile (id, full_name, bio, username, avatar_url, profile_completed = false initially)
+    const { error: profileUpdateError } = await supabase
+      .from('profiles')
+      .upsert(
+        {
+          id: targetUserId,
+          full_name: data.fullName.trim(),
+          bio: data.bio.trim() || null,
+          username: data.username.trim().toLowerCase(),
+          avatar_url: data.avatarUrl || null,
+          profile_completed: false,
+        },
+        { onConflict: 'id' }
+      );
+
+    if (profileUpdateError) {
+      if (profileUpdateError.message.includes('unique') || profileUpdateError.message.includes('taken')) {
+        throw new Error('This username is already taken. Please go back and pick another username.');
+      }
+      throw new Error(`Profile update failed: ${profileUpdateError.message}`);
+    }
+
+    // 2. Ensure Accounts row exists (Default 0 Credits)
+    const { error: accountError } = await supabase
+      .from('accounts')
+      .upsert(
+        {
+          user_id: targetUserId,
+          credits_balance: 0,
+        },
+        { onConflict: 'user_id' }
+      );
+
+    if (accountError) {
+      console.warn('Failed to ensure account row:', accountError);
+    }
+
+    // 3. Upsert Private Contact (phone_number)
+    if (data.phoneNumber.trim()) {
+      const { error: contactError } = await supabase
+        .from('user_private_contacts')
+        .upsert(
+          {
+            user_id: targetUserId,
+            phone_number: data.phoneNumber.trim(),
+          },
+          { onConflict: 'user_id' }
+        );
+
+      if (contactError) {
+        console.warn('Failed to update private contact:', contactError);
+      }
+    }
+
+    // 3. Add Selected Skills through RPC `add_user_skill()`
+    for (const item of data.selectedSkills) {
+      if (item.isCustom) {
+        const res = await addUserSkill({ customSkillName: item.name });
+        if (!res.success && res.error && !res.error.includes('duplicate') && !res.error.includes('already exists')) {
+          console.warn(`Failed to add custom skill ${item.name}:`, res.error);
+        }
+      } else if (item.skillId) {
+        const res = await addUserSkill({ skillId: item.skillId });
+        if (!res.success && res.error && !res.error.includes('duplicate') && !res.error.includes('already exists')) {
+          console.warn(`Failed to add predefined skill ${item.name}:`, res.error);
+        }
+      }
+    }
+
+    // 4. Complete Profile via trusted RPC `complete_profile()`
+    const completeRes = await completeProfile();
+    if (!completeRes.success) {
+      throw new Error(completeRes.error || 'Failed to finalize profile completion.');
+    }
+
+    // 5. Clear pending session storage if present
+    sessionStorage.removeItem('skillswap_pending_onboarding');
+
+    // 6. Refresh profile state in AuthContext
+    await refreshProfile();
+
+    // 7. Redirect user
+    const targetPath = redirectTo || '/explore';
+    if (onNavigate) {
+      onNavigate(targetPath);
+    } else {
+      window.location.href = targetPath;
+    }
+  };
+
+  // Check for returning post-OAuth identity linking state
+  useEffect(() => {
+    let isMounted = true;
+    async function checkPendingLinking() {
+      if (!user || user.is_anonymous) return;
+
+      const rawPending = sessionStorage.getItem('skillswap_pending_onboarding');
+      if (!rawPending) return;
+
+      try {
+        const pendingData = JSON.parse(rawPending);
+        if (pendingData && pendingData.username) {
+          setIsSubmitting(true);
+          const resolvedAvatar =
+            user.user_metadata?.avatar_url ||
+            user.user_metadata?.picture ||
+            (Array.isArray(user.identities)
+              ? user.identities.find((i) => i.provider === 'google')?.identity_data?.avatar_url ||
+                user.identities.find((i) => i.provider === 'google')?.identity_data?.picture
+              : null) ||
+            avatarUrl ||
+            pendingData.avatarUrl ||
+            null;
+
+          await executeProfileFinalization(user.id, {
+            fullName: pendingData.fullName,
+            bio: pendingData.bio,
+            username: pendingData.username,
+            phoneNumber: pendingData.phoneNumber,
+            selectedSkills: pendingData.selectedSkills || [],
+            avatarUrl: resolvedAvatar,
+          });
+        }
+      } catch (err: any) {
+        console.error('Failed to finalize onboarding after Google linking:', err);
+        if (isMounted) {
+          setSubmitError(err.message || 'Error completing profile setup after Google linking.');
+          setIsSubmitting(false);
+        }
+      }
+    }
+
+    checkPendingLinking();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
   // Step 4 Validation & Final Submission
   const validatePhone = (phone: string): boolean => {
     if (!phone.trim()) return true; // Phone optional or format checked
@@ -285,72 +441,45 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
         throw new Error('Supabase client unavailable.');
       }
 
-      // 1. Update Profile (full_name, bio, username)
-      const { error: profileUpdateError } = await supabase
-        .from('profiles')
-        .update({
-          full_name: fullName.trim(),
-          bio: bio.trim() || null,
-          username: username.trim().toLowerCase(),
-          avatar_url: avatarUrl,
-        })
-        .eq('id', user.id);
+      // If user is anonymous, link Google identity before finalizing profile
+      if (user.is_anonymous) {
+        const onboardingState = {
+          fullName,
+          bio,
+          username,
+          phoneNumber,
+          selectedSkills,
+          avatarUrl,
+        };
+        sessionStorage.setItem('skillswap_pending_onboarding', JSON.stringify(onboardingState));
 
-      if (profileUpdateError) {
-        if (profileUpdateError.message.includes('unique') || profileUpdateError.message.includes('taken')) {
-          throw new Error('This username is already taken. Please go back and pick another username.');
-        }
-        throw new Error(`Profile update failed: ${profileUpdateError.message}`);
-      }
+        const redirectTarget = `${window.location.origin}/onboarding?linking=complete`;
+        const { error: linkError } = await supabase.auth.linkIdentity({
+          provider: 'google',
+          options: {
+            redirectTo: redirectTarget,
+          },
+        });
 
-      // 2. Update Private Contact (phone_number)
-      if (phoneNumber.trim()) {
-        const { error: contactError } = await supabase
-          .from('user_private_contacts')
-          .upsert(
-            {
-              user_id: user.id,
-              phone_number: phoneNumber.trim(),
-            },
-            { onConflict: 'user_id' }
-          );
-
-        if (contactError) {
-          console.warn('Failed to update private contact:', contactError);
-        }
-      }
-
-      // 3. Add Selected Skills through RPC `add_user_skill()`
-      for (const item of selectedSkills) {
-        if (item.isCustom) {
-          const res = await addUserSkill({ customSkillName: item.name });
-          if (!res.success && res.error && !res.error.includes('duplicate') && !res.error.includes('already exists')) {
-            console.warn(`Failed to add custom skill ${item.name}:`, res.error);
+        if (linkError) {
+          sessionStorage.removeItem('skillswap_pending_onboarding');
+          if (linkError.message.includes('already linked') || linkError.message.includes('identity_already_exists') || linkError.message.includes('already registered')) {
+            throw new Error('An account with this Google email already exists. Please log in instead.');
           }
-        } else if (item.skillId) {
-          const res = await addUserSkill({ skillId: item.skillId });
-          if (!res.success && res.error && !res.error.includes('duplicate') && !res.error.includes('already exists')) {
-            console.warn(`Failed to add predefined skill ${item.name}:`, res.error);
-          }
+          throw new Error(`Google Identity linking failed: ${linkError.message}`);
         }
+        return;
       }
 
-      // 4. Complete Profile via trusted RPC `complete_profile()`
-      const completeRes = await completeProfile();
-      if (!completeRes.success) {
-        throw new Error(completeRes.error || 'Failed to finalize profile completion.');
-      }
-
-      // 5. Refresh profile state in AuthContext
-      await refreshProfile();
-
-      // 6. Redirect user
-      const targetPath = redirectTo || '/';
-      if (onNavigate) {
-        onNavigate(targetPath);
-      } else {
-        window.location.href = targetPath;
-      }
+      // Non-anonymous user: finalize profile directly
+      await executeProfileFinalization(user.id, {
+        fullName,
+        bio,
+        username,
+        phoneNumber,
+        selectedSkills,
+        avatarUrl,
+      });
     } catch (err: any) {
       console.error('Final onboarding submission error:', err);
       setSubmitError(err.message || 'An error occurred during profile creation. Please try again.');

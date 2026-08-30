@@ -11,6 +11,7 @@ interface AuthContextType {
   profileLoading: boolean;
   isVerified: boolean;
   isGoogleUser: boolean;
+  isAnonymous: boolean;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<Session | null>;
   refreshProfile: () => Promise<Profile | null>;
@@ -24,6 +25,7 @@ const AuthContext = createContext<AuthContextType>({
   profileLoading: true,
   isVerified: false,
   isGoogleUser: false,
+  isAnonymous: false,
   signOut: async () => {},
   refreshSession: async () => null,
   refreshProfile: async () => null,
@@ -190,8 +192,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         (Array.isArray(user.identities) && user.identities.some((id) => id.provider === 'google')))
   );
 
+  const isAnonymous = Boolean(user && user.is_anonymous);
+
   const isVerified = Boolean(
-    user && (Boolean(user.email_confirmed_at) || isGoogleUser)
+    user && !isAnonymous && (Boolean(user.email_confirmed_at) || isGoogleUser)
   );
 
   return (
@@ -204,6 +208,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profileLoading,
         isVerified,
         isGoogleUser,
+        isAnonymous,
         signOut,
         refreshSession,
         refreshProfile,
