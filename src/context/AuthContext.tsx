@@ -78,24 +78,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(data.session);
         const currentUser = data.session?.user ?? null;
         setUser(currentUser);
-        setLoading(false);
 
         if (currentUser) {
-          const userProfile = await getProfile(currentUser.id);
-          if (mounted) {
-            setProfile(userProfile);
-            setProfileLoading(false);
+          setProfileLoading(true);
+          try {
+            const userProfile = await getProfile(currentUser.id);
+            if (mounted) {
+              setProfile(userProfile);
+            }
+          } catch (err) {
+            console.error('Error fetching user profile in getSession:', err);
+            if (mounted) {
+              setProfile(null);
+            }
+          } finally {
+            if (mounted) {
+              setProfileLoading(false);
+              setLoading(false);
+            }
           }
         } else {
           setProfile(null);
           setProfileLoading(false);
+          setLoading(false);
         }
       })
       .catch((err) => {
         console.error('Error getting Supabase session:', err);
         if (mounted) {
-          setLoading(false);
+          setProfile(null);
           setProfileLoading(false);
+          setLoading(false);
         }
       });
 
@@ -107,17 +120,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(currentSession);
       const currentUser = currentSession?.user ?? null;
       setUser(currentUser);
-      setLoading(false);
 
       if (currentUser) {
-        const userProfile = await getProfile(currentUser.id);
-        if (mounted) {
-          setProfile(userProfile);
-          setProfileLoading(false);
+        setProfileLoading(true);
+        try {
+          const userProfile = await getProfile(currentUser.id);
+          if (mounted) {
+            setProfile(userProfile);
+          }
+        } catch (err) {
+          console.error('Error fetching user profile in onAuthStateChange:', err);
+          if (mounted) {
+            setProfile(null);
+          }
+        } finally {
+          if (mounted) {
+            setProfileLoading(false);
+            setLoading(false);
+          }
         }
       } else {
         setProfile(null);
         setProfileLoading(false);
+        setLoading(false);
       }
     });
 

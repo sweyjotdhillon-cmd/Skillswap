@@ -86,7 +86,7 @@ function AppContent() {
   }, [loading, user, isVerified, isGoogleUser, path]);
 
   // Onboarding enforcement:
-  // If user is authenticated & verified (or google user), but profile is incomplete (profile_completed === false),
+  // If user is authenticated & verified (or google user), but profile is missing or incomplete (profile === null || profile.profile_completed === false),
   // show OnboardingPage unless on explicit auth/verify pages.
   const isAuthPage =
     path.startsWith('/login') ||
@@ -96,7 +96,7 @@ function AppContent() {
     path === '/reset-password';
 
   if (!loading && !profileLoading && user && (isVerified || isGoogleUser) && !isAuthPage) {
-    if (profile && profile.profile_completed === false) {
+    if (!profile || profile.profile_completed === false) {
       return <OnboardingPage onNavigate={navigate} redirectTo={path !== '/onboarding' ? path : undefined} />;
     }
   }
