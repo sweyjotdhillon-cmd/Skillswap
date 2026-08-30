@@ -36,7 +36,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
 
   // Step 2 State: Username
   const [username, setUsername] = useState<string>('');
-  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable' | 'invalid'>('idle');
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable' | 'invalid' | 'error'>('idle');
   const [usernameMessage, setUsernameMessage] = useState<string>('');
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -155,15 +155,18 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
 
     debounceTimerRef.current = setTimeout(async () => {
       const res = await checkUsernameAvailability(normalized);
-      if (res.available) {
+      if (res.status === 'available') {
         setUsernameStatus('available');
         setUsernameMessage('Username is available');
-      } else if (res.error) {
-        setUsernameStatus('invalid');
-        setUsernameMessage(res.error);
-      } else {
+      } else if (res.status === 'unavailable') {
         setUsernameStatus('unavailable');
         setUsernameMessage('This username is already taken.');
+      } else if (res.status === 'invalid') {
+        setUsernameStatus('invalid');
+        setUsernameMessage(res.message);
+      } else if (res.status === 'error') {
+        setUsernameStatus('error');
+        setUsernameMessage(res.message);
       }
     }, 400);
   };
@@ -297,22 +300,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
       throw new Error(`Profile update failed: ${profileUpdateError.message}`);
     }
 
-    // 2. Ensure Accounts row exists (Default 0 Credits)
-    const { error: accountError } = await supabase
-      .from('accounts')
-      .upsert(
-        {
-          user_id: targetUserId,
-          credits_balance: 0,
-        },
-        { onConflict: 'user_id' }
-      );
-
-    if (accountError) {
-      console.warn('Failed to ensure account row:', accountError);
-    }
-
-    // 3. Upsert Private Contact (phone_number)
+    // 2. Upsert Private Contact (phone_number)
     if (data.phoneNumber.trim()) {
       const { error: contactError } = await supabase
         .from('user_private_contacts')
@@ -654,7 +642,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                     autoCorrect="off"
                     spellCheck="false"
                     className={`form-input username-input ${
-                      usernameStatus === 'invalid' || usernameStatus === 'unavailable' ? 'input-error' : ''
+                      usernameStatus === 'invalid' || usernameStatus === 'unavailable' || usernameStatus === 'error' ? 'input-error' : ''
                     }`}
                     placeholder="sweyjot"
                     value={username}
@@ -682,7 +670,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                         <span>{usernameMessage}</span>
                       </>
                     )}
-                    {(usernameStatus === 'unavailable' || usernameStatus === 'invalid') && (
+                    {(usernameStatus === 'unavailable' || usernameStatus === 'invalid' || usernameStatus === 'error') && (
                       <>
                         <svg className="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <circle cx="12" cy="12" r="10" />

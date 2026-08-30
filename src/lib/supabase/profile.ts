@@ -56,18 +56,25 @@ export function validateUsernameFormat(username: string): boolean {
   return /^[a-z0-9._]{3,30}$/.test(username);
 }
 
+export type UsernameCheckResult =
+  | { status: 'available' }
+  | { status: 'unavailable' }
+  | { status: 'invalid'; message: string }
+  | { status: 'error'; message: string };
+
 /**
  * Checks if a username is available (case-insensitive search).
+ * Distinguishes invalid format, unavailable, available, and database/network errors.
  */
-export async function checkUsernameAvailability(username: string): Promise<{ available: boolean; error?: string }> {
+export async function checkUsernameAvailability(username: string): Promise<UsernameCheckResult> {
   const cleanUsername = username.trim().toLowerCase();
   if (!validateUsernameFormat(cleanUsername)) {
-    return { available: false, error: 'Invalid username format.' };
+    return { status: 'invalid', message: 'Use 3–30 lowercase letters, numbers, underscore or period.' };
   }
 
   const supabase = getSupabaseBrowserClient();
   if (!supabase) {
-    return { available: false, error: 'Supabase client not initialized.' };
+    return { status: 'error', message: 'Database/network error — please try again' };
   }
 
   const { data, error } = await supabase
@@ -78,10 +85,14 @@ export async function checkUsernameAvailability(username: string): Promise<{ ava
 
   if (error) {
     console.error('Error checking username availability:', error);
-    return { available: false, error: error.message };
+    return { status: 'error', message: 'Database/network error — please try again' };
   }
 
-  return { available: data === null };
+  if (data === null) {
+    return { status: 'available' };
+  }
+
+  return { status: 'unavailable' };
 }
 
 /**

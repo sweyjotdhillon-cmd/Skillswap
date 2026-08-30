@@ -456,12 +456,30 @@ CREATE POLICY "Users can delete their own custom skills"
 
 
 -- ============================================================================
--- 8. GRANT ROLE PERMISSIONS
+-- 8. GRANT MINIMAL ROLE PERMISSIONS
 -- ============================================================================
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
-GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+
+-- Full access for service_role
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO service_role;
+
+-- Minimal table grants for authenticated and anon roles according to security contract
+GRANT SELECT, INSERT, UPDATE ON public.profiles TO authenticated;
+GRANT SELECT ON public.profiles TO anon;
+
+GRANT SELECT, INSERT, UPDATE ON public.user_private_contacts TO authenticated;
+
+GRANT SELECT ON public.accounts TO authenticated;
+
+GRANT SELECT ON public.skills TO anon, authenticated;
+
+GRANT SELECT, DELETE ON public.user_skills TO authenticated;
+GRANT SELECT ON public.user_skills TO anon;
+
+GRANT SELECT, DELETE ON public.user_custom_skills TO authenticated;
+GRANT SELECT ON public.user_custom_skills TO anon;
 
 -- ============================================================================
 -- 9. REFRESH POSTGREST SCHEMA CACHE
