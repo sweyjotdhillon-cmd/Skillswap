@@ -34,6 +34,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
     e.preventDefault();
     setErrorMessage(null);
 
+    if (loading) return;
     if (!validate()) return;
 
     setLoading(true);
@@ -50,20 +51,28 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
       });
 
       if (error) {
-        if (error.message.includes('Email not confirmed')) {
+        const msg = error.message || '';
+        const status = error.status;
+
+        if (msg.includes('Email not confirmed')) {
           const verifyUrl = `/verify-email?email=${encodeURIComponent(cleanEmail)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
           if (onNavigate) {
             onNavigate(verifyUrl);
           } else {
             window.location.href = verifyUrl;
           }
-        } else if (
-          error.message.includes('Invalid login credentials') ||
-          error.status === 400
-        ) {
-          setErrorMessage("Account doesn't exist or invalid credentials.");
+        } else if (status === 429 || msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('too many requests')) {
+          setErrorMessage('Too many failed login attempts. Please wait a few minutes before trying again.');
+        } else if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('networkerror')) {
+          setErrorMessage('Network connection failure. Please check your internet connection and try again.');
+        } else if (msg.toLowerCase().includes('user not found') || msg.toLowerCase().includes('account not found')) {
+          setErrorMessage("This account doesn't exist.");
+        } else if (msg.toLowerCase().includes('invalid password') || msg.toLowerCase().includes('incorrect password')) {
+          setErrorMessage('Incorrect password. Please try again.');
+        } else if (msg.includes('Invalid login credentials') || status === 400) {
+          setErrorMessage('Invalid email or password. Please check your credentials and try again.');
         } else {
-          setErrorMessage(error.message || 'Invalid email or password. Please check your credentials and try again.');
+          setErrorMessage(msg || 'An error occurred during login. Please try again.');
         }
       } else {
         const user = data.user;
@@ -142,24 +151,25 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
                   <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
                 <span>{errorMessage}</span>
               </div>
-              {errorMessage.includes("Account doesn't exist") && (
+              {(errorMessage.includes("doesn't exist") || errorMessage.includes('Invalid email or password')) && (
                 <div style={{ marginTop: '0.25rem', fontSize: '0.9rem' }}>
                   Need an account?{' '}
                   <a
-                    href="/signup"
+                    href={`/signup${email ? `?email=${encodeURIComponent(email.trim().toLowerCase())}` : ''}`}
                     className="auth-link"
                     style={{ fontWeight: 600, textDecoration: 'underline' }}
                     onClick={(e) => {
                       e.preventDefault();
+                      const target = `/signup?${email ? `email=${encodeURIComponent(email.trim().toLowerCase())}&` : ''}${redirectTo ? `redirectTo=${encodeURIComponent(redirectTo)}` : ''}`.replace(/[&?]$/, '');
                       if (onNavigate) {
-                        onNavigate(`/signup${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`);
+                        onNavigate(target);
                       } else {
-                        window.location.href = `/signup${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+                        window.location.href = target;
                       }
                     }}
                   >

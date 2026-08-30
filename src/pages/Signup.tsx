@@ -8,8 +8,11 @@ type SignupPageProps = {
 };
 
 export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialEmail = urlParams.get('email') || '';
+
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
