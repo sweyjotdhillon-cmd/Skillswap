@@ -443,3 +443,9 @@ DROP POLICY IF EXISTS "Users can delete their own custom skills" ON public.user_
 CREATE POLICY "Users can delete their own custom skills"
   ON public.user_custom_skills FOR DELETE TO authenticated
   USING (auth.uid() = user_id);
+
+
+-- ============================================================================
+-- 8. REFRESH POSTGREST SCHEMA CACHE
+-- ============================================================================
+NOTIFY pgrst, 'reload schema';
