@@ -22,55 +22,72 @@ async function callEdgeFunction(functionName: string, body: object) {
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   const supabase = getSupabaseBrowserClient();
 
+  let primaryError: string | null = null;
+
   if (supabase) {
     try {
       const { data, error } = await supabase.functions.invoke(functionName, {
         body,
       });
-      if (error) {
-        let errorMessage = error.message || 'An error occurred';
-        if ((error as any).context && typeof (error as any).context.json === 'function') {
-          try {
-            const jsonErr = await (error as any).context.json();
-            if (jsonErr && jsonErr.message) {
-              errorMessage = jsonErr.message;
-            }
-          } catch (_) {
-            // ignore
+      if (!error) {
+        return { data, error: null };
+      }
+
+      console.error(`Supabase Edge Function '${functionName}' invoke error:`, error);
+
+      let errorMessage = error.message || '';
+      if ((error as any).context && typeof (error as any).context.json === 'function') {
+        try {
+          const jsonErr = await (error as any).context.json();
+          if (jsonErr && jsonErr.message) {
+            errorMessage = jsonErr.message;
           }
+        } catch (_) {
+          // ignore
         }
+      }
+
+      if (errorMessage && !errorMessage.includes('Failed to send a request')) {
         return { data: null, error: { message: errorMessage } };
       }
-      return { data, error: null };
-    } catch (_) {
-      // fallback to direct fetch
+      primaryError = errorMessage;
+    } catch (err: any) {
+      console.error(`Exception invoking Edge Function '${functionName}':`, err);
+      primaryError = err?.message || null;
     }
   }
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return { data: null, error: { message: 'Supabase configuration missing.' } };
-  }
+  // Fallback to direct HTTP fetch
+  if (supabaseUrl && supabaseAnonKey) {
+    try {
+      const endpoint = `${supabaseUrl}/functions/v1/${functionName}`;
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify(body),
+      });
 
-  try {
-    const endpoint = `${supabaseUrl}/functions/v1/${functionName}`;
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAnonKey}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    const resData: any = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      return { data: null, error: { message: resData?.message || 'Request failed' } };
+      const resData: any = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const msg = resData?.message || primaryError || "We couldn't send the verification code. Please check your email address and try again.";
+        return { data: null, error: { message: msg } };
+      }
+      return { data: resData, error: null };
+    } catch (fetchErr: any) {
+      console.error(`Direct fetch to Edge Function '${functionName}' failed:`, fetchErr);
     }
-    return { data: resData, error: null };
-  } catch (err: any) {
-    return { data: null, error: { message: err.message || 'Network error' } };
   }
+
+  const userFriendlyError =
+    primaryError && !primaryError.includes('Failed to send a request')
+      ? primaryError
+      : "We couldn't send the verification code right now. Please check your email address and try again.";
+
+  return { data: null, error: { message: userFriendlyError } };
 }
 
 export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
@@ -371,17 +388,20 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                 marginBottom: '1.75rem',
                 paddingBottom: '1rem',
                 borderBottom: '1px solid var(--shell-border, rgba(255, 255, 255, 0.1))',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
               }}
             >
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem',
+                  gap: '0.35rem',
                   fontSize: '0.85rem',
                   fontWeight: currentStepNumber === 1 ? 600 : 400,
                   opacity: currentStepNumber >= 1 ? 1 : 0.5,
                   color: currentStepNumber === 1 ? '#d6a64a' : 'inherit',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 <span
@@ -396,6 +416,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                     fontWeight: 700,
                     backgroundColor: currentStepNumber >= 1 ? '#d6a64a' : 'rgba(255,255,255,0.2)',
                     color: '#11161c',
+                    flexShrink: 0,
                   }}
                 >
                   1
@@ -403,17 +424,18 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                 <span>Email</span>
               </div>
 
-              <div style={{ flex: 1, height: '2px', backgroundColor: currentStepNumber >= 2 ? '#d6a64a' : 'rgba(255,255,255,0.1)', margin: '0 0.75rem' }} />
+              <div style={{ flex: 1, minWidth: '12px', height: '2px', backgroundColor: currentStepNumber >= 2 ? '#d6a64a' : 'rgba(255,255,255,0.1)' }} />
 
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem',
+                  gap: '0.35rem',
                   fontSize: '0.85rem',
                   fontWeight: currentStepNumber === 2 ? 600 : 400,
                   opacity: currentStepNumber >= 2 ? 1 : 0.5,
                   color: currentStepNumber === 2 ? '#d6a64a' : 'inherit',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 <span
@@ -428,24 +450,26 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                     fontWeight: 700,
                     backgroundColor: currentStepNumber >= 2 ? '#d6a64a' : 'rgba(255,255,255,0.2)',
                     color: '#11161c',
+                    flexShrink: 0,
                   }}
                 >
                   2
                 </span>
-                <span>Verification</span>
+                <span>Verify</span>
               </div>
 
-              <div style={{ flex: 1, height: '2px', backgroundColor: currentStepNumber >= 3 ? '#d6a64a' : 'rgba(255,255,255,0.1)', margin: '0 0.75rem' }} />
+              <div style={{ flex: 1, minWidth: '12px', height: '2px', backgroundColor: currentStepNumber >= 3 ? '#d6a64a' : 'rgba(255,255,255,0.1)' }} />
 
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem',
+                  gap: '0.35rem',
                   fontSize: '0.85rem',
                   fontWeight: currentStepNumber === 3 ? 600 : 400,
                   opacity: currentStepNumber >= 3 ? 1 : 0.5,
                   color: currentStepNumber === 3 ? '#d6a64a' : 'inherit',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 <span
@@ -460,11 +484,12 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                     fontWeight: 700,
                     backgroundColor: currentStepNumber >= 3 ? '#d6a64a' : 'rgba(255,255,255,0.2)',
                     color: '#11161c',
+                    flexShrink: 0,
                   }}
                 >
                   3
                 </span>
-                <span>New password</span>
+                <span>New Password</span>
               </div>
             </div>
           )}

@@ -57,8 +57,13 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
           } else {
             window.location.href = verifyUrl;
           }
+        } else if (
+          error.message.includes('Invalid login credentials') ||
+          error.status === 400
+        ) {
+          setErrorMessage('Account not found or invalid credentials. If you do not have an account yet, please create one.');
         } else {
-          setErrorMessage('Invalid email or password. Please check your credentials and try again.');
+          setErrorMessage(error.message || 'Invalid email or password. Please check your credentials and try again.');
         }
       } else {
         const user = data.user;

@@ -132,9 +132,13 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
       <main className="auth-layout-grid" style={{ gridTemplateColumns: '1fr', maxWidth: '540px', margin: '0 auto' }}>
         <section className="auth-card-container">
           <div className="auth-card-header">
-            <h2 className="auth-card-title">Change Password</h2>
+            <h2 className="auth-card-title">
+              {!hasPasswordProvider && isGoogleUser ? 'Set Password' : 'Change Password'}
+            </h2>
             <p className="auth-card-subtitle">
-              Update your SkillSwap account security credentials.
+              {!hasPasswordProvider && isGoogleUser
+                ? 'Create a password for your SkillSwap account so you can log in using email and password.'
+                : 'Update your SkillSwap account security credentials.'}
             </p>
           </div>
 
@@ -146,7 +150,7 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
                 <line x1="12" y1="8" x2="12.01" y2="8" />
               </svg>
               <span>
-                Your account was created with Google Sign-In. You can set a password below to enable email/password login alongside Google.
+                Your account was created with Google Sign-In. You can set a password below to enable email/password login alongside Google. You will not be asked for a previous password.
               </span>
             </div>
           )}
