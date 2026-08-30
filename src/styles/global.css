@@ -5475,3 +5475,770 @@ h1 span { color: #a8781d; }
     display: flex;
   }
 }
+
+/* ==========================================================================
+   Profile Onboarding Flow Styles
+   ========================================================================== */
+
+.onboarding-page-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 2.5rem 0 4rem;
+  min-height: calc(100vh - 120px);
+}
+
+.onboarding-card {
+  width: 100%;
+  max-width: 640px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, rgba(17, 22, 28, 0.09));
+  border-radius: 24px;
+  padding: clamp(1.75rem, 4vw, 3rem);
+  box-shadow: 0 16px 48px rgba(17, 22, 28, 0.06);
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Progress Indicator Bar & Counter */
+.onboarding-progress-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 2rem;
+}
+
+.onboarding-step-counter {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #a8781d;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.onboarding-progress-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(17, 22, 28, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+[data-theme='dark'] .onboarding-progress-track {
+  background: rgba(240, 246, 252, 0.12);
+}
+
+.onboarding-progress-fill {
+  height: 100%;
+  background: #d6a64a;
+  border-radius: 999px;
+  transition: width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Onboarding Title & Headers */
+.onboarding-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.onboarding-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.onboarding-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.onboarding-title {
+  margin: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(2rem, 3.8vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: var(--text-color, #11161c);
+}
+
+.onboarding-title-highlight {
+  color: #a8781d;
+}
+
+.onboarding-subtitle {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--text-muted, rgba(17, 22, 28, 0.65));
+}
+
+/* Avatar Section in Step 1 */
+.onboarding-avatar-section {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1rem 1.25rem;
+  background: rgba(214, 166, 74, 0.08);
+  border: 1px solid rgba(214, 166, 74, 0.25);
+  border-radius: 18px;
+}
+
+.onboarding-avatar-wrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2.5px solid #d6a64a;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(214, 166, 74, 0.2);
+}
+
+.onboarding-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.onboarding-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  background: #11161c;
+  color: #d6a64a;
+  font-size: 1.4rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+}
+
+.onboarding-avatar-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.onboarding-avatar-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-color, #11161c);
+}
+
+.onboarding-avatar-subtext {
+  font-size: 0.825rem;
+  color: var(--text-muted, rgba(17, 22, 28, 0.6));
+}
+
+/* Highlighted Info Card (Step 2 Permanent Warning) */
+.onboarding-info-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1.15rem 1.35rem;
+  background: rgba(214, 166, 74, 0.1);
+  border: 1.5px solid rgba(214, 166, 74, 0.35);
+  border-radius: 16px;
+}
+
+.onboarding-info-icon {
+  width: 24px;
+  height: 24px;
+  color: #a8781d;
+  flex-shrink: 0;
+}
+
+.onboarding-info-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.onboarding-info-text {
+  font-size: 0.925rem;
+  font-weight: 600;
+  color: var(--text-color, #11161c);
+  line-height: 1.45;
+}
+
+/* Username Input with Prefix */
+.onboarding-username-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.username-prefix {
+  position: absolute;
+  left: 1.1rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #a8781d;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.username-input {
+  padding-left: 2.5rem !important;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Compact Username Status Indicator Box */
+.username-status-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.username-status-box .status-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.username-status-box--checking {
+  background: rgba(3, 105, 161, 0.08);
+  border: 1px solid rgba(3, 105, 161, 0.2);
+  color: #0369a1;
+}
+
+.username-status-box--available {
+  background: rgba(22, 101, 52, 0.08);
+  border: 1px solid rgba(187, 247, 208, 0.5);
+  color: #166534;
+}
+
+[data-theme='dark'] .username-status-box--available {
+  background: rgba(22, 101, 52, 0.25);
+  color: #4ade80;
+}
+
+.username-status-box--unavailable,
+.username-status-box--invalid {
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(252, 165, 165, 0.5);
+  color: #dc2626;
+}
+
+[data-theme='dark'] .username-status-box--unavailable,
+[data-theme='dark'] .username-status-box--invalid {
+  background: rgba(220, 38, 38, 0.2);
+  color: #f87171;
+}
+
+.onboarding-permanent-note {
+  margin: -0.5rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted, rgba(17, 22, 28, 0.55));
+}
+
+/* Step 3 Skills Selection Layout */
+.skills-counter-badge {
+  background: rgba(214, 166, 74, 0.15);
+  border: 1px solid rgba(214, 166, 74, 0.35);
+  color: #a8781d;
+  font-size: 0.825rem;
+  font-weight: 800;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.onboarding-selected-skills-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: rgba(247, 245, 240, 0.6);
+  border: 1px solid var(--card-border, rgba(17, 22, 28, 0.08));
+  border-radius: 18px;
+  padding: 1.15rem 1.25rem;
+}
+
+[data-theme='dark'] .onboarding-selected-skills-section {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.section-mini-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, rgba(17, 22, 28, 0.55));
+}
+
+.empty-skills-note {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted, rgba(17, 22, 28, 0.5));
+  font-style: italic;
+}
+
+.skills-chips-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.skill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #11161c;
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(17, 22, 28, 0.1);
+}
+
+[data-theme='dark'] .skill-chip {
+  background: #d6a64a;
+  color: #11161c;
+}
+
+.custom-skill-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  background: rgba(214, 166, 74, 0.3);
+  color: #d6a64a;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+[data-theme='dark'] .custom-skill-badge {
+  background: rgba(17, 22, 28, 0.2);
+  color: #11161c;
+}
+
+.skill-chip-remove {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0 0 0 2px;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.skill-chip-remove:hover {
+  color: #f87171;
+}
+
+[data-theme='dark'] .skill-chip-remove {
+  color: rgba(17, 22, 28, 0.6);
+}
+
+[data-theme='dark'] .skill-chip-remove:hover {
+  color: #dc2626;
+}
+
+.skills-search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.search-wrapper {
+  flex: 1;
+}
+
+.search-input {
+  padding-left: 2.75rem !important;
+}
+
+.add-custom-skill-trigger-btn {
+  background: #ffffff;
+  border: 1.5px solid rgba(17, 22, 28, 0.18);
+  border-radius: 14px;
+  padding: 0.9rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-color, #11161c);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.add-custom-skill-trigger-btn:hover:not(:disabled) {
+  border-color: #d6a64a;
+  background: rgba(214, 166, 74, 0.08);
+}
+
+.add-custom-skill-trigger-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+[data-theme='dark'] .add-custom-skill-trigger-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(240, 246, 252, 0.2);
+}
+
+.onboarding-catalog-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.skills-catalog-loading {
+  font-size: 0.9rem;
+  color: var(--text-muted, rgba(17, 22, 28, 0.6));
+  font-style: italic;
+}
+
+.catalog-skills-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.catalog-skill-pill {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, rgba(17, 22, 28, 0.12));
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-color, #11161c);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.catalog-skill-pill:hover:not(:disabled) {
+  border-color: #d6a64a;
+  background: rgba(214, 166, 74, 0.12);
+  transform: translateY(-1px);
+}
+
+.no-catalog-results {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted, rgba(17, 22, 28, 0.6));
+  font-style: italic;
+}
+
+/* Custom Skill Modal Overrides */
+.custom-skill-modal {
+  max-width: 440px !important;
+}
+
+/* Step 4 Contact & Profile Preview */
+.onboarding-contact-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.section-mini-title {
+  margin: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-color, #11161c);
+}
+
+.onboarding-preview-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.privacy-indicator-chip {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0369a1;
+  background: rgba(3, 105, 161, 0.08);
+  border: 1px solid rgba(3, 105, 161, 0.2);
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  align-self: flex-start;
+}
+
+[data-theme='dark'] .privacy-indicator-chip {
+  color: #38bdf8;
+  background: rgba(3, 105, 161, 0.25);
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.profile-preview-card {
+  background: var(--card-bg, #ffffff);
+  border: 1.5px solid rgba(214, 166, 74, 0.4);
+  border-radius: 20px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0 8px 28px rgba(17, 22, 28, 0.05);
+}
+
+.preview-card-top {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.preview-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #d6a64a;
+  flex-shrink: 0;
+}
+
+.preview-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  background: #11161c;
+  color: #d6a64a;
+  font-size: 1.2rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+}
+
+.preview-user-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-full-name {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-color, #11161c);
+}
+
+.preview-username {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #a8781d;
+}
+
+.preview-bio {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-muted, rgba(17, 22, 28, 0.75));
+  font-style: italic;
+}
+
+.preview-skills-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--card-border, rgba(17, 22, 28, 0.08));
+}
+
+.preview-skills-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, rgba(17, 22, 28, 0.55));
+}
+
+.preview-skills-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.preview-skill-pill {
+  background: rgba(214, 166, 74, 0.12);
+  border: 1px solid rgba(214, 166, 74, 0.35);
+  color: #a8781d;
+  font-size: 0.825rem;
+  font-weight: 700;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+}
+
+.no-skills-tag {
+  font-size: 0.85rem;
+  color: var(--text-muted, rgba(17, 22, 28, 0.5));
+  font-style: italic;
+}
+
+/* Confirmation Card */
+.onboarding-confirmation-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  background: rgba(22, 101, 52, 0.06);
+  border: 1px solid rgba(187, 247, 208, 0.6);
+  border-radius: 18px;
+  padding: 1.15rem 1.25rem;
+}
+
+[data-theme='dark'] .onboarding-confirmation-card {
+  background: rgba(22, 101, 52, 0.2);
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.confirmation-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #166534;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.95rem;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .confirmation-icon {
+  background: #4ade80;
+  color: #11161c;
+}
+
+.confirmation-title {
+  margin: 0 0 0.15rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--text-color, #11161c);
+}
+
+.confirmation-text {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted, rgba(17, 22, 28, 0.65));
+}
+
+/* Navigation Action Buttons */
+.onboarding-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--card-border, rgba(17, 22, 28, 0.08));
+}
+
+.onboarding-btn {
+  padding: 0.9rem 2rem;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.onboarding-btn--secondary {
+  background: var(--card-bg, #ffffff);
+  color: var(--text-color, #11161c);
+  border: 1.5px solid rgba(17, 22, 28, 0.18);
+}
+
+.onboarding-btn--secondary:hover:not(:disabled) {
+  background: rgba(17, 22, 28, 0.04);
+  border-color: rgba(17, 22, 28, 0.35);
+  transform: translateY(-1px);
+}
+
+[data-theme='dark'] .onboarding-btn--secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(240, 246, 252, 0.2);
+}
+
+.onboarding-btn--primary {
+  background: #d6a64a;
+  color: #11161c;
+  border: 1.5px solid #d6a64a;
+  box-shadow: 0 4px 16px rgba(214, 166, 74, 0.25);
+}
+
+.onboarding-btn--primary:hover:not(:disabled) {
+  background: #e4af48;
+  border-color: #e4af48;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(214, 166, 74, 0.35);
+}
+
+.onboarding-btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.onboarding-alert {
+  padding: 0.85rem 1.1rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.onboarding-alert--error {
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  color: #dc2626;
+}
+
+[data-theme='dark'] .onboarding-alert--error {
+  background: rgba(220, 38, 38, 0.2);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #f87171;
+}
+
+/* Responsive Mobile Layout for Onboarding */
+@media (max-width: 640px) {
+  .onboarding-page-container {
+    padding: 1rem 0 2.5rem;
+  }
+
+  .onboarding-card {
+    padding: 1.5rem 1.25rem;
+    border-radius: 20px;
+  }
+
+  .onboarding-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .skills-search-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .add-custom-skill-trigger-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .onboarding-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .onboarding-btn {
+    width: 100%;
+    text-align: center;
+  }
+}

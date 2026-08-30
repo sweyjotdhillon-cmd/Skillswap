@@ -57,6 +57,34 @@ export function validateUsernameFormat(username: string): boolean {
 }
 
 /**
+ * Checks if a username is available (case-insensitive search).
+ */
+export async function checkUsernameAvailability(username: string): Promise<{ available: boolean; error?: string }> {
+  const cleanUsername = username.trim().toLowerCase();
+  if (!validateUsernameFormat(cleanUsername)) {
+    return { available: false, error: 'Invalid username format.' };
+  }
+
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) {
+    return { available: false, error: 'Supabase client not initialized.' };
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('username', cleanUsername)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error checking username availability:', error);
+    return { available: false, error: error.message };
+  }
+
+  return { available: data === null };
+}
+
+/**
  * Fetch public profile for a specific user ID.
  */
 export async function getProfile(userId: string): Promise<Profile | null> {
