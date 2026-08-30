@@ -57,7 +57,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
 
       if (error) {
         const msg = error.message.toLowerCase();
-
+        if (msg.includes('email not confirmed')) {
           setErrorType('unconfirmed_email');
           setErrorMessage('Please verify your email address before logging in.');
           const verifyUrl = `/verify-email?email=${encodeURIComponent(cleanEmail)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
@@ -66,7 +66,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
           } else {
             window.location.href = verifyUrl;
           }
-
+        } else if (msg.includes('invalid login credentials')) {
           setErrorType('ambiguous_credentials');
           setErrorMessage("Account doesn't exist or invalid credentials.");
         } else {
@@ -156,7 +156,6 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
                 </svg>
                 <span>{errorMessage}</span>
               </div>
-
 
               {(errorType === 'ambiguous_credentials' || (!errorType && errorMessage.includes("Account doesn't exist"))) && (
                 <div style={{ marginTop: '0.25rem', fontSize: '0.9rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
