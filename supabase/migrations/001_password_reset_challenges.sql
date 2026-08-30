@@ -17,10 +17,43 @@ CREATE TABLE IF NOT EXISTS public.password_reset_challenges (
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.password_reset_challenges ENABLE ROW LEVEL SECURITY;
 
--- Deny all public access for SELECT, INSERT, UPDATE, DELETE.
+-- Explicitly deny all public access for SELECT, INSERT, UPDATE, DELETE.
 -- Only server-side Edge Functions with service_role key can access this table.
--- (By default, enabling RLS without policies denies all client access).
+DROP POLICY IF EXISTS "Deny all client access to password_reset_challenges" ON public.password_reset_challenges;
+CREATE POLICY "Deny all client access to password_reset_challenges"
+  ON public.password_reset_challenges
+  FOR ALL
+  TO public
+  USING (false);
 
--- Create index on email and expires_at for efficient query performance
+-- Create indexes for efficient query performance & rate-limiting checks
 CREATE INDEX IF NOT EXISTS idx_password_reset_challenges_email ON public.password_reset_challenges(email);
 CREATE INDEX IF NOT EXISTS idx_password_reset_challenges_expires_at ON public.password_reset_challenges(expires_at);
+CREATE INDEX IF NOT EXISTS idx_password_reset_challenges_email_created ON public.password_reset_challenges(email, created_at);
+
+-- Helper RPC function for service_role user lookup by email
+CREATE OR REPLACE FUNCTION public.get_user_by_email(p_email text)
+RETURNS TABLE (id uuid, email text, providers text[])
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+  SELECT
+    u.id,
+    u.email,
+    ARRAY(
+      SELECT jsonb_array_elements_text(
+        CASE
+          WHEN u.raw_app_meta_data->'providers' IS NOT NULL THEN u.raw_app_meta_data->'providers'
+          WHEN u.raw_app_meta_data->'provider' IS NOT NULL THEN jsonb_build_array(u.raw_app_meta_data->'provider')
+          ELSE '[]'::jsonb
+        END
+      )
+    ) as providers
+  FROM auth.users u
+  WHERE lower(u.email) = lower(p_email)
+  LIMIT 1;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.get_user_by_email(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_by_email(text) TO service_role;

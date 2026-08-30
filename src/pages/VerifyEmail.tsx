@@ -63,25 +63,13 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
         return;
       }
 
-      // Try verifyOtp with type 'signup' first, then type 'email' if needed
-      let { data, error } = await supabase.auth.verifyOtp({
-        email,
+      // Standardized deterministic signup OTP verification (no generic email fallback)
+      const cleanEmail = email.trim().toLowerCase();
+      const { error } = await supabase.auth.verifyOtp({
+        email: cleanEmail,
         token: cleanCode,
         type: 'signup',
       });
-
-      if (error) {
-        // Fallback to type 'email' if signup type fails
-        const fallback = await supabase.auth.verifyOtp({
-          email,
-          token: cleanCode,
-          type: 'email',
-        });
-        if (!fallback.error) {
-          data = fallback.data;
-          error = null;
-        }
-      }
 
       if (error) {
         if (error.message.includes('Token has expired') || error.message.includes('expired')) {
@@ -131,9 +119,10 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
         return;
       }
 
+      const cleanEmail = email.trim().toLowerCase();
       const { error } = await supabase.auth.resend({
         type: 'signup',
-        email,
+        email: cleanEmail,
       });
 
       if (error) {
@@ -143,7 +132,7 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
           setErrorMessage(error.message);
         }
       } else {
-        setSuccessMessage(`A new verification code has been sent to ${email}.`);
+        setSuccessMessage(`A new verification code has been sent to ${cleanEmail}.`);
         setCooldown(60);
       }
     } catch (err: any) {
@@ -168,7 +157,7 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
           <div className="auth-card-header">
             <h2 className="auth-card-title">Enter Verification Code</h2>
             <p className="auth-card-subtitle">
-              Sent to <strong style={{ color: 'var(--color-primary, #6366f1)' }}>{email || 'your email'}</strong>
+              Sent to <strong style={{ color: 'var(--color-primary, #d6a64a)' }}>{email || 'your email'}</strong>
             </p>
           </div>
 
@@ -186,8 +175,8 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
           {successMessage && (
             <div className="auth-alert auth-alert--success" role="status">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
               <span>{successMessage}</span>
             </div>
@@ -202,6 +191,7 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
                 <input
                   id="verify-email-input"
                   type="email"
+                  autoComplete="email"
                   className="auth-input"
                   placeholder="you@example.com"
                   value={email}
@@ -218,13 +208,16 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
               <input
                 id="verify-otp-input"
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="one-time-code"
                 className="auth-input"
                 placeholder="6-digit code"
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value)}
                 disabled={loading}
                 autoFocus
-                maxLength={10}
+                maxLength={6}
               />
             </div>
 

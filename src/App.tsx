@@ -12,11 +12,12 @@ import { SignupPage } from './pages/Signup';
 import { VerifyEmailPage } from './pages/VerifyEmail';
 import { ForgotPasswordPage } from './pages/ForgotPassword';
 import { ResetPasswordPage } from './pages/ResetPassword';
+import { ChangePasswordPage } from './pages/ChangePassword';
 import { ThemeToggle } from './components/ui/ThemeToggle';
 
 function AppContent() {
   const [path, setPath] = useState(window.location.pathname);
-  const { user, loading, isVerified } = useAuth();
+  const { user, loading, isVerified, isGoogleUser } = useAuth();
 
   useEffect(() => {
     const handlePopState = () => {
@@ -55,13 +56,15 @@ function AppContent() {
       document.title = 'Forgot Password — SkillSwap';
     } else if (path === '/reset-password') {
       document.title = 'Reset Password — SkillSwap';
+    } else if (path === '/change-password') {
+      document.title = 'Change Password — SkillSwap';
     } else {
       document.title = 'Skillswap — Skills are your currency';
     }
   }, [path]);
 
   // Protected route list
-  const protectedRoutes = ['/create-swap', '/swap-requests', '/active-swaps'];
+  const protectedRoutes = ['/create-swap', '/swap-requests', '/active-swaps', '/change-password'];
 
   // Parse query params for login/signup redirection
   const urlParams = new URLSearchParams(window.location.search);
@@ -72,12 +75,12 @@ function AppContent() {
       if (!user) {
         const loginUrl = `/login?redirectTo=${encodeURIComponent(path)}`;
         window.history.replaceState({}, '', loginUrl);
-      } else if (!isVerified) {
+      } else if (!isVerified && !isGoogleUser) {
         const verifyUrl = `/verify-email?email=${encodeURIComponent(user.email || '')}&redirectTo=${encodeURIComponent(path)}`;
         window.history.replaceState({}, '', verifyUrl);
       }
     }
-  }, [loading, user, isVerified, path]);
+  }, [loading, user, isVerified, isGoogleUser, path]);
 
   // Protected route enforcement
   if (!loading && protectedRoutes.some((route) => path.startsWith(route))) {
@@ -85,7 +88,7 @@ function AppContent() {
       return <LoginPage onNavigate={navigate} redirectTo={path} />;
     }
 
-    if (!isVerified) {
+    if (!isVerified && !isGoogleUser) {
       return <VerifyEmailPage onNavigate={navigate} redirectTo={path} email={user.email || undefined} />;
     }
   }
@@ -108,6 +111,10 @@ function AppContent() {
 
   if (path === '/reset-password') {
     return <ResetPasswordPage onNavigate={navigate} />;
+  }
+
+  if (path === '/change-password') {
+    return <ChangePasswordPage onNavigate={navigate} />;
   }
 
   if (path === '/active-swaps') {

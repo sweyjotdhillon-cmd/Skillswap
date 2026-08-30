@@ -154,7 +154,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
 
     setLoading(true);
     try {
-      const cleanEmail = email.trim();
+      const cleanEmail = email.trim().toLowerCase();
       const { data, error } = await callEdgeFunction('request-password-reset', { email: cleanEmail });
 
       if (error) {
@@ -164,7 +164,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
 
       setStep('otp');
       setCooldown(45);
-      setSuccessMessage("We've sent a 6-digit verification code to your email.");
+      setSuccessMessage(data?.message || "We've sent a 6-digit verification code to your email if an account exists.");
     } catch (err: any) {
       setErrorMessage(err.message || 'An error occurred while requesting verification code.');
     } finally {
@@ -250,7 +250,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
 
     setLoading(true);
     try {
-      const cleanEmail = email.trim();
+      const cleanEmail = email.trim().toLowerCase();
       const { data, error } = await callEdgeFunction('verify-password-reset-otp', {
         email: cleanEmail,
         otp: fullCode,
@@ -284,13 +284,13 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
     setResending(true);
 
     try {
-      const cleanEmail = email.trim();
+      const cleanEmail = email.trim().toLowerCase();
       const { data, error } = await callEdgeFunction('request-password-reset', { email: cleanEmail });
 
       if (error) {
         setErrorMessage(error.message);
       } else {
-        setSuccessMessage(`A new 6-digit verification code has been sent to ${email}.`);
+        setSuccessMessage(`A new 6-digit verification code has been sent to ${cleanEmail}.`);
         setCooldown(45);
       }
     } catch (err: any) {
@@ -335,7 +335,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
 
     setLoading(true);
     try {
-      const cleanEmail = email.trim();
+      const cleanEmail = email.trim().toLowerCase();
       const { data, error } = await callEdgeFunction('complete-password-reset', {
         email: cleanEmail,
         recoveryToken,
@@ -381,7 +381,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                   fontSize: '0.85rem',
                   fontWeight: currentStepNumber === 1 ? 600 : 400,
                   opacity: currentStepNumber >= 1 ? 1 : 0.5,
-                  color: currentStepNumber === 1 ? 'var(--color-primary, #6366f1)' : 'inherit',
+                  color: currentStepNumber === 1 ? '#d6a64a' : 'inherit',
                 }}
               >
                 <span
@@ -394,8 +394,8 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                     justifyContent: 'center',
                     fontSize: '0.75rem',
                     fontWeight: 700,
-                    backgroundColor: currentStepNumber >= 1 ? 'var(--color-primary, #6366f1)' : 'rgba(255,255,255,0.2)',
-                    color: '#fff',
+                    backgroundColor: currentStepNumber >= 1 ? '#d6a64a' : 'rgba(255,255,255,0.2)',
+                    color: '#11161c',
                   }}
                 >
                   1
@@ -403,7 +403,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                 <span>Email</span>
               </div>
 
-              <div style={{ flex: 1, height: '2px', backgroundColor: currentStepNumber >= 2 ? 'var(--color-primary, #6366f1)' : 'rgba(255,255,255,0.1)', margin: '0 0.75rem' }} />
+              <div style={{ flex: 1, height: '2px', backgroundColor: currentStepNumber >= 2 ? '#d6a64a' : 'rgba(255,255,255,0.1)', margin: '0 0.75rem' }} />
 
               <div
                 style={{
@@ -413,7 +413,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                   fontSize: '0.85rem',
                   fontWeight: currentStepNumber === 2 ? 600 : 400,
                   opacity: currentStepNumber >= 2 ? 1 : 0.5,
-                  color: currentStepNumber === 2 ? 'var(--color-primary, #6366f1)' : 'inherit',
+                  color: currentStepNumber === 2 ? '#d6a64a' : 'inherit',
                 }}
               >
                 <span
@@ -426,8 +426,8 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                     justifyContent: 'center',
                     fontSize: '0.75rem',
                     fontWeight: 700,
-                    backgroundColor: currentStepNumber >= 2 ? 'var(--color-primary, #6366f1)' : 'rgba(255,255,255,0.2)',
-                    color: '#fff',
+                    backgroundColor: currentStepNumber >= 2 ? '#d6a64a' : 'rgba(255,255,255,0.2)',
+                    color: '#11161c',
                   }}
                 >
                   2
@@ -435,7 +435,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                 <span>Verification</span>
               </div>
 
-              <div style={{ flex: 1, height: '2px', backgroundColor: currentStepNumber >= 3 ? 'var(--color-primary, #6366f1)' : 'rgba(255,255,255,0.1)', margin: '0 0.75rem' }} />
+              <div style={{ flex: 1, height: '2px', backgroundColor: currentStepNumber >= 3 ? '#d6a64a' : 'rgba(255,255,255,0.1)', margin: '0 0.75rem' }} />
 
               <div
                 style={{
@@ -445,7 +445,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                   fontSize: '0.85rem',
                   fontWeight: currentStepNumber === 3 ? 600 : 400,
                   opacity: currentStepNumber >= 3 ? 1 : 0.5,
-                  color: currentStepNumber === 3 ? 'var(--color-primary, #6366f1)' : 'inherit',
+                  color: currentStepNumber === 3 ? '#d6a64a' : 'inherit',
                 }}
               >
                 <span
@@ -458,8 +458,8 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                     justifyContent: 'center',
                     fontSize: '0.75rem',
                     fontWeight: 700,
-                    backgroundColor: currentStepNumber >= 3 ? 'var(--color-primary, #6366f1)' : 'rgba(255,255,255,0.2)',
-                    color: '#fff',
+                    backgroundColor: currentStepNumber >= 3 ? '#d6a64a' : 'rgba(255,255,255,0.2)',
+                    color: '#11161c',
                   }}
                 >
                   3
@@ -481,7 +481,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
               {step === 'otp' && (
                 <>
                   Enter the 6-digit code sent to your email (
-                  <strong style={{ color: 'var(--color-primary, #6366f1)' }}>{maskEmail(email)}</strong>).
+                  <strong style={{ color: '#d6a64a' }}>{maskEmail(email)}</strong>).
                 </>
               )}
               {step === 'new-password' && 'Create a strong new password for your SkillSwap account.'}
@@ -520,6 +520,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                 <input
                   id="forgot-email"
                   type="email"
+                  autoComplete="email"
                   className={`auth-input ${emailError ? 'input-error' : ''}`}
                   placeholder="you@example.com"
                   value={email}
@@ -577,6 +578,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                       type="text"
                       inputMode="numeric"
                       pattern="[0-9]*"
+                      autoComplete="one-time-code"
                       maxLength={6}
                       value={digit}
                       onChange={(e) => handleOtpChange(index, e.target.value)}
@@ -674,6 +676,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                   <input
                     id="new-password-input"
                     type={showNewPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
                     className={`auth-input ${passwordError ? 'input-error' : ''}`}
                     placeholder="At least 8 characters"
                     value={newPassword}
@@ -739,6 +742,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                   <input
                     id="confirm-password-input"
                     type={showConfirmPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
                     className={`auth-input ${confirmPasswordError ? 'input-error' : ''}`}
                     placeholder="Confirm new password"
                     value={confirmPassword}

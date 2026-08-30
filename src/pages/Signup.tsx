@@ -25,14 +25,14 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
 
     if (!email.trim()) {
       newErrors.email = 'Please enter your email address.';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
+    } else if (!/\S+@\S+\.\S+/.test(email.trim())) {
       newErrors.email = 'Please enter a valid email address.';
     }
 
     if (!password) {
       newErrors.password = 'Please enter a password.';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters long.';
+    } else if (password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters long.';
     }
 
     if (!confirmPassword) {
@@ -59,8 +59,10 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
         setErrorMessage('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY environment variables.');
         return;
       }
+
+      const cleanEmail = email.trim().toLowerCase();
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: cleanEmail,
         password,
         options: {
           data: {
@@ -77,7 +79,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
         }
       } else {
         // Always navigate to email OTP verification screen on email/password signup
-        const verifyUrl = `/verify-email?email=${encodeURIComponent(email)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+        const verifyUrl = `/verify-email?email=${encodeURIComponent(cleanEmail)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
         if (onNavigate) {
           onNavigate(verifyUrl);
         } else {
@@ -102,8 +104,8 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}${redirectTo ? redirectTo : '/explore'}`
-        }
+          redirectTo: `${window.location.origin}${redirectTo ? redirectTo : '/explore'}`,
+        },
       });
       if (error) throw error;
     } catch (err: any) {
@@ -159,6 +161,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
               <input
                 id="signup-fullname"
                 type="text"
+                autoComplete="name"
                 className={`auth-input ${errors.fullName ? 'input-error' : ''}`}
                 placeholder="Alex Morgan"
                 value={fullName}
@@ -178,6 +181,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
               <input
                 id="signup-email"
                 type="email"
+                autoComplete="email"
                 className={`auth-input ${errors.email ? 'input-error' : ''}`}
                 placeholder="you@example.com"
                 value={email}
@@ -197,8 +201,9 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
               <input
                 id="signup-password"
                 type="password"
+                autoComplete="new-password"
                 className={`auth-input ${errors.password ? 'input-error' : ''}`}
-                placeholder="At least 6 characters"
+                placeholder="At least 8 characters"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
@@ -216,6 +221,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
               <input
                 id="signup-confirm-password"
                 type="password"
+                autoComplete="new-password"
                 className={`auth-input ${errors.confirmPassword ? 'input-error' : ''}`}
                 placeholder="Repeat password"
                 value={confirmPassword}
@@ -230,7 +236,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
 
             <button type="submit" className="auth-submit-btn" disabled={loading}>
               {loading ? (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
                   <svg className="spinner" viewBox="0 0 24 24" width="16" height="16" style={{ animation: 'spin 1s linear infinite' }}>
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" opacity="0.25" />
                     <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" opacity="0.75" />

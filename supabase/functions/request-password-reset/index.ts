@@ -40,105 +40,126 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // 1. Find user in auth.users (paginated search)
-    let matchedUser = null;
-    let page = 1;
-    const perPage = 100;
-    while (!matchedUser) {
-      const { data: userData, error: userError } = await supabase.auth.admin.listUsers({
-        page,
-        perPage,
-      });
-
-      if (userError) {
-        console.error('Error listing users:', userError);
-        return new Response(
-          JSON.stringify({ error: 'SERVER_ERROR', message: 'Failed to process request.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const users = userData?.users || [];
-      matchedUser = users.find((u) => u.email?.toLowerCase() === cleanEmail) || null;
-
-      if (users.length < perPage) {
-        break;
-      }
-      page++;
-    }
-
-    if (matchedUser) {
-      const providers = matchedUser.app_metadata?.providers || [matchedUser.app_metadata?.provider];
-      const hasEmailProvider =
-        providers.includes('email') ||
-        matchedUser.identities?.some((id: any) => id.provider === 'email');
-      const hasGoogleProvider =
-        providers.includes('google') ||
-        matchedUser.identities?.some((id: any) => id.provider === 'google');
-
-      if (hasGoogleProvider && !hasEmailProvider) {
-        return new Response(
-          JSON.stringify({
-            error: 'GOOGLE_ACCOUNT',
-            message: 'This account was created with Google. Please continue with Google Sign-In.',
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    // Generate 6-digit OTP using cryptographically secure random generator
-    const otp = generateOTP();
-    const otpHash = await hashString(otp);
-
-    // Invalidate previous active OTP challenges for this email
-    await supabase
-      .from('password_reset_challenges')
-      .update({ used_at: new Date().toISOString() })
-      .eq('email', cleanEmail)
-      .is('used_at', null);
-
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
-
-    // Store hash of OTP in password_reset_challenges table
-    const { error: insertError } = await supabase.from('password_reset_challenges').insert({
-      user_id: matchedUser ? matchedUser.id : null,
-      email: cleanEmail,
-      otp_hash: otpHash,
-      expires_at: expiresAt,
-      attempt_count: 0,
-      max_attempts: 5,
-    });
-
-    if (insertError) {
-      console.error('Error inserting OTP challenge:', insertError);
+    if (!supabaseUrl || !supabaseServiceKey) {
       return new Response(
-        JSON.stringify({ error: 'SERVER_ERROR', message: 'Failed to generate verification code.' }),
+        JSON.stringify({ error: 'SERVER_ERROR', message: 'Database service configuration missing.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Send email using Resend transactional email provider
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    if (resendApiKey) {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Rate Limiting Check: Max 3 reset requests per email per 15 minutes
+    const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    const { data: recentRequests, error: rateLimitErr } = await supabase
+      .from('password_reset_challenges')
+      .select('id')
+      .eq('email', cleanEmail)
+      .gte('created_at', fifteenMinsAgo);
+
+    if (!rateLimitErr && recentRequests && recentRequests.length >= 3) {
+      return new Response(
+        JSON.stringify({
+          error: 'RATE_LIMIT_EXCEEDED',
+          message: 'Too many password reset requests for this email. Please wait 15 minutes before trying again.',
+        }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Server-side cleanup of expired challenges older than 1 hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    await supabase
+      .from('password_reset_challenges')
+      .delete()
+      .lt('expires_at', oneHourAgo);
+
+    // Fast lookup for user in auth.users via RPC or admin listUsers fallback
+    let matchedUser: { id: string; email: string } | null = null;
+    try {
+      const { data: rpcUser } = await supabase.rpc('get_user_by_email', { p_email: cleanEmail });
+      if (rpcUser && rpcUser.length > 0) {
+        matchedUser = rpcUser[0];
+      }
+    } catch (_) {
+      // Fallback to admin.listUsers if RPC function is unavailable
+      let page = 1;
+      const perPage = 100;
+      while (!matchedUser && page <= 5) {
+        const { data: userData } = await supabase.auth.admin.listUsers({ page, perPage });
+        const users = userData?.users || [];
+        const found = users.find((u) => u.email?.toLowerCase() === cleanEmail);
+        if (found) {
+          matchedUser = { id: found.id, email: found.email || cleanEmail };
+          break;
+        }
+        if (users.length < perPage) break;
+        page++;
+      }
+    }
+
+    // If account exists, generate OTP and send via Brevo REST API
+    if (matchedUser) {
+      const otp = generateOTP();
+      const otpHash = await hashString(otp);
+
+      // Invalidate previous active OTP challenges for this email
+      await supabase
+        .from('password_reset_challenges')
+        .update({ used_at: new Date().toISOString() })
+        .eq('email', cleanEmail)
+        .is('used_at', null);
+
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
+
+      const { error: insertError } = await supabase.from('password_reset_challenges').insert({
+        user_id: matchedUser.id,
+        email: cleanEmail,
+        otp_hash: otpHash,
+        expires_at: expiresAt,
+        attempt_count: 0,
+        max_attempts: 5,
+      });
+
+      if (insertError) {
+        console.error('Error inserting OTP challenge:', insertError);
+        return new Response(
+          JSON.stringify({ error: 'SERVER_ERROR', message: 'Failed to generate verification code.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Send email using Brevo REST API
+      const brevoApiKey = Deno.env.get('BREVO_API_KEY');
+      const senderEmail = Deno.env.get('BREVO_SENDER_EMAIL') || Deno.env.get('SENDER_EMAIL') || 'noreply@brevo.com';
+
+      if (!brevoApiKey) {
+        console.error('BREVO_API_KEY secret is not configured in Edge Function.');
+        return new Response(
+          JSON.stringify({
+            error: 'EMAIL_SEND_FAILED',
+            message: 'Email service configuration is missing. Please contact support.',
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       try {
-        const resendRes = await fetch('https://api.resend.com/emails', {
+        const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${resendApiKey}`,
+            'api-key': brevoApiKey,
           },
           body: JSON.stringify({
-            from: 'SkillSwap <noreply@skillswap.app>',
-            to: [cleanEmail],
+            sender: { name: 'SkillSwap', email: senderEmail },
+            to: [{ email: cleanEmail }],
             subject: 'SkillSwap password reset code',
-            html: `
+            htmlContent: `
               <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff;">
-                <h2 style="color: #4f46e5; margin-bottom: 16px; font-size: 22px;">SkillSwap Password Reset</h2>
+                <h2 style="color: #d6a64a; margin-bottom: 16px; font-size: 22px;">SkillSwap Password Reset</h2>
                 <p style="font-size: 15px; color: #334155; margin-bottom: 16px;">Your 6-digit verification code is:</p>
-                <div style="font-size: 32px; font-weight: 700; letter-spacing: 6px; color: #4f46e5; margin: 20px 0; padding: 14px 24px; background-color: #f1f5f9; display: inline-block; border-radius: 8px;">
+                <div style="font-size: 32px; font-weight: 700; letter-spacing: 6px; color: #11161c; margin: 20px 0; padding: 14px 24px; background-color: #f7f5f0; display: inline-block; border-radius: 8px; border: 1px solid #d6a64a;">
                   ${otp}
                 </div>
                 <p style="font-size: 14px; color: #64748b; margin-top: 20px;">This code expires in 10 minutes.</p>
@@ -150,21 +171,34 @@ serve(async (req) => {
           }),
         });
 
-        if (!resendRes.ok) {
-          const errBody = await resendRes.text();
-          console.error('Resend email error:', errBody);
+        if (!brevoRes.ok) {
+          const errText = await brevoRes.text();
+          console.error('Brevo API email delivery failed:', errText);
+          return new Response(
+            JSON.stringify({
+              error: 'EMAIL_SEND_FAILED',
+              message: 'Failed to deliver verification code via email provider.',
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
-      } catch (emailErr) {
-        console.error('Error sending email:', emailErr);
+      } catch (emailErr: any) {
+        console.error('Exception during Brevo email send:', emailErr);
+        return new Response(
+          JSON.stringify({
+            error: 'EMAIL_SEND_FAILED',
+            message: 'An error occurred while attempting to send email.',
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-    } else {
-      console.warn('RESEND_API_KEY is not configured in Edge Function environment secrets.');
     }
 
+    // Return generic success message to prevent account enumeration
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'A 6-digit verification code has been sent to your email.',
+        message: 'A 6-digit verification code has been sent to your email address if an account exists.',
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

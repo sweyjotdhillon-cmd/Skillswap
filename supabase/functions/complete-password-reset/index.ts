@@ -48,6 +48,13 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return new Response(
+        JSON.stringify({ error: 'SERVER_ERROR', message: 'Database service configuration missing.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // 1. Find matching challenge by recovery_token_hash
@@ -61,7 +68,7 @@ serve(async (req) => {
 
     if (fetchErr || !challenges || challenges.length === 0) {
       return new Response(
-        JSON.stringify({ error: 'INVALID_TOKEN', message: 'Recovery token is invalid or has already been used.' }),
+        JSON.stringify({ error: 'INVALID_TOKEN', message: 'Recovery authorization is invalid or has already been used.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -76,23 +83,28 @@ serve(async (req) => {
       );
     }
 
-    // 2. Identify user ID
+    // Identify user ID
     let userId = challenge.user_id;
 
     if (!userId) {
-      let page = 1;
-      const perPage = 100;
-      while (!userId) {
-        const { data: userData } = await supabase.auth.admin.listUsers({ page, perPage });
-        const users = userData?.users || [];
-        const found = users.find((u) => u.email?.toLowerCase() === cleanEmail);
-        if (found) {
-          userId = found.id;
+      try {
+        const { data: rpcUser } = await supabase.rpc('get_user_by_email', { p_email: cleanEmail });
+        if (rpcUser && rpcUser.length > 0) {
+          userId = rpcUser[0].id;
         }
-        if (users.length < perPage) {
-          break;
+      } catch (_) {
+        let page = 1;
+        const perPage = 100;
+        while (!userId && page <= 5) {
+          const { data: userData } = await supabase.auth.admin.listUsers({ page, perPage });
+          const users = userData?.users || [];
+          const found = users.find((u) => u.email?.toLowerCase() === cleanEmail);
+          if (found) {
+            userId = found.id;
+          }
+          if (users.length < perPage) break;
+          page++;
         }
-        page++;
       }
     }
 
@@ -106,6 +118,7 @@ serve(async (req) => {
     // 3. Update password using server-side admin API
     const { error: updatePasswordErr } = await supabase.auth.admin.updateUserById(userId, {
       password: newPassword,
+      email_confirm: true,
     });
 
     if (updatePasswordErr) {

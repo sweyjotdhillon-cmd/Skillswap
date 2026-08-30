@@ -18,7 +18,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
     const newErrors: { email?: string; password?: string } = {};
     if (!email.trim()) {
       newErrors.email = 'Please enter your email address.';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
+    } else if (!/\S+@\S+\.\S+/.test(email.trim())) {
       newErrors.email = 'Please enter a valid email address.';
     }
 
@@ -43,26 +43,22 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
         setErrorMessage('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY environment variables.');
         return;
       }
+      const cleanEmail = email.trim().toLowerCase();
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: cleanEmail,
         password,
       });
 
       if (error) {
-        const msg = error.message.toLowerCase();
-        if (msg.includes('google') || msg.includes('oauth')) {
-          setErrorMessage('This email is registered with Google. Please continue with Google Sign-In.');
-        } else if (error.message.includes('Invalid login credentials')) {
-          setErrorMessage('Invalid email or password. Please check your details and try again.');
-        } else if (error.message.includes('Email not confirmed')) {
-          const verifyUrl = `/verify-email?email=${encodeURIComponent(email)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+        if (error.message.includes('Email not confirmed')) {
+          const verifyUrl = `/verify-email?email=${encodeURIComponent(cleanEmail)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
           if (onNavigate) {
             onNavigate(verifyUrl);
           } else {
             window.location.href = verifyUrl;
           }
         } else {
-          setErrorMessage(error.message);
+          setErrorMessage('Invalid email or password. Please check your credentials and try again.');
         }
       } else {
         const user = data.user;
@@ -75,7 +71,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
         );
 
         if (!isVerified) {
-          const verifyUrl = `/verify-email?email=${encodeURIComponent(email)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+          const verifyUrl = `/verify-email?email=${encodeURIComponent(cleanEmail)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
           if (onNavigate) {
             onNavigate(verifyUrl);
           } else {
@@ -108,19 +104,14 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}${redirectTo ? redirectTo : '/explore'}`
-        }
+          redirectTo: `${window.location.origin}${redirectTo ? redirectTo : '/explore'}`,
+        },
       });
       if (error) {
-        const msg = error.message.toLowerCase();
-        if (msg.includes('password') || msg.includes('email and password')) {
-          setErrorMessage('This email is registered with email and password. Please sign in using your password.');
-        } else {
-          throw error;
-        }
+        throw error;
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'An unexpected error occurred. Please try again.');
+      setErrorMessage(err.message || 'An unexpected error occurred during Google sign in.');
     }
   };
 
@@ -172,6 +163,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
               <input
                 id="login-email"
                 type="email"
+                autoComplete="email"
                 className={`auth-input ${errors.email ? 'input-error' : ''}`}
                 placeholder="you@example.com"
                 value={email}
@@ -203,6 +195,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
               <input
                 id="login-password"
                 type="password"
+                autoComplete="current-password"
                 className={`auth-input ${errors.password ? 'input-error' : ''}`}
                 placeholder="••••••••"
                 value={password}
