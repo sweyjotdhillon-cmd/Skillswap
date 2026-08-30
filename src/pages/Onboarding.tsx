@@ -160,13 +160,13 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
         setUsernameMessage('Username is available');
       } else if (res.status === 'unavailable') {
         setUsernameStatus('unavailable');
-        setUsernameMessage('Username is already taken');
+        setUsernameMessage('This username is already taken.');
       } else if (res.status === 'invalid') {
         setUsernameStatus('invalid');
         setUsernameMessage(res.message);
       } else if (res.status === 'error') {
         setUsernameStatus('error');
-        setUsernameMessage(res.message);
+        setUsernameMessage('Unable to check username right now. Please try again.');
       }
     }, 400);
   };
