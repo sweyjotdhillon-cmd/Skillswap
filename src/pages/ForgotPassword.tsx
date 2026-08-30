@@ -17,10 +17,68 @@ function maskEmail(email: string): string {
   return `${local[0]}***${local[local.length - 1]}@${domain}`;
 }
 
+async function callEdgeFunction(functionName: string, body: object) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const supabase = getSupabaseBrowserClient();
+
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body,
+      });
+      if (error) {
+        let errorMessage = error.message || 'An error occurred';
+        if ((error as any).context && typeof (error as any).context.json === 'function') {
+          try {
+            const jsonErr = await (error as any).context.json();
+            if (jsonErr && jsonErr.message) {
+              errorMessage = jsonErr.message;
+            }
+          } catch (_) {
+            // ignore
+          }
+        }
+        return { data: null, error: { message: errorMessage } };
+      }
+      return { data, error: null };
+    } catch (_) {
+      // fallback to direct fetch
+    }
+  }
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return { data: null, error: { message: 'Supabase configuration missing.' } };
+  }
+
+  try {
+    const endpoint = `${supabaseUrl}/functions/v1/${functionName}`;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const resData: any = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { data: null, error: { message: resData?.message || 'Request failed' } };
+    }
+    return { data: resData, error: null };
+  } catch (err: any) {
+    return { data: null, error: { message: err.message || 'Network error' } };
+  }
+}
+
 export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const [recoveryToken, setRecoveryToken] = useState<string | null>(null);
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -59,8 +117,8 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
   const calculateStrength = (pwd: string) => {
     if (!pwd) return { score: 0, label: '', color: '' };
     let score = 0;
-    if (pwd.length >= 6) score += 1;
-    if (pwd.length >= 10) score += 1;
+    if (pwd.length >= 8) score += 1;
+    if (pwd.length >= 12) score += 1;
     if (/[A-Z]/.test(pwd)) score += 1;
     if (/[0-9]/.test(pwd)) score += 1;
     if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
@@ -86,7 +144,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
     return true;
   };
 
-  // Step 1: Request 6-digit OTP
+  // Step 1: Request 6-digit OTP via Edge Function
   const handleRequestOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -96,39 +154,16 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
 
     setLoading(true);
     try {
-      const supabase = getSupabaseBrowserClient();
-      if (!supabase) {
-        setErrorMessage('Supabase is not configured.');
+      const cleanEmail = email.trim();
+      const { data, error } = await callEdgeFunction('request-password-reset', { email: cleanEmail });
+
+      if (error) {
+        setErrorMessage(error.message);
         return;
       }
 
-      const cleanEmail = email.trim();
-      const { error } = await supabase.auth.signInWithOtp({
-        email: cleanEmail,
-        options: {
-          shouldCreateUser: false,
-        },
-      });
-
-      if (error) {
-        const msg = error.message.toLowerCase();
-        if (msg.includes('google') || msg.includes('oauth') || msg.includes('provider')) {
-          setErrorMessage('This account was created with Google. Please continue with Google Sign-In.');
-          return;
-        } else if (error.status === 429 || msg.includes('rate limit')) {
-          setErrorMessage('Too many OTP requests. Please wait a minute before requesting another code.');
-          return;
-        } else if (msg.includes('user not found') || msg.includes('signups not allowed') || error.status === 422) {
-          // Do not reveal non-existing email explicitly to prevent email enumeration,
-          // proceed to OTP screen with generic message or show generic safe message
-        } else {
-          setErrorMessage(error.message);
-          return;
-        }
-      }
-
       setStep('otp');
-      setCooldown(60);
+      setCooldown(45);
       setSuccessMessage("We've sent a 6-digit verification code to your email.");
     } catch (err: any) {
       setErrorMessage(err.message || 'An error occurred while requesting verification code.');
@@ -171,7 +206,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
     }
   };
 
-  // Handle OTP keyboard navigation
+  // Handle OTP keyboard navigation & Backspace
   const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace') {
       if (!otpDigits[index] && index > 0) {
@@ -201,7 +236,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
     otpInputRefs.current[targetIdx]?.focus();
   };
 
-  // Step 2: Verify OTP
+  // Step 2: Verify OTP via Edge Function
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -215,49 +250,27 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
 
     setLoading(true);
     try {
-      const supabase = getSupabaseBrowserClient();
-      if (!supabase) {
-        setErrorMessage('Supabase is not configured.');
-        return;
-      }
-
       const cleanEmail = email.trim();
-
-      // Attempt OTP verification with 'email' type, fallback to 'recovery' type if needed
-      let { data, error } = await supabase.auth.verifyOtp({
+      const { data, error } = await callEdgeFunction('verify-password-reset-otp', {
         email: cleanEmail,
-        token: fullCode,
-        type: 'email',
+        otp: fullCode,
       });
 
       if (error) {
-        const fallback = await supabase.auth.verifyOtp({
-          email: cleanEmail,
-          token: fullCode,
-          type: 'recovery',
-        });
-        if (!fallback.error) {
-          data = fallback.data;
-          error = null;
-        }
-      }
-
-      if (error) {
-        setErrorMessage('Invalid or expired code. Please try again.');
+        setErrorMessage(error.message || 'That code is incorrect. Please try again.');
         return;
       }
 
-      // SECURITY REQUIREMENT: Confirm that a valid authenticated session exists
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session) {
-        setErrorMessage('Session invalid or expired. Please request a new verification code.');
+      if (!data?.recoveryToken) {
+        setErrorMessage('Verification failed. Please try again.');
         return;
       }
 
+      setRecoveryToken(data.recoveryToken);
       setSuccessMessage('Code verified successfully. Please enter your new password.');
       setStep('new-password');
     } catch (err: any) {
-      setErrorMessage(err.message || 'Invalid or expired code. Please try again.');
+      setErrorMessage(err.message || 'That code is incorrect. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -271,32 +284,14 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
     setResending(true);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      if (!supabase) {
-        setErrorMessage('Supabase is not configured.');
-        return;
-      }
-
       const cleanEmail = email.trim();
-      const { error } = await supabase.auth.signInWithOtp({
-        email: cleanEmail,
-        options: {
-          shouldCreateUser: false,
-        },
-      });
+      const { data, error } = await callEdgeFunction('request-password-reset', { email: cleanEmail });
 
       if (error) {
-        const msg = error.message.toLowerCase();
-        if (msg.includes('google') || msg.includes('oauth') || msg.includes('provider')) {
-          setErrorMessage('This account was created with Google. Please continue with Google Sign-In.');
-        } else if (error.status === 429 || msg.includes('rate limit')) {
-          setErrorMessage('Too many OTP requests. Please wait a minute before requesting another code.');
-        } else {
-          setErrorMessage(error.message);
-        }
+        setErrorMessage(error.message);
       } else {
         setSuccessMessage(`A new 6-digit verification code has been sent to ${email}.`);
-        setCooldown(60);
+        setCooldown(45);
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'An error occurred while resending verification code.');
@@ -305,7 +300,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
     }
   };
 
-  // Step 3: Set New Password
+  // Step 3: Set New Password via Edge Function
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -317,8 +312,8 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
     if (!newPassword) {
       setPasswordError('Please enter a new password.');
       hasError = true;
-    } else if (newPassword.length < 6) {
-      setPasswordError('Password must be at least 6 characters long.');
+    } else if (newPassword.length < 8) {
+      setPasswordError('Password must be at least 8 characters long.');
       hasError = true;
     }
 
@@ -332,31 +327,24 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
 
     if (hasError) return;
 
+    if (!recoveryToken) {
+      setErrorMessage('Recovery session expired. Please verify your verification code again.');
+      setStep('otp');
+      return;
+    }
+
     setLoading(true);
     try {
-      const supabase = getSupabaseBrowserClient();
-      if (!supabase) {
-        setErrorMessage('Supabase is not configured.');
-        return;
-      }
-
-      // Security double-check: Verify valid session before password update
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session) {
-        setErrorMessage('Authenticated session expired. Please verify your OTP again.');
-        setStep('otp');
-        return;
-      }
-
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
+      const cleanEmail = email.trim();
+      const { data, error } = await callEdgeFunction('complete-password-reset', {
+        email: cleanEmail,
+        recoveryToken,
+        newPassword,
       });
 
       if (error) {
         setErrorMessage(error.message);
       } else {
-        // Sign user out after password reset to enforce fresh login with new password
-        await supabase.auth.signOut();
         setStep('success');
       }
     } catch (err: any) {
@@ -483,21 +471,21 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
 
           <div className="auth-card-header">
             <h2 className="auth-card-title">
-              {step === 'email' && 'Forgot Password'}
-              {step === 'otp' && 'Enter 6-Digit Code'}
-              {step === 'new-password' && 'Set New Password'}
-              {step === 'success' && 'Password Reset Complete'}
+              {step === 'email' && 'Forgot your password?'}
+              {step === 'otp' && 'Verify your email'}
+              {step === 'new-password' && 'Create a new password'}
+              {step === 'success' && 'Password updated successfully.'}
             </h2>
             <p className="auth-card-subtitle">
-              {step === 'email' && 'Enter your account email to receive a 6-digit verification code.'}
+              {step === 'email' && "Enter the email associated with your SkillSwap account and we'll send you a 6-digit verification code."}
               {step === 'otp' && (
                 <>
-                  We've sent a 6-digit verification code to{' '}
-                  <strong style={{ color: 'var(--color-primary, #6366f1)' }}>{maskEmail(email)}</strong>
+                  Enter the 6-digit code sent to your email (
+                  <strong style={{ color: 'var(--color-primary, #6366f1)' }}>{maskEmail(email)}</strong>).
                 </>
               )}
               {step === 'new-password' && 'Create a strong new password for your SkillSwap account.'}
-              {step === 'success' && 'Your password has been successfully updated.'}
+              {step === 'success' && 'Your password has been successfully reset. Please log in with your new password.'}
             </p>
           </div>
 
@@ -556,10 +544,10 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" opacity="0.25" />
                       <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" opacity="0.75" />
                     </svg>
-                    Sending code...
+                    Sending verification code...
                   </span>
                 ) : (
-                  'Send Verification Code →'
+                  'Send verification code →'
                 )}
               </button>
             </form>
@@ -618,10 +606,10 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" opacity="0.25" />
                       <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" opacity="0.75" />
                     </svg>
-                    Verifying...
+                    Verifying code...
                   </span>
                 ) : (
-                  'Verify Code →'
+                  'Verify code →'
                 )}
               </button>
 
@@ -687,7 +675,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                     id="new-password-input"
                     type={showNewPassword ? 'text' : 'password'}
                     className={`auth-input ${passwordError ? 'input-error' : ''}`}
-                    placeholder="At least 6 characters"
+                    placeholder="At least 8 characters"
                     value={newPassword}
                     onChange={(e) => {
                       setNewPassword(e.target.value);
@@ -729,10 +717,13 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                 </div>
                 {newPassword && (
                   <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span>Strength:</span>
+                    <span>Password Strength:</span>
                     <span style={{ color: strength.color, fontWeight: 600 }}>{strength.label}</span>
                   </div>
                 )}
+                <p style={{ fontSize: '0.78rem', opacity: 0.75, marginTop: '0.35rem' }}>
+                  Password requirements: Minimum 8 characters.
+                </p>
                 {passwordError && (
                   <p className="error-message" style={{ color: '#e53e3e', fontSize: '0.8rem', marginTop: '0.25rem' }}>
                     {passwordError}
@@ -749,7 +740,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                     id="confirm-password-input"
                     type={showConfirmPassword ? 'text' : 'password'}
                     className={`auth-input ${confirmPasswordError ? 'input-error' : ''}`}
-                    placeholder="Repeat new password"
+                    placeholder="Confirm new password"
                     value={confirmPassword}
                     onChange={(e) => {
                       setConfirmPassword(e.target.value);
@@ -805,7 +796,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                     Updating password...
                   </span>
                 ) : (
-                  'Update Password →'
+                  'Update password →'
                 )}
               </button>
             </form>
