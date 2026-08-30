@@ -13,11 +13,12 @@ import { VerifyEmailPage } from './pages/VerifyEmail';
 import { ForgotPasswordPage } from './pages/ForgotPassword';
 import { ResetPasswordPage } from './pages/ResetPassword';
 import { ChangePasswordPage } from './pages/ChangePassword';
+import { OnboardingPage } from './pages/Onboarding';
 import { ThemeToggle } from './components/ui/ThemeToggle';
 
 function AppContent() {
   const [path, setPath] = useState(window.location.pathname);
-  const { user, loading, isVerified, isGoogleUser } = useAuth();
+  const { user, profile, loading, profileLoading, isVerified, isGoogleUser } = useAuth();
 
   useEffect(() => {
     const handlePopState = () => {
@@ -34,7 +35,9 @@ function AppContent() {
   };
 
   useEffect(() => {
-    if (path === '/active-swaps') {
+    if (path === '/onboarding') {
+      document.title = 'Complete Profile — SkillSwap';
+    } else if (path === '/active-swaps') {
       document.title = 'Active Swaps — SkillSwap';
     } else if (path === '/swap-requests') {
       document.title = 'Swap Requests — SkillSwap';
@@ -81,6 +84,30 @@ function AppContent() {
       }
     }
   }, [loading, user, isVerified, isGoogleUser, path]);
+
+  // Onboarding enforcement:
+  // If user is authenticated & verified (or google user), but profile is incomplete (profile_completed === false),
+  // show OnboardingPage unless on explicit auth/verify pages.
+  const isAuthPage =
+    path.startsWith('/login') ||
+    path.startsWith('/signup') ||
+    path.startsWith('/verify-email') ||
+    path === '/forgot-password' ||
+    path === '/reset-password';
+
+  if (!loading && !profileLoading && user && (isVerified || isGoogleUser) && !isAuthPage) {
+    if (profile && profile.profile_completed === false) {
+      return <OnboardingPage onNavigate={navigate} redirectTo={path !== '/onboarding' ? path : undefined} />;
+    }
+  }
+
+  // Explicit onboarding route
+  if (path === '/onboarding') {
+    if (!loading && !user) {
+      return <LoginPage onNavigate={navigate} redirectTo="/onboarding" />;
+    }
+    return <OnboardingPage onNavigate={navigate} redirectTo={redirectToParam} />;
+  }
 
   // Protected route enforcement
   if (!loading && protectedRoutes.some((route) => path.startsWith(route))) {

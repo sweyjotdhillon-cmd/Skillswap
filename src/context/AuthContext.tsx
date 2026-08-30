@@ -1,36 +1,70 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
+import { getProfile, type Profile } from '../lib/supabase/profile';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  profile: Profile | null;
   loading: boolean;
+  profileLoading: boolean;
   isVerified: boolean;
   isGoogleUser: boolean;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<Session | null>;
+  refreshProfile: () => Promise<Profile | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
+  profile: null,
   loading: true,
+  profileLoading: true,
   isVerified: false,
   isGoogleUser: false,
   signOut: async () => {},
   refreshSession: async () => null,
+  refreshProfile: async () => null,
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  const fetchUserProfile = useCallback(async (userId: string): Promise<Profile | null> => {
+    setProfileLoading(true);
+    try {
+      const userProfile = await getProfile(userId);
+      setProfile(userProfile);
+      return userProfile;
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+      setProfile(null);
+      return null;
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
+  const refreshProfile = useCallback(async (): Promise<Profile | null> => {
+    if (!user) {
+      setProfile(null);
+      setProfileLoading(false);
+      return null;
+    }
+    return await fetchUserProfile(user.id);
+  }, [user, fetchUserProfile]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) {
       setLoading(false);
+      setProfileLoading(false);
       return;
     }
 
@@ -39,28 +73,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Fetch initial session once on mount
     supabase.auth
       .getSession()
-      .then(({ data }: { data: { session: Session | null } }) => {
-        if (mounted) {
-          setSession(data.session);
-          setUser(data.session?.user ?? null);
-          setLoading(false);
+      .then(async ({ data }: { data: { session: Session | null } }) => {
+        if (!mounted) return;
+        setSession(data.session);
+        const currentUser = data.session?.user ?? null;
+        setUser(currentUser);
+        setLoading(false);
+
+        if (currentUser) {
+          const userProfile = await getProfile(currentUser.id);
+          if (mounted) {
+            setProfile(userProfile);
+            setProfileLoading(false);
+          }
+        } else {
+          setProfile(null);
+          setProfileLoading(false);
         }
       })
       .catch((err) => {
         console.error('Error getting Supabase session:', err);
         if (mounted) {
           setLoading(false);
+          setProfileLoading(false);
         }
       });
 
     // Subscribe to auth state changes (OAuth redirects, login, logout, password updates)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, currentSession: Session | null) => {
-      if (mounted) {
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        setLoading(false);
+    } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, currentSession: Session | null) => {
+      if (!mounted) return;
+      setSession(currentSession);
+      const currentUser = currentSession?.user ?? null;
+      setUser(currentUser);
+      setLoading(false);
+
+      if (currentUser) {
+        const userProfile = await getProfile(currentUser.id);
+        if (mounted) {
+          setProfile(userProfile);
+          setProfileLoading(false);
+        }
+      } else {
+        setProfile(null);
+        setProfileLoading(false);
       }
     });
 
@@ -98,6 +155,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
+    setProfile(null);
   };
 
   const isGoogleUser = Boolean(
@@ -112,7 +170,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isVerified, isGoogleUser, signOut, refreshSession }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        profile,
+        loading,
+        profileLoading,
+        isVerified,
+        isGoogleUser,
+        signOut,
+        refreshSession,
+        refreshProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
