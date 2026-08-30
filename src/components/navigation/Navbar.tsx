@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Logo } from '../brand/Logo';
 import { useAuth } from '../../context/AuthContext';
 
-
 const navItems = [
   { label: 'Explore Swaps', path: '/explore' },
   { label: 'Swap Requests', path: '/swap-requests' },
@@ -67,12 +66,22 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
       </nav>
 
       <div className="header-right-group">
-
         {user ? (
-          <div className="auth-user-menu" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span className="auth-user-email" title={user.email} style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div className="auth-user-menu" style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <span className="auth-user-email" title={user.email} style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.9rem' }}>
               {user.email}
             </span>
+            <a
+              href="/change-password"
+              className="auth-link-bold"
+              style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}
+              onClick={(e) => {
+                e.preventDefault();
+                if (onNavigate) onNavigate('/change-password');
+              }}
+            >
+              Security
+            </a>
             {showUserHeader && (
               <div className="header-user-actions" aria-label="User profile and notifications">
                 <button
@@ -103,6 +112,16 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
               type="button"
               className="btn-signout"
               onClick={handleSignOut}
+              style={{
+                background: 'none',
+                border: '1px solid var(--shell-border, rgba(17, 22, 28, 0.15))',
+                borderRadius: '999px',
+                padding: '0.4rem 0.85rem',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                color: 'inherit',
+              }}
             >
               Sign Out
             </button>
@@ -176,6 +195,17 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                   <span className="mobile-user-label">Signed in as</span>
                   <strong className="mobile-user-email">{user.email}</strong>
                 </div>
+                <a
+                  href="/change-password"
+                  style={{ fontWeight: 600, fontSize: '1.05rem', padding: '0.5rem 0', borderBottom: '1px solid rgba(17, 22, 28, 0.06)' }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setMobileMenuOpen(false);
+                    if (onNavigate) onNavigate('/change-password');
+                  }}
+                >
+                  Change Password / Security
+                </a>
                 <button
                   type="button"
                   className="mobile-drawer-cta"
