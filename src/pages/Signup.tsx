@@ -72,8 +72,12 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
       });
 
       if (error) {
-        if (error.message.includes('User already registered') || error.status === 422) {
-          setErrorMessage('An account with this email already exists. Please log in instead.');
+        if (
+          error.message.includes('User already registered') ||
+          error.message.toLowerCase().includes('already exists') ||
+          error.status === 422
+        ) {
+          setErrorMessage('Account already exists with this email address.');
         } else {
           setErrorMessage(error.message);
         }
