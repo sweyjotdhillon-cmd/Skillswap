@@ -158,9 +158,12 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
       if (res.available) {
         setUsernameStatus('available');
         setUsernameMessage('Username is available');
+      } else if (res.error) {
+        setUsernameStatus('invalid');
+        setUsernameMessage(res.error);
       } else {
         setUsernameStatus('unavailable');
-        setUsernameMessage(res.error || 'This username is already taken.');
+        setUsernameMessage('This username is already taken.');
       }
     }, 400);
   };

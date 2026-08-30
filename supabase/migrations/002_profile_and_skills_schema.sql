@@ -387,6 +387,11 @@ CREATE POLICY "Users can update their own profile"
   ON public.profiles FOR UPDATE TO authenticated
   USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
+CREATE POLICY "Users can insert their own profile"
+  ON public.profiles FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = id);
+
 
 -- --- Private Contacts RLS (Restricted strictly to owner) ---
 ALTER TABLE public.user_private_contacts ENABLE ROW LEVEL SECURITY;
@@ -400,6 +405,11 @@ DROP POLICY IF EXISTS "Users can update their own private contacts" ON public.us
 CREATE POLICY "Users can update their own private contacts"
   ON public.user_private_contacts FOR UPDATE TO authenticated
   USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own private contacts" ON public.user_private_contacts;
+CREATE POLICY "Users can insert their own private contacts"
+  ON public.user_private_contacts FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
 
 
 -- --- Accounts RLS (Restricted SELECT strictly to owner; NO client INSERT/UPDATE/DELETE) ---
@@ -446,6 +456,14 @@ CREATE POLICY "Users can delete their own custom skills"
 
 
 -- ============================================================================
--- 8. REFRESH POSTGREST SCHEMA CACHE
+-- 8. GRANT ROLE PERMISSIONS
+-- ============================================================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+
+-- ============================================================================
+-- 9. REFRESH POSTGREST SCHEMA CACHE
 -- ============================================================================
 NOTIFY pgrst, 'reload schema';
