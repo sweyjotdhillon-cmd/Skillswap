@@ -118,8 +118,7 @@ export async function checkUsernameAvailability(username: string): Promise<Usern
         hint: error.hint,
         errorObj: error,
       });
-      const rawMsg = error.message || rpcError?.message || 'Unable to check username right now.';
-      return { status: 'error', message: `Database error (${error.code || 'UNKNOWN'}): ${rawMsg}` };
+      return { status: 'error', message: 'Unable to check username right now. Please try again.' };
     }
 
     if (data === null) {

@@ -33,6 +33,16 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   )
 );
 
+-- Safely add missing columns if profiles table already existed from partial migrations
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS username TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name TEXT NOT NULL DEFAULT 'SkillSwap User';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS profile_completed BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 -- Single Case-Insensitive Unique Index on Username (allows NULL)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_username_lower
   ON public.profiles(LOWER(username))
@@ -102,6 +112,9 @@ CREATE TABLE IF NOT EXISTS public.user_private_contacts (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE public.user_private_contacts ADD COLUMN IF NOT EXISTS phone_number TEXT;
+ALTER TABLE public.user_private_contacts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 DROP TRIGGER IF EXISTS trg_user_private_contacts_set_updated_at ON public.user_private_contacts;
 CREATE TRIGGER trg_user_private_contacts_set_updated_at
   BEFORE UPDATE ON public.user_private_contacts
@@ -119,6 +132,11 @@ CREATE TABLE IF NOT EXISTS public.accounts (
   credits_spent INT NOT NULL DEFAULT 0 CONSTRAINT chk_min_spent CHECK (credits_spent >= 0),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE public.accounts ADD COLUMN IF NOT EXISTS credits_balance INT NOT NULL DEFAULT 0;
+ALTER TABLE public.accounts ADD COLUMN IF NOT EXISTS credits_earned INT NOT NULL DEFAULT 0;
+ALTER TABLE public.accounts ADD COLUMN IF NOT EXISTS credits_spent INT NOT NULL DEFAULT 0;
+ALTER TABLE public.accounts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 DROP TRIGGER IF EXISTS trg_accounts_set_updated_at ON public.accounts;
 CREATE TRIGGER trg_accounts_set_updated_at

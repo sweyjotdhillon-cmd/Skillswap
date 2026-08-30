@@ -5676,25 +5676,46 @@ h1 span { color: #a8781d; }
   z-index: 1;
 }
 
+.onboarding-username-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.username-prefix {
+  position: absolute;
+  left: 1.1rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #a8781d;
+  pointer-events: none;
+  z-index: 2;
+}
+
 .username-input {
+  width: 100%;
   padding-left: 2.5rem !important;
   font-weight: 600;
   letter-spacing: 0.02em;
-  background-color: #ffffff;
-  color: #11161c;
-  caret-color: #11161c;
-  border-color: rgba(17, 22, 28, 0.15);
+  background-color: #ffffff !important;
+  color: #11161c !important;
+  caret-color: #11161c !important;
+  border: 1.5px solid rgba(17, 22, 28, 0.15);
+  border-radius: 14px;
 }
 
 .username-input::placeholder {
-  color: rgba(17, 22, 28, 0.4);
+  color: rgba(17, 22, 28, 0.4) !important;
+  opacity: 1;
 }
 
 .username-input:focus {
-  background-color: #ffffff;
-  color: #11161c;
-  border-color: #d6a64a;
-  box-shadow: 0 0 0 3px rgba(214, 166, 74, 0.2);
+  background-color: #ffffff !important;
+  color: #11161c !important;
+  border-color: #d6a64a !important;
+  box-shadow: 0 0 0 3px rgba(214, 166, 74, 0.2) !important;
+  outline: none;
 }
 
 .username-input:-webkit-autofill,
@@ -5704,24 +5725,30 @@ h1 span { color: #a8781d; }
   -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
   -webkit-text-fill-color: #11161c !important;
   caret-color: #11161c !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+[data-theme='dark'] .username-prefix {
+  color: #d6a64a;
 }
 
 [data-theme='dark'] .username-input {
-  background-color: #161b22;
-  color: #f0f6fc;
-  caret-color: #f0f6fc;
+  background-color: #161b22 !important;
+  color: #f0f6fc !important;
+  caret-color: #f0f6fc !important;
   border-color: rgba(240, 246, 252, 0.2);
 }
 
 [data-theme='dark'] .username-input::placeholder {
-  color: rgba(240, 246, 252, 0.4);
+  color: rgba(240, 246, 252, 0.4) !important;
+  opacity: 1;
 }
 
 [data-theme='dark'] .username-input:focus {
-  background-color: #21262d;
-  color: #f0f6fc;
-  border-color: #d6a64a;
-  box-shadow: 0 0 0 4px rgba(214, 166, 74, 0.25);
+  background-color: #21262d !important;
+  color: #f0f6fc !important;
+  border-color: #d6a64a !important;
+  box-shadow: 0 0 0 4px rgba(214, 166, 74, 0.25) !important;
 }
 
 [data-theme='dark'] .username-input:-webkit-autofill,
@@ -5731,6 +5758,13 @@ h1 span { color: #a8781d; }
   -webkit-box-shadow: 0 0 0 1000px #161b22 inset !important;
   -webkit-text-fill-color: #f0f6fc !important;
   caret-color: #f0f6fc !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+[data-theme='dark'] .username-input.input-error {
+  border-color: #dc2626 !important;
+  background-color: #161b22 !important;
+  color: #f0f6fc !important;
 }
 
 /* Compact Username Status Indicator Box */
