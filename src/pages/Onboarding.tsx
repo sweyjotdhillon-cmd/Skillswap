@@ -130,9 +130,9 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
 
   // Step 2 Username handling with debounced availability check
   const handleUsernameChange = (val: string) => {
-    const rawValue = val.replace(/\s+/g, '');
-    const normalized = rawValue.toLowerCase();
-    setUsername(normalized);
+    const lower = val.toLowerCase();
+    const normalized = lower.trim();
+    setUsername(lower);
 
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -146,7 +146,13 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
 
     if (!validateUsernameFormat(normalized)) {
       setUsernameStatus('invalid');
-      setUsernameMessage('Use 3–30 lowercase letters, numbers, underscore or period.');
+      if (normalized.length < 3) {
+        setUsernameMessage('Username must be at least 3 characters.');
+      } else if (normalized.length > 30) {
+        setUsernameMessage('Username cannot exceed 30 characters.');
+      } else {
+        setUsernameMessage('Use 3–30 lowercase letters, numbers, underscore or period.');
+      }
       return;
     }
 

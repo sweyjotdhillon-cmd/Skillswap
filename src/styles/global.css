@@ -5659,23 +5659,7 @@ h1 span { color: #a8781d; }
   line-height: 1.45;
 }
 
-/* Username Input with Prefix */
-.onboarding-username-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.username-prefix {
-  position: absolute;
-  left: 1.1rem;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #a8781d;
-  pointer-events: none;
-  z-index: 1;
-}
-
+/* Username Input & Prefix Styles */
 .onboarding-username-input-wrapper {
   position: relative;
   display: flex;
@@ -5688,36 +5672,62 @@ h1 span { color: #a8781d; }
   left: 1.1rem;
   font-size: 1.1rem;
   font-weight: 700;
-  color: #a8781d;
+  color: #a8781d !important;
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
 }
 
+/* Light mode defaults */
+input.username-input,
 .username-input {
   width: 100%;
   padding-left: 2.5rem !important;
   font-weight: 600;
   letter-spacing: 0.02em;
   background-color: #ffffff !important;
+  background: #ffffff !important;
   color: #11161c !important;
   caret-color: #11161c !important;
-  border: 1.5px solid rgba(17, 22, 28, 0.15);
+  border: 1.5px solid rgba(17, 22, 28, 0.2) !important;
   border-radius: 14px;
+  -webkit-text-fill-color: #11161c !important;
 }
 
+input.username-input::placeholder,
 .username-input::placeholder {
-  color: rgba(17, 22, 28, 0.4) !important;
+  color: rgba(17, 22, 28, 0.45) !important;
   opacity: 1;
 }
 
+input.username-input:focus,
 .username-input:focus {
   background-color: #ffffff !important;
+  background: #ffffff !important;
   color: #11161c !important;
   border-color: #d6a64a !important;
   box-shadow: 0 0 0 3px rgba(214, 166, 74, 0.2) !important;
   outline: none;
 }
 
+input.username-input.input-error,
+.username-input.input-error {
+  border-color: #dc2626 !important;
+  background-color: #ffffff !important;
+  color: #11161c !important;
+}
+
+input.username-input:disabled,
+.username-input:disabled {
+  background-color: #f3f4f6 !important;
+  color: #9ca3af !important;
+  cursor: not-allowed;
+}
+
+/* Light mode WebKit autofill override */
+input.username-input:-webkit-autofill,
+input.username-input:-webkit-autofill:hover,
+input.username-input:-webkit-autofill:focus,
+input.username-input:-webkit-autofill:active,
 .username-input:-webkit-autofill,
 .username-input:-webkit-autofill:hover,
 .username-input:-webkit-autofill:focus,
@@ -5725,32 +5735,58 @@ h1 span { color: #a8781d; }
   -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
   -webkit-text-fill-color: #11161c !important;
   caret-color: #11161c !important;
-  transition: background-color 5000s ease-in-out 0s;
+  transition: background-color 50000s ease-in-out 0s;
 }
 
+/* Dark mode overrides */
 [data-theme='dark'] .username-prefix {
-  color: #d6a64a;
+  color: #d6a64a !important;
 }
 
+[data-theme='dark'] input.username-input,
 [data-theme='dark'] .username-input {
   background-color: #161b22 !important;
+  background: #161b22 !important;
   color: #f0f6fc !important;
   caret-color: #f0f6fc !important;
-  border-color: rgba(240, 246, 252, 0.2);
+  border-color: rgba(240, 246, 252, 0.25) !important;
+  -webkit-text-fill-color: #f0f6fc !important;
 }
 
+[data-theme='dark'] input.username-input::placeholder,
 [data-theme='dark'] .username-input::placeholder {
-  color: rgba(240, 246, 252, 0.4) !important;
+  color: rgba(240, 246, 252, 0.45) !important;
   opacity: 1;
 }
 
+[data-theme='dark'] input.username-input:focus,
 [data-theme='dark'] .username-input:focus {
   background-color: #21262d !important;
+  background: #21262d !important;
   color: #f0f6fc !important;
   border-color: #d6a64a !important;
   box-shadow: 0 0 0 4px rgba(214, 166, 74, 0.25) !important;
 }
 
+[data-theme='dark'] input.username-input.input-error,
+[data-theme='dark'] .username-input.input-error {
+  border-color: #ef4444 !important;
+  background-color: #161b22 !important;
+  color: #f0f6fc !important;
+}
+
+[data-theme='dark'] input.username-input:disabled,
+[data-theme='dark'] .username-input:disabled {
+  background-color: #0d1117 !important;
+  color: #484f58 !important;
+  cursor: not-allowed;
+}
+
+/* Dark mode WebKit autofill override */
+[data-theme='dark'] input.username-input:-webkit-autofill,
+[data-theme='dark'] input.username-input:-webkit-autofill:hover,
+[data-theme='dark'] input.username-input:-webkit-autofill:focus,
+[data-theme='dark'] input.username-input:-webkit-autofill:active,
 [data-theme='dark'] .username-input:-webkit-autofill,
 [data-theme='dark'] .username-input:-webkit-autofill:hover,
 [data-theme='dark'] .username-input:-webkit-autofill:focus,
@@ -5758,13 +5794,7 @@ h1 span { color: #a8781d; }
   -webkit-box-shadow: 0 0 0 1000px #161b22 inset !important;
   -webkit-text-fill-color: #f0f6fc !important;
   caret-color: #f0f6fc !important;
-  transition: background-color 5000s ease-in-out 0s;
-}
-
-[data-theme='dark'] .username-input.input-error {
-  border-color: #dc2626 !important;
-  background-color: #161b22 !important;
-  color: #f0f6fc !important;
+  transition: background-color 50000s ease-in-out 0s;
 }
 
 /* Compact Username Status Indicator Box */

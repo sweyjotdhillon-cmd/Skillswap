@@ -63,9 +63,10 @@ export type UsernameCheckResult =
   | { status: 'error'; message: string };
 
 /**
- * Checks if a username is available (case-insensitive search).
+ * Checks if a username is available using RPC check_username_available.
+ * Normalizes by trimming whitespace and lowercasing.
  * Distinguishes invalid format, unavailable, available, and database/network errors.
- * Queries RPC check_username_available first with fallback to direct profiles query.
+ * Never reports a database error as unavailable/taken.
  */
 export async function checkUsernameAvailability(username: string): Promise<UsernameCheckResult> {
   const cleanUsername = username.trim().toLowerCase();
@@ -80,60 +81,34 @@ export async function checkUsernameAvailability(username: string): Promise<Usern
   }
 
   try {
-    // 1. Primary path: query via SECURITY DEFINER RPC check_username_available
     const { data: rpcData, error: rpcError } = await supabase.rpc('check_username_available', {
       p_username: cleanUsername,
     });
 
-    if (!rpcError && typeof rpcData === 'boolean') {
-      return rpcData ? { status: 'available' } : { status: 'unavailable' };
-    }
-
     if (rpcError) {
-      console.error('[DEBUG checkUsernameAvailability] RPC check_username_available failed:', {
+      console.error('[checkUsernameAvailability] RPC check_username_available error:', {
         rpc: 'check_username_available',
         params: { p_username: cleanUsername },
         message: rpcError.message,
         code: rpcError.code,
         details: rpcError.details,
-        hint: rpcError.hint,
-        errorObj: rpcError,
-      });
-    }
-
-    // 2. Secondary fallback: direct query on profiles table
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('username', cleanUsername)
-      .maybeSingle();
-
-    if (error) {
-      console.error('[DEBUG checkUsernameAvailability] Direct profiles query failed:', {
-        table: 'public.profiles',
-        query: `select id from profiles where username = '${cleanUsername}'`,
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-        errorObj: error,
       });
       return { status: 'error', message: 'Unable to check username right now. Please try again.' };
     }
 
-    if (data === null) {
-      return { status: 'available' };
+    if (typeof rpcData === 'boolean') {
+      return rpcData ? { status: 'available' } : { status: 'unavailable' };
     }
 
-    return { status: 'unavailable' };
+    return { status: 'error', message: 'Unable to check username right now. Please try again.' };
   } catch (err: any) {
-    console.error('[DEBUG checkUsernameAvailability] Unexpected error:', err);
+    console.error('[checkUsernameAvailability] Unexpected error:', err);
     return { status: 'error', message: err?.message || 'Unable to check username right now. Please try again.' };
   }
 }
 
 /**
- * Fetch public profile for a specific user ID.
+ * Fetch public profile for a specific user ID using maybeSingle().
  */
 export async function getProfile(userId: string): Promise<Profile | null> {
   const supabase = getSupabaseBrowserClient();
@@ -143,7 +118,7 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     .from('profiles')
     .select('*')
     .eq('id', userId)
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
     return null;
@@ -162,7 +137,7 @@ export async function getAccount(userId: string): Promise<Account | null> {
     .from('accounts')
     .select('*')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
     return null;
@@ -181,7 +156,7 @@ export async function getPrivateContact(userId: string): Promise<UserPrivateCont
     .from('user_private_contacts')
     .select('*')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
     return null;
