@@ -56,14 +56,22 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
       });
 
       if (error) {
-
+        const msg = error.message.toLowerCase();
+        if (msg.includes('email not confirmed') || msg.includes('unconfirmed')) {
+          setErrorType('unconfirmed_email');
+          setErrorMessage('Please verify your email address before logging in.');
           const verifyUrl = `/verify-email?email=${encodeURIComponent(cleanEmail)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
           if (onNavigate) {
             onNavigate(verifyUrl);
           } else {
             window.location.href = verifyUrl;
           }
-
+        } else if (msg.includes('invalid login credentials') || msg.includes('user not found')) {
+          setErrorType('ambiguous_credentials');
+          setErrorMessage("Account doesn't exist or invalid credentials.");
+        } else {
+          setErrorType('generic');
+          setErrorMessage(error.message);
         }
       } else {
         const user = data.user;
@@ -149,15 +157,23 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
                 <span>{errorMessage}</span>
               </div>
 
+              {errorType === 'unconfirmed_email' && (
+                <div style={{ marginTop: '0.25rem', fontSize: '0.9rem' }}>
+                  Need to verify your email?{' '}
+                  <a
+                    href={`/verify-email?email=${encodeURIComponent(email.trim())}`}
                     className="auth-link"
                     style={{ fontWeight: 600, textDecoration: 'underline' }}
                     onClick={(e) => {
                       e.preventDefault();
-
+                      if (onNavigate) {
+                        onNavigate(`/verify-email?email=${encodeURIComponent(email.trim())}`);
+                      } else {
+                        window.location.href = `/verify-email?email=${encodeURIComponent(email.trim())}`;
                       }
                     }}
                   >
-                    Create account →
+                    Verify email →
                   </a>
                 </div>
               )}
