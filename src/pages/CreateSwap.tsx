@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { CreateSwapHeader } from '../components/create-swap/CreateSwapHeader';
 import { TopicField } from '../components/create-swap/TopicField';
@@ -67,11 +67,18 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'info'; text: string } | null>(null);
+  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem(DRAFT_KEY);
-    if (saved) {
-      try {
+    return () => {
+      if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
         const parsed = JSON.parse(saved);
         const hasContent = Boolean(
           (parsed.topic && parsed.topic.trim()) ||
@@ -83,12 +90,12 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         );
         if (hasContent) {
           setStatusMessage({ type: 'info', text: 'Restored your previously saved draft.' });
-          const timer = setTimeout(() => setStatusMessage(null), 4000);
-          return () => clearTimeout(timer);
+          if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+          statusTimerRef.current = setTimeout(() => setStatusMessage(null), 4000);
         }
-      } catch {
-        // Ignore parse error
       }
+    } catch {
+      // Ignore parse error
     }
   }, []);
 
@@ -127,19 +134,20 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
   const handleSaveDraft = () => {
     try {
       const draftData = {
-        topic: formState.topic,
-        description: formState.description,
+        topic: formState.topic.trim(),
+        description: formState.description.trim(),
         chatPermission: formState.chatPermission,
-        credits: formState.credits,
-        requirements: formState.requirements,
-        additionalMessage: formState.additionalMessage,
+        credits: formState.credits.trim(),
+        requirements: formState.requirements.trim(),
+        additionalMessage: formState.additionalMessage.trim(),
       };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
       setStatusMessage({ type: 'info', text: 'Draft saved locally to browser storage!' });
     } catch {
       setStatusMessage({ type: 'info', text: 'Failed to save draft locally.' });
     }
-    setTimeout(() => {
+    if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+    statusTimerRef.current = setTimeout(() => {
       setStatusMessage(null);
     }, 4000);
   };
@@ -147,12 +155,17 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validate()) {
-      localStorage.removeItem(DRAFT_KEY);
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch (_) {
+        // ignore
+      }
       setStatusMessage({
         type: 'success',
-        text: 'Swap creation form submitted successfully! (Backend persistence will connect in future milestone)',
+        text: 'Swap creation form submitted successfully!',
       });
-      setTimeout(() => {
+      if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+      statusTimerRef.current = setTimeout(() => {
         setStatusMessage(null);
       }, 5000);
     } else {

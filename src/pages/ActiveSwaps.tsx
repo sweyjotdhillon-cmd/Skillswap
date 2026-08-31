@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 
 export interface SwapParticipant {
@@ -187,11 +187,22 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
 
+  const chatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (chatTimerRef.current) clearTimeout(chatTimerRef.current);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
   // Selected swap getters with safe null fallback
   const currentAcceptedSwap = acceptedSwaps.find((s) => s.id === selectedAcceptedId) || acceptedSwaps[0] || null;
   const currentGivenSwap = givenSwaps.find((s) => s.id === selectedGivenId) || givenSwaps[0] || null;
 
   const handleOpenChat = (participant: SwapParticipant, title: string) => {
+    if (chatTimerRef.current) clearTimeout(chatTimerRef.current);
     setActiveChatUser({
       name: participant.name,
       avatar: participant.avatar,
@@ -210,30 +221,35 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
   const handleSendChatMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
+    const cleanText = chatInput.trim();
+    if (!cleanText) return;
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       sender: 'user',
-      text: chatInput.trim(),
+      text: cleanText,
       time: 'Just now',
     };
 
     setChatMessages((prev) => [...prev, userMsg]);
     setChatInput('');
 
-    setTimeout(() => {
-      if (activeChatUser) {
-        setChatMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            sender: 'other',
-            text: `Received! I'm on it and will follow up shortly.`,
-            time: 'Just now',
-          },
-        ]);
-      }
+    if (chatTimerRef.current) clearTimeout(chatTimerRef.current);
+    chatTimerRef.current = setTimeout(() => {
+      setActiveChatUser((current) => {
+        if (current) {
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              id: (Date.now() + 1).toString(),
+              sender: 'other',
+              text: `Received! I'm on it and will follow up shortly.`,
+              time: 'Just now',
+            },
+          ]);
+        }
+        return current;
+      });
     }, 1000);
   };
 
@@ -274,7 +290,8 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     setSubmitWorkFiles([]);
 
     setSubmitSuccessToast(`Successfully submitted work for "${currentAcceptedSwap.title}"!`);
-    setTimeout(() => setSubmitSuccessToast(null), 4000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setSubmitSuccessToast(null), 4000);
   };
 
   return (
