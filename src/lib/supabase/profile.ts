@@ -174,8 +174,7 @@ export async function getSkillsCatalog(): Promise<Skill[]> {
 
   const { data, error } = await supabase
     .from('skills')
-    .select('*')
-    .order('category', { ascending: true })
+    .select('id,name,category')
     .order('name', { ascending: true });
 
   if (error) {
