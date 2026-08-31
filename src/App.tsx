@@ -14,6 +14,7 @@ import { ForgotPasswordPage } from './pages/ForgotPassword';
 import { ResetPasswordPage } from './pages/ResetPassword';
 import { ChangePasswordPage } from './pages/ChangePassword';
 import { OnboardingPage } from './pages/Onboarding';
+import { ProfilePage } from './pages/Profile';
 import { ThemeToggle } from './components/ui/ThemeToggle';
 
 function AppContent() {
@@ -35,7 +36,9 @@ function AppContent() {
   };
 
   useEffect(() => {
-    if (path === '/onboarding') {
+    if (path === '/profile') {
+      document.title = 'My Profile — SkillSwap';
+    } else if (path === '/onboarding') {
       document.title = 'Complete Profile — SkillSwap';
     } else if (path === '/active-swaps') {
       document.title = 'Active Swaps — SkillSwap';
@@ -67,7 +70,7 @@ function AppContent() {
   }, [path]);
 
   // Protected route list
-  const protectedRoutes = ['/create-swap', '/swap-requests', '/active-swaps', '/change-password'];
+  const protectedRoutes = ['/profile', '/create-swap', '/swap-requests', '/active-swaps', '/change-password'];
 
   // Parse query params for login/signup redirection
   const urlParams = new URLSearchParams(window.location.search);
@@ -156,6 +159,10 @@ function AppContent() {
 
   if (path === '/reset-password') {
     return <ResetPasswordPage onNavigate={navigate} />;
+  }
+
+  if (path === '/profile') {
+    return <ProfilePage onNavigate={navigate} />;
   }
 
   if (path === '/change-password') {
