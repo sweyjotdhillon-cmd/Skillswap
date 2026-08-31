@@ -23,6 +23,7 @@ export interface SelectedSkill {
   skillId?: string; // predefined skill UUID
 }
 
+
 export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
   const { user, profile, refreshProfile } = useAuth();
   const bioHelpId = useId();
@@ -45,6 +46,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
   const [skillsLoading, setSkillsLoading] = useState<boolean>(true);
   const [skillsError, setSkillsError] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedSkills, setSelectedSkills] = useState<SelectedSkill[]>([]);
   const [customSkillModalOpen, setCustomSkillModalOpen] = useState<boolean>(false);
@@ -84,6 +86,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
     setSkillsError('');
     try {
       const catalog = await getSkillsCatalog();
+      console.log(`[Skills Catalog] Successfully loaded ${catalog.length} skills from public.skills`);
       setSkillsCatalog(catalog);
     } catch (err: any) {
       console.error('Failed to load skills catalog:', err);
@@ -408,7 +411,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
 
   // Step 4 Validation & Final Submission
   const validatePhone = (phone: string): boolean => {
-    if (!phone.trim()) return true; // Phone optional or format checked
+    if (!phone.trim()) return true;
     const cleanPhone = phone.trim().replace(/[\s\-\(\)\+]/g, '');
     return /^\d{7,15}$/.test(cleanPhone);
   };
@@ -423,21 +426,27 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
       return;
     }
 
-    if (!user) {
-      setSubmitError('Authentication session expired. Please log in again.');
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setSubmitError('Unable to connect to database service. Please try again.');
+      return;
+    }
+
+    // Verify authenticated user from session
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
+
+    if (!currentUser) {
+      setSubmitError('Your session has expired. Please sign in again.');
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      if (!supabase) {
-        throw new Error('Supabase client unavailable.');
-      }
-
       // If user is anonymous, link Google identity before finalizing profile
-      if (user.is_anonymous) {
+      if (currentUser.is_anonymous) {
         const onboardingState = {
           fullName,
           bio,
@@ -458,7 +467,11 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
 
         if (linkError) {
           sessionStorage.removeItem('skillswap_pending_onboarding');
-          if (linkError.message.includes('already linked') || linkError.message.includes('identity_already_exists') || linkError.message.includes('already registered')) {
+          if (
+            linkError.message.includes('already linked') ||
+            linkError.message.includes('identity_already_exists') ||
+            linkError.message.includes('already registered')
+          ) {
             throw new Error('An account with this Google email already exists. Please log in instead.');
           }
           throw new Error(`Google Identity linking failed: ${linkError.message}`);
@@ -467,7 +480,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
       }
 
       // Non-anonymous user: finalize profile directly
-      await executeProfileFinalization(user.id, {
+      await executeProfileFinalization(currentUser.id, {
         fullName,
         bio,
         username,
@@ -477,7 +490,11 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
       });
     } catch (err: any) {
       console.error('Final onboarding submission error:', err);
-      setSubmitError(err.message || 'An error occurred during profile creation. Please try again.');
+      const friendlyMsg =
+        err?.message?.includes('PGRST') || err?.message?.includes('PostgreSQL')
+          ? 'Something went wrong while creating your profile. Please try again.'
+          : err?.message || 'An error occurred during profile creation. Please try again.';
+      setSubmitError(friendlyMsg);
       setIsSubmitting(false);
     }
   };
@@ -485,20 +502,37 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
   // Extract unique categories for filter chips
   const catalogCategories = ['All', ...Array.from(new Set(skillsCatalog.map((s) => s.category))).sort()];
 
-  // Filter skills for Step 3 catalog search & category
-  const filteredCatalog = skillsCatalog.filter((s) => {
+  // Popular skills dynamically derived from database catalog (first skill of each category)
+  const popularSkills = React.useMemo(() => {
+    const seenCategories = new Set<string>();
+    const featured: Skill[] = [];
+    for (const skill of skillsCatalog) {
+      if (!seenCategories.has(skill.category)) {
+        seenCategories.add(skill.category);
+        featured.push(skill);
+      }
+      if (featured.length >= 12) break;
+    }
+    return featured;
+  }, [skillsCatalog]);
+
+  // Filter skills for Step 3 search & category
+  const trimmedSearch = searchQuery.trim().toLowerCase();
+
+  const searchMatchingSkills = trimmedSearch
+    ? skillsCatalog.filter((s) => s.name.toLowerCase().includes(trimmedSearch))
+    : [];
+
+  const categoryFilteredCatalog = skillsCatalog.filter((s) => {
     // Category filter
     if (selectedCategory !== 'All' && s.category !== selectedCategory) {
       return false;
     }
-
-    // Search query filter (trimmed, case-insensitive)
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return true;
-
+    // Search query filter
+    if (!trimmedSearch) return true;
     return (
-      s.name.toLowerCase().includes(query) ||
-      s.category.toLowerCase().includes(query)
+      s.name.toLowerCase().includes(trimmedSearch) ||
+      s.category.toLowerCase().includes(trimmedSearch)
     );
   });
 
@@ -512,7 +546,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
           {/* Top Header & Step Progress Bar */}
           <div className="onboarding-progress-header">
             <div className="onboarding-step-counter">
-              <span>{step} / 4</span>
+              <span>Step {step} of 4</span>
             </div>
             <div className="onboarding-progress-track">
               <div
@@ -749,14 +783,14 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
 
               {selectedSkills.length >= 10 && (
                 <div className="onboarding-alert onboarding-alert--info" role="status">
-                  You can select up to 10 skills. Remove a skill to choose a different one.
+                  You have reached the 10 skill limit. Remove a skill to choose a different one.
                 </div>
               )}
 
               {/* Selected Skill Chips Box */}
               <div className="onboarding-selected-skills-section">
                 <div className="selected-skills-header-row">
-                  <span className="section-mini-label">Selected Skills</span>
+                  <span className="section-mini-label">SELECTED SKILLS</span>
                   {selectedSkills.length > 0 && (
                     <span className="selected-skills-count-text">
                       {selectedSkills.length} of 10 selected
@@ -773,7 +807,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                     {selectedSkills.map((s) => (
                       <span key={s.id} className="skill-chip">
                         <span className="skill-chip-name">{s.name}</span>
-                        {s.isCustom && <small className="custom-skill-badge">Custom</small>}
+                        {s.isCustom && <small className="custom-skill-badge">CUSTOM</small>}
                         <button
                           type="button"
                           className="skill-chip-remove"
@@ -789,10 +823,10 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                 )}
               </div>
 
-              {/* Search Field */}
+              {/* Interactive Search Box */}
               <div className="form-group skills-search-group">
                 <div className="input-wrapper search-wrapper">
-                  <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg className="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="11" cy="11" r="8" />
                     <line x1="21" y1="21" x2="16.65" y2="16.65" />
                   </svg>
@@ -802,6 +836,8 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                     placeholder="Search skills (e.g. Python, Design, Excel...)"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setIsSearchFocused(true)}
+                    onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                   />
                   {searchQuery && (
                     <button
@@ -814,6 +850,81 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                     </button>
                   )}
                 </div>
+
+                {/* Interactive Search Results Dropdown Panel (Shown while typing query) */}
+                {trimmedSearch !== '' && (
+                  <div className="search-results-dropdown">
+                    <div className="search-results-header">
+                      <span>MATCHING SKILLS ({searchMatchingSkills.length})</span>
+                    </div>
+
+                    {searchMatchingSkills.length > 0 ? (
+                      <div className="search-results-list">
+                        {searchMatchingSkills.map((skill) => {
+                          const isSelected = selectedSkills.some(
+                            (sel) => !sel.isCustom && sel.skillId === skill.id
+                          );
+                          const isMaxReached = selectedSkills.length >= 10;
+
+                          return (
+                            <button
+                              key={`dropdown-${skill.id}`}
+                              type="button"
+                              className={`search-result-item ${isSelected ? 'search-result-item--selected' : ''}`}
+                              onClick={() => {
+                                if (isSelected) {
+                                  const item = selectedSkills.find(
+                                    (s) => !s.isCustom && s.skillId === skill.id
+                                  );
+                                  if (item) handleRemoveSkill(item.id);
+                                } else if (!isMaxReached) {
+                                  handleSelectSkill(skill);
+                                }
+                              }}
+                            >
+                              <div className="search-result-item-info">
+                                <span className="search-result-item-name">{skill.name}</span>
+                                <span className="search-result-item-cat">{skill.category}</span>
+                              </div>
+                              <div className="search-result-item-action">
+                                {isSelected ? (
+                                  <span className="search-action-icon search-action-icon--selected" title="Selected (Click to remove)">
+                                    ✓
+                                  </span>
+                                ) : (
+                                  <span
+                                    className={`search-action-icon search-action-icon--add ${isMaxReached ? 'search-action-icon--disabled' : ''}`}
+                                    title={isMaxReached ? 'Skill limit reached' : 'Add skill'}
+                                  >
+                                    +
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="no-predefined-matches-box">
+                        <p className="no-matches-text">
+                          No predefined skills found matching "{searchQuery.trim()}".
+                        </p>
+                        <button
+                          type="button"
+                          className="inline-add-custom-btn"
+                          onClick={() => {
+                            setCustomSkillInput(searchQuery.trim());
+                            setCustomSkillError('');
+                            setCustomSkillModalOpen(true);
+                          }}
+                          disabled={selectedSkills.length >= 10}
+                        >
+                          + Add "{searchQuery.trim()}" as a custom skill
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Category Filter Chips */}
@@ -832,22 +943,12 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                 </div>
               </div>
 
-              {/* Main Predefined Catalog Grid */}
+              {/* Main Catalog View: Popular Skills & All Skills Grid */}
               <div className="onboarding-catalog-section">
-                <div className="catalog-section-header">
-                  <span className="section-mini-label">
-                    {searchQuery
-                      ? `Search Results (${filteredCatalog.length})`
-                      : selectedCategory !== 'All'
-                      ? `${selectedCategory} (${filteredCatalog.length})`
-                      : `Popular & All Skills (${skillsCatalog.length})`}
-                  </span>
-                </div>
-
                 {skillsLoading ? (
                   <div className="skills-catalog-loading">
                     <div className="spinner-dots" />
-                    <span>Loading skills catalog...</span>
+                    <span>Loading skills catalog from Supabase...</span>
                   </div>
                 ) : skillsError ? (
                   <div className="skills-catalog-error">
@@ -861,52 +962,26 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                     </button>
                   </div>
                 ) : (
-                  <div className="catalog-skills-scroll-container">
-                    {filteredCatalog.length === 0 ? (
-                      <div className="no-catalog-results">
-                        <p className="no-catalog-results-text">
-                          No skills found matching "{searchQuery}".
-                        </p>
-                        <button
-                          type="button"
-                          className="inline-add-custom-btn"
-                          onClick={() => {
-                            setCustomSkillInput(searchQuery.trim());
-                            setCustomSkillError('');
-                            setCustomSkillModalOpen(true);
-                          }}
-                          disabled={selectedSkills.length >= 10}
-                        >
-                          + Add "{searchQuery.trim()}" as a custom skill
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="catalog-skills-grid">
-                        {filteredCatalog.map((skill) => {
-                          const isSelected = selectedSkills.some(
-                            (sel) => !sel.isCustom && sel.skillId === skill.id
-                          );
-                          const isMaxReached = selectedSkills.length >= 10;
+                  <>
+                    {/* POPULAR SKILLS (When no active search query or when category is All) */}
+                    {!trimmedSearch && selectedCategory === 'All' && popularSkills.length > 0 && (
+                      <div className="popular-skills-wrapper">
+                        <div className="catalog-section-header">
+                          <span className="section-mini-label">POPULAR SKILLS</span>
+                        </div>
+                        <div className="popular-skills-grid">
+                          {popularSkills.map((skill) => {
+                            const isSelected = selectedSkills.some(
+                              (sel) => !sel.isCustom && sel.skillId === skill.id
+                            );
+                            const isMaxReached = selectedSkills.length >= 10;
 
-                          return (
-                            <div
-                              key={skill.id}
-                              className={`catalog-skill-card ${isSelected ? 'catalog-skill-card--selected' : ''}`}
-                              onClick={() => {
-                                if (isSelected) {
-                                  const item = selectedSkills.find(
-                                    (s) => !s.isCustom && s.skillId === skill.id
-                                  );
-                                  if (item) handleRemoveSkill(item.id);
-                                } else if (!isMaxReached) {
-                                  handleSelectSkill(skill);
-                                }
-                              }}
-                              role="button"
-                              tabIndex={0}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
+                            return (
+                              <button
+                                key={`popular-${skill.id}`}
+                                type="button"
+                                className={`popular-skill-chip ${isSelected ? 'popular-skill-chip--selected' : ''}`}
+                                onClick={() => {
                                   if (isSelected) {
                                     const item = selectedSkills.find(
                                       (s) => !s.isCustom && s.skillId === skill.id
@@ -915,37 +990,106 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                                   } else if (!isMaxReached) {
                                     handleSelectSkill(skill);
                                   }
-                                }
-                              }}
-                            >
-                              <div className="catalog-skill-card-info">
-                                <span className="catalog-skill-name">{skill.name}</span>
-                                <span className="catalog-skill-category">{skill.category}</span>
-                              </div>
-                              <div className="catalog-skill-card-action">
-                                {isSelected ? (
-                                  <span className="skill-action-icon skill-action-icon--selected" title="Selected (Click to remove)">
-                                    ✓
-                                  </span>
-                                ) : (
-                                  <span
-                                    className={`skill-action-icon skill-action-icon--add ${isMaxReached ? 'skill-action-icon--disabled' : ''}`}
-                                    title={isMaxReached ? 'Skill limit reached' : 'Add skill'}
-                                  >
-                                    +
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
+                                }}
+                              >
+                                <span>{skill.name}</span>
+                                <span className="popular-skill-action-icon">
+                                  {isSelected ? '✓' : '+'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
-                  </div>
+
+                    {/* ALL SKILLS / CATEGORY CATALOG GRID */}
+                    <div className="all-skills-catalog-wrapper">
+                      <div className="catalog-section-header">
+                        <span className="section-mini-label">
+                          {trimmedSearch
+                            ? `FILTERED CATALOG (${categoryFilteredCatalog.length})`
+                            : selectedCategory !== 'All'
+                            ? `${selectedCategory.toUpperCase()} (${categoryFilteredCatalog.length})`
+                            : `ALL SKILLS (${skillsCatalog.length})`}
+                        </span>
+                      </div>
+
+                      <div className="catalog-skills-scroll-container">
+                        {categoryFilteredCatalog.length === 0 ? (
+                          <div className="no-catalog-results">
+                            <p className="no-catalog-results-text">
+                              No skills found in category "{selectedCategory}"{trimmedSearch ? ` matching "${trimmedSearch}"` : ''}.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="catalog-skills-grid">
+                            {categoryFilteredCatalog.map((skill) => {
+                              const isSelected = selectedSkills.some(
+                                (sel) => !sel.isCustom && sel.skillId === skill.id
+                              );
+                              const isMaxReached = selectedSkills.length >= 10;
+
+                              return (
+                                <div
+                                  key={skill.id}
+                                  className={`catalog-skill-card ${isSelected ? 'catalog-skill-card--selected' : ''}`}
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      const item = selectedSkills.find(
+                                        (s) => !s.isCustom && s.skillId === skill.id
+                                      );
+                                      if (item) handleRemoveSkill(item.id);
+                                    } else if (!isMaxReached) {
+                                      handleSelectSkill(skill);
+                                    }
+                                  }}
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      if (isSelected) {
+                                        const item = selectedSkills.find(
+                                          (s) => !s.isCustom && s.skillId === skill.id
+                                        );
+                                        if (item) handleRemoveSkill(item.id);
+                                      } else if (!isMaxReached) {
+                                        handleSelectSkill(skill);
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <div className="catalog-skill-card-info">
+                                    <span className="catalog-skill-name">{skill.name}</span>
+                                    <span className="catalog-skill-category">{skill.category}</span>
+                                  </div>
+                                  <div className="catalog-skill-card-action">
+                                    {isSelected ? (
+                                      <span className="skill-action-icon skill-action-icon--selected" title="Selected (Click to remove)">
+                                        ✓
+                                      </span>
+                                    ) : (
+                                      <span
+                                        className={`skill-action-icon skill-action-icon--add ${isMaxReached ? 'skill-action-icon--disabled' : ''}`}
+                                        title={isMaxReached ? 'Skill limit reached' : 'Add skill'}
+                                      >
+                                        +
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
 
-              {/* Custom Skill Footer Trigger */}
+              {/* Custom Skill Secondary Trigger */}
               <div className="custom-skill-footer">
                 <button
                   type="button"
@@ -1104,7 +1248,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                 <div>
                   <h4 className="confirmation-title">Everything looks good!</h4>
                   <p className="confirmation-text">
-                    You can review and edit your details before creating your profile.
+                    Confirm your details to finish setting up your profile.
                   </p>
                 </div>
               </div>
@@ -1124,7 +1268,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                   className="onboarding-btn onboarding-btn--primary"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Creating your profile...' : 'Create My Profile'}
+                  {isSubmitting ? 'Creating your profile...' : 'Confirm Profile and Create My Profile'}
                 </button>
               </div>
             </form>
