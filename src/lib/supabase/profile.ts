@@ -56,6 +56,16 @@ export function formatFriendlyErrorMessage(error: any): string {
   const rawMsg = typeof error === 'string' ? error : error.message || error.details || '';
   const lower = rawMsg.toLowerCase();
 
+  const safeUiMessage = [
+    'we couldn’t save the skill',
+    'we couldn’t save your profile',
+    'we couldn’t complete your profile',
+    'your profile was saved, but we could not confirm completion',
+    'this username is already taken',
+    'your session has expired',
+  ].some((message) => lower.startsWith(message));
+  if (safeUiMessage) return rawMsg;
+
   // 1. Immutable Username
   if (lower.includes('immutable once set') || lower.includes('username is permanently immutable')) {
     return 'Username cannot be changed once set.';
@@ -145,7 +155,8 @@ export function formatFriendlyErrorMessage(error: any): string {
     return 'Something went wrong while processing your request. Please try again.';
   }
 
-  return rawMsg || 'Something went wrong. Please try again.';
+  // Do not expose unclassified backend details to users.
+  return 'We couldn’t save your profile right now. Please try again.';
 }
 
 /**
@@ -205,6 +216,53 @@ export async function checkUsernameAvailability(username: string): Promise<Usern
     console.error('[checkUsernameAvailability] Unexpected error:', err);
     return { status: 'error', message: formatFriendlyErrorMessage(err) };
   }
+}
+
+
+export interface OnboardingProfileInput {
+  fullName: string;
+  bio: string;
+  username: string;
+  avatarUrl: string | null;
+}
+
+/**
+ * Saves onboarding data for the currently authenticated user only. The user id is
+ * derived from Supabase Auth rather than accepted from UI state.
+ */
+export async function saveCurrentUserOnboardingProfile(input: OnboardingProfileInput): Promise<void> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) throw new Error('We couldn’t save your profile right now. Please try again.');
+
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw new Error('Your session has expired. Please sign in again.');
+
+  const { error } = await supabase.from('profiles').upsert(
+    {
+      id: authData.user.id,
+      full_name: input.fullName.trim(),
+      bio: input.bio.trim() || null,
+      username: input.username.trim().toLowerCase(),
+      avatar_url: input.avatarUrl,
+    },
+    { onConflict: 'id' },
+  );
+  if (error) throw new Error(formatFriendlyErrorMessage(error));
+}
+
+/** Saves an optional phone number in the owner's private-contact row only. */
+export async function saveCurrentUserPrivateContact(phoneNumber: string): Promise<void> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) throw new Error('We couldn’t save your profile right now. Please try again.');
+
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw new Error('Your session has expired. Please sign in again.');
+
+  const { error } = await supabase.from('user_private_contacts').upsert(
+    { user_id: authData.user.id, phone_number: phoneNumber.trim() },
+    { onConflict: 'user_id' },
+  );
+  if (error) throw new Error(formatFriendlyErrorMessage(error));
 }
 
 /**
@@ -374,7 +432,7 @@ export async function addUserSkill(
   params: { skillId?: string; customSkillName?: string }
 ): Promise<{ success: boolean; type?: string; id?: string; error?: string }> {
   const supabase = getSupabaseBrowserClient();
-  if (!supabase) return { success: false, error: 'Supabase client not initialized.' };
+  if (!supabase) return { success: false, error: 'We couldn’t save your profile right now. Please try again.' };
 
   try {
     const { data, error } = await supabase.rpc('add_user_skill', {
@@ -387,6 +445,9 @@ export async function addUserSkill(
       return { success: false, error: formatFriendlyErrorMessage(error) };
     }
 
+    if (!data || data.success !== true) {
+      return { success: false, error: 'We couldn’t save your profile right now. Please try again.' };
+    }
     return data;
   } catch (err: any) {
     console.error('[addUserSkill] Exception:', err);
@@ -417,7 +478,7 @@ export async function removeUserSkill(skillType: 'predefined' | 'custom', skillI
  */
 export async function completeProfile(): Promise<{ success: boolean; profile_completed?: boolean; error?: string }> {
   const supabase = getSupabaseBrowserClient();
-  if (!supabase) return { success: false, error: 'Supabase client not initialized.' };
+  if (!supabase) return { success: false, error: 'We couldn’t complete your profile right now. Please try again.' };
 
   try {
     const { data, error } = await supabase.rpc('complete_profile');
@@ -426,6 +487,9 @@ export async function completeProfile(): Promise<{ success: boolean; profile_com
       return { success: false, error: formatFriendlyErrorMessage(error) };
     }
 
+    if (!data || data.success !== true || data.profile_completed !== true) {
+      return { success: false, error: 'We couldn’t complete your profile right now. Please try again.' };
+    }
     return data;
   } catch (err: any) {
     return { success: false, error: formatFriendlyErrorMessage(err) };
