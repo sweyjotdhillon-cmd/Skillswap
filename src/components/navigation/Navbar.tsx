@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Logo } from '../brand/Logo';
 import { useAuth } from '../../context/AuthContext';
 
@@ -22,6 +22,26 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const activePath = currentPath || window.location.pathname;
   const { user, signOut } = useAuth();
+
+  // Accessibility & UX: Handle Escape key to close mobile drawer & body scroll lock
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileMenuOpen]);
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, itemPath: string) => {
     setMobileMenuOpen(false);

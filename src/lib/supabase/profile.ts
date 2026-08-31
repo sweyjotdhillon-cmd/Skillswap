@@ -63,10 +63,37 @@ export function formatFriendlyErrorMessage(error: any): string {
     'your profile was saved, but we could not confirm completion',
     'this username is already taken',
     'your session has expired',
+    'account doesn\'t exist or invalid credentials',
+    'please verify your email address before logging in',
   ].some((message) => lower.startsWith(message));
   if (safeUiMessage) return rawMsg;
 
-  // 1. Immutable Username
+  // 1. Authentication Credentials & Login Errors
+  if (lower.includes('invalid login credentials') || lower.includes('invalid_credentials') || lower.includes('user not found')) {
+    return "Account doesn't exist or invalid credentials.";
+  }
+  if (lower.includes('email not confirmed') || lower.includes('unconfirmed')) {
+    return 'Please verify your email address before logging in.';
+  }
+  if (lower.includes('user already registered') || lower.includes('user already exists') || lower.includes('account already exists')) {
+    return 'Account already exists';
+  }
+
+  // 2. OTP Verification & Password Reset
+  if (lower.includes('token has expired') || lower.includes('code has expired') || lower.includes('otp_expired')) {
+    return 'The verification code has expired. Please request a new code.';
+  }
+  if (lower.includes('token is invalid') || lower.includes('invalid otp') || lower.includes('incorrect_otp')) {
+    return 'Invalid verification code. Please check your code and try again.';
+  }
+  if (lower.includes('rate limit') || lower.includes('too many requests') || lower.includes('rate_limit_exceeded')) {
+    return 'Too many requests. Please wait a few minutes before trying again.';
+  }
+  if (lower.includes('at least 8 characters') || lower.includes('weak_password')) {
+    return 'Password must be at least 8 characters long.';
+  }
+
+  // 3. Immutable Username
   if (lower.includes('immutable once set') || lower.includes('username is permanently immutable')) {
     return 'Username cannot be changed once set.';
   }

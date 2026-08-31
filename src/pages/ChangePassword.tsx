@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { useAuth } from '../context/AuthContext';
+import { formatFriendlyErrorMessage } from '../lib/supabase/profile';
 
 type ChangePasswordPageProps = {
   onNavigate?: (path: string) => void;
@@ -114,7 +115,7 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
       });
 
       if (updateErr) {
-        setErrorMessage(updateErr.message || 'Failed to update password.');
+        setErrorMessage(formatFriendlyErrorMessage(updateErr));
       } else {
         setSuccessMessage('Password changed successfully. A security notification has been recorded for your account.');
         setCurrentPassword('');
@@ -122,7 +123,7 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
         setConfirmPassword('');
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'An unexpected error occurred while changing password.');
+      setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }

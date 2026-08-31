@@ -41,15 +41,25 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   const [chatInput, setChatInput] = useState('');
 
   const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
 
-  // Clean up pending reply timers on unmount
+  // Track mounted state and clean up pending timers on unmount
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       if (replyTimerRef.current) {
         clearTimeout(replyTimerRef.current);
       }
     };
   }, []);
+
+  const handleCloseChat = () => {
+    if (replyTimerRef.current) {
+      clearTimeout(replyTimerRef.current);
+    }
+    setSelectedSwapForChat(null);
+  };
 
   const filteredSwaps = MOCK_SWAPS.filter((swap) => {
     const matchesCategory =
@@ -97,6 +107,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
     if (replyTimerRef.current) clearTimeout(replyTimerRef.current);
     replyTimerRef.current = setTimeout(() => {
+      if (!isMountedRef.current) return;
       setSelectedSwapForChat((current) => {
         if (current && current.id === currentSwapId) {
           setChatMessages((prev) => [
@@ -328,7 +339,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
       {/* CHAT MODAL */}
       {selectedSwapForChat && (
-        <div className="modal-overlay" onClick={() => setSelectedSwapForChat(null)}>
+        <div className="modal-overlay" onClick={handleCloseChat}>
           <div className="modal-content chat-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="chat-modal-header">
               <div className="chat-user-header-info">
@@ -343,7 +354,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
               <button
                 type="button"
                 className="chat-close-btn"
-                onClick={() => setSelectedSwapForChat(null)}
+                onClick={handleCloseChat}
               >
                 ×
               </button>

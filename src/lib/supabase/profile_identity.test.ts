@@ -48,6 +48,22 @@ export function runProfileIdentityTests() {
     'Translates username immutability trigger exception'
   );
 
+  // TEST 4: formatFriendlyErrorMessage for Auth & Technical Errors
+  console.log('Test 4: formatFriendlyErrorMessage for Auth & Technical Driver errors');
+  assert(
+    formatFriendlyErrorMessage({ message: 'Invalid login credentials' }) === "Account doesn't exist or invalid credentials.",
+    'Sanitizes invalid login credentials'
+  );
+  assert(
+    formatFriendlyErrorMessage({ message: 'Token has expired' }) === 'The verification code has expired. Please request a new code.',
+    'Sanitizes expired token'
+  );
+  assert(
+    formatFriendlyErrorMessage({ message: 'PGRST116 JSON object requested, multiple (or no) rows returned' }) ===
+      'Something went wrong while processing your request. Please try again.',
+    'Sanitizes technical PostgREST PGRST error'
+  );
+
   console.log('All SkillSwap Username Identity Integrity tests passed successfully!');
 }
 

@@ -422,6 +422,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
         }
       } catch (err: any) {
         console.error('Failed to finalize onboarding after Google linking:', err);
+        sessionStorage.removeItem('skillswap_pending_onboarding');
         if (isMounted) {
           setSubmitError(formatFriendlyErrorMessage(err));
           setIsSubmitting(false);

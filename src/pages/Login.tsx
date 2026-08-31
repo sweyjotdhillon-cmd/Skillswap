@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
+import { formatFriendlyErrorMessage } from '../lib/supabase/profile';
 
 type LoginPageProps = {
   onNavigate?: (path: string) => void;
@@ -71,7 +72,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
           setErrorMessage("Account doesn't exist or invalid credentials.");
         } else {
           setErrorType('generic');
-          setErrorMessage(error.message);
+          setErrorMessage(formatFriendlyErrorMessage(error));
         }
       } else {
         const user = data.user;
@@ -101,7 +102,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
       }
     } catch (err: any) {
       setErrorType('generic');
-      setErrorMessage(err.message || 'An unexpected error occurred. Please try again.');
+      setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }
