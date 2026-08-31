@@ -68,9 +68,17 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
       <div className="header-right-group">
         {user ? (
           <div className="auth-user-menu desktop-user-menu" style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-            <span className="auth-user-email" title={user.email} style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.9rem' }}>
-              {user.email}
-            </span>
+            <a
+              href="/profile"
+              className="auth-link-bold nav-profile-link"
+              style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-color)' }}
+              onClick={(e) => {
+                e.preventDefault();
+                if (onNavigate) onNavigate('/profile');
+              }}
+            >
+              My Profile
+            </a>
             <a
               href="/change-password"
               className="auth-link-bold"
@@ -195,6 +203,17 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                   <span className="mobile-user-label">Signed in as</span>
                   <strong className="mobile-user-email">{user.email}</strong>
                 </div>
+                <a
+                  href="/profile"
+                  className="mobile-drawer-link"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setMobileMenuOpen(false);
+                    if (onNavigate) onNavigate('/profile');
+                  }}
+                >
+                  My Profile
+                </a>
                 <a
                   href="/change-password"
                   className="mobile-drawer-link"
