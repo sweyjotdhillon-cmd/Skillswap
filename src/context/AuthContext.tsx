@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { getProfile, type Profile } from '../lib/supabase/profile';
@@ -38,23 +38,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(true);
 
+  // Track the current user ID being processed to prevent race conditions
+  const currentFetchUserIdRef = useRef<string | null>(null);
+
   const fetchUserProfile = useCallback(async (userId: string): Promise<Profile | null> => {
+    currentFetchUserIdRef.current = userId;
     setProfileLoading(true);
     try {
       const userProfile = await getProfile(userId);
-      setProfile(userProfile);
+      // Only set profile if this request is still for the active user
+      if (currentFetchUserIdRef.current === userId) {
+        setProfile(userProfile);
+      }
       return userProfile;
     } catch (err) {
       console.error('Error fetching profile:', err);
-      setProfile(null);
+      if (currentFetchUserIdRef.current === userId) {
+        setProfile(null);
+      }
       return null;
     } finally {
-      setProfileLoading(false);
+      if (currentFetchUserIdRef.current === userId) {
+        setProfileLoading(false);
+      }
     }
   }, []);
 
   const refreshProfile = useCallback(async (): Promise<Profile | null> => {
     if (!user) {
+      currentFetchUserIdRef.current = null;
       setProfile(null);
       setProfileLoading(false);
       return null;
@@ -72,78 +84,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     let mounted = true;
 
-    // Fetch initial session once on mount
+    // Fetch initial session
     supabase.auth
       .getSession()
       .then(async ({ data }: { data: { session: Session | null } }) => {
         if (!mounted) return;
-        setSession(data.session);
-        const currentUser = data.session?.user ?? null;
+        const initialSession = data.session;
+        setSession(initialSession);
+        const currentUser = initialSession?.user ?? null;
         setUser(currentUser);
 
         if (currentUser) {
-          setProfileLoading(true);
-          try {
-            const userProfile = await getProfile(currentUser.id);
-            if (mounted) {
-              setProfile(userProfile);
-            }
-          } catch (err) {
-            console.error('Error fetching user profile in getSession:', err);
-            if (mounted) {
-              setProfile(null);
-            }
-          } finally {
-            if (mounted) {
-              setProfileLoading(false);
-              setLoading(false);
-            }
-          }
+          await fetchUserProfile(currentUser.id);
         } else {
+          currentFetchUserIdRef.current = null;
           setProfile(null);
           setProfileLoading(false);
+        }
+        if (mounted) {
           setLoading(false);
         }
       })
       .catch((err) => {
         console.error('Error getting Supabase session:', err);
         if (mounted) {
+          currentFetchUserIdRef.current = null;
           setProfile(null);
           setProfileLoading(false);
           setLoading(false);
         }
       });
 
-    // Subscribe to auth state changes (OAuth redirects, login, logout, password updates)
+    // Subscribe to auth state changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, currentSession: Session | null) => {
+    } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, currentSession: Session | null) => {
       if (!mounted) return;
+
+      // Skip redundant initial session event if getSession already resolved
+      if (event === 'INITIAL_SESSION' && session !== null) {
+        return;
+      }
+
       setSession(currentSession);
       const currentUser = currentSession?.user ?? null;
       setUser(currentUser);
 
       if (currentUser) {
-        setProfileLoading(true);
-        try {
-          const userProfile = await getProfile(currentUser.id);
-          if (mounted) {
-            setProfile(userProfile);
-          }
-        } catch (err) {
-          console.error('Error fetching user profile in onAuthStateChange:', err);
-          if (mounted) {
-            setProfile(null);
-          }
-        } finally {
-          if (mounted) {
-            setProfileLoading(false);
-            setLoading(false);
-          }
-        }
+        await fetchUserProfile(currentUser.id);
       } else {
+        currentFetchUserIdRef.current = null;
         setProfile(null);
         setProfileLoading(false);
+      }
+      if (mounted) {
         setLoading(false);
       }
     });
@@ -152,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchUserProfile]);
 
   const refreshSession = async () => {
     const supabase = getSupabaseBrowserClient();
@@ -177,12 +171,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
-    await supabase.auth.signOut();
+    currentFetchUserIdRef.current = null;
     setUser(null);
     setSession(null);
     setProfile(null);
+    setProfileLoading(false);
+
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
   };
 
   const isGoogleUser = Boolean(

@@ -151,6 +151,10 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
 
   useEffect(() => {
     loadSkillsCatalog();
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
   }, []);
 
   // Avatar URL resolution
@@ -259,6 +263,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
         skillId: skill.id,
       },
     ]);
+    setSearchQuery('');
   };
 
   const handleRemoveSkill = (idToRemove: string) => {
@@ -419,10 +424,10 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
     async function checkPendingLinking() {
       if (!user || user.is_anonymous) return;
 
-      const rawPending = sessionStorage.getItem('skillswap_pending_onboarding');
-      if (!rawPending) return;
-
       try {
+        const rawPending = sessionStorage.getItem('skillswap_pending_onboarding');
+        if (!rawPending) return;
+
         const pendingData = JSON.parse(rawPending);
         if (pendingData && pendingData.username) {
           setIsSubmitting(true);

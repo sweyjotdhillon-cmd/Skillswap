@@ -18,7 +18,7 @@ function maskEmail(email: string): string {
 }
 
 async function callEdgeFunction(functionName: string, body: object) {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const rawUrl = import.meta.env.VITE_SUPABASE_URL || 'https://czpcaffwtmlxvplpanon.supabase.co';
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   const supabase = getSupabaseBrowserClient();
 
@@ -58,9 +58,9 @@ async function callEdgeFunction(functionName: string, body: object) {
   }
 
   // Fallback to direct HTTP fetch
-  if (supabaseUrl && supabaseAnonKey) {
+  if (rawUrl && supabaseAnonKey && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
     try {
-      const endpoint = `${supabaseUrl}/functions/v1/${functionName}`;
+      const endpoint = `${rawUrl.replace(/\/+$/, '')}/functions/v1/${functionName}`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {

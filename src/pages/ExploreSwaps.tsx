@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { HeroVisual } from '../components/hero/HeroVisual';
 import { MOCK_SWAPS, Swap } from '../data/mockSwaps';
@@ -40,6 +40,17 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
 
+  const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up pending reply timers on unmount
+  useEffect(() => {
+    return () => {
+      if (replyTimerRef.current) {
+        clearTimeout(replyTimerRef.current);
+      }
+    };
+  }, []);
+
   const filteredSwaps = MOCK_SWAPS.filter((swap) => {
     const matchesCategory =
       selectedCategory === 'All' || swap.category.toLowerCase() === selectedCategory.toLowerCase();
@@ -55,6 +66,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   });
 
   const handleOpenChat = (swap: Swap) => {
+    if (replyTimerRef.current) clearTimeout(replyTimerRef.current);
     setSelectedSwapForChat(swap);
     setChatMessages([
       {
@@ -69,21 +81,22 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim() || !selectedSwapForChat) return;
+    const cleanText = chatInput.trim();
+    if (!cleanText || !selectedSwapForChat) return;
 
     const currentSwapId = selectedSwapForChat.id;
     const newMsg: ChatMessage = {
       id: Date.now().toString(),
       sender: 'user',
-      text: chatInput.trim(),
+      text: cleanText,
       time: 'Just now',
     };
 
     setChatMessages((prev) => [...prev, newMsg]);
     setChatInput('');
 
-    // Fictional automated reply only if the same swap chat remains open
-    setTimeout(() => {
+    if (replyTimerRef.current) clearTimeout(replyTimerRef.current);
+    replyTimerRef.current = setTimeout(() => {
       setSelectedSwapForChat((current) => {
         if (current && current.id === currentSwapId) {
           setChatMessages((prev) => [

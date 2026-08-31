@@ -67,7 +67,7 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
 
       <div className="header-right-group">
         {user ? (
-          <div className="auth-user-menu" style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <div className="auth-user-menu desktop-user-menu" style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
             <span className="auth-user-email" title={user.email} style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.9rem' }}>
               {user.email}
             </span>

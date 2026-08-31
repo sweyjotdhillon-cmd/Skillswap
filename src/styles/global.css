@@ -508,7 +508,7 @@ a:focus-visible { outline: 3px solid #d6a64a; outline-offset: 5px; }
   position: fixed;
   bottom: 1.5rem;
   right: 1.5rem;
-  z-index: 9999;
+  z-index: 999;
   padding: 4px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.82);
@@ -5467,8 +5467,8 @@ h1 span { color: #a8781d; }
 }
 
 /* Fix Header Overlap on Mobile */
-@media (max-width: 768px) {
-  .auth-user-menu {
+@media (max-width: 860px) {
+  .desktop-user-menu {
     display: none !important;
   }
   .mobile-hamburger {

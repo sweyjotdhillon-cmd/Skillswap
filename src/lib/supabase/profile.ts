@@ -56,22 +56,52 @@ export function formatFriendlyErrorMessage(error: any): string {
   const msg = typeof error === 'string' ? error : error.message || '';
   const lower = msg.toLowerCase();
 
-  if (lower.includes('unique constraint') || lower.includes('duplicate key') || lower.includes('already taken') || lower.includes('idx_profiles_username_lower')) {
+  if (
+    lower.includes('unique constraint') ||
+    lower.includes('duplicate key') ||
+    lower.includes('already taken') ||
+    lower.includes('idx_profiles_username_lower')
+  ) {
     return 'This username is already taken. Please choose another.';
   }
-  if (lower.includes('maximum skill limit reached') || lower.includes('10 total skills') || lower.includes('10 skills')) {
+  if (
+    lower.includes('maximum skill limit reached') ||
+    lower.includes('10 total skills') ||
+    lower.includes('10 skills')
+  ) {
     return 'You can select up to 10 skills.';
   }
-  if (lower.includes('already exists in predefined skills catalog') || lower.includes('exists in predefined')) {
+  if (
+    lower.includes('already exists in predefined skills catalog') ||
+    lower.includes('exists in predefined')
+  ) {
     return 'This skill exists in the predefined catalog. Please select it from the catalog.';
   }
   if (lower.includes('duplicate') || lower.includes('already exists')) {
     return 'This skill has already been added.';
   }
-  if (lower.includes('not authenticated') || lower.includes('jwt expired') || lower.includes('session expired')) {
+  if (
+    lower.includes('not authenticated') ||
+    lower.includes('jwt expired') ||
+    lower.includes('session expired')
+  ) {
     return 'Your session has expired. Please sign in again.';
   }
-  if (lower.includes('pgrst') || lower.includes('postgresql') || lower.includes('sqlstate') || lower.includes('schema')) {
+  if (
+    lower.includes('failed to fetch') ||
+    lower.includes('networkerror') ||
+    lower.includes('network request failed')
+  ) {
+    return 'Unable to connect to the server. Please check your connection and try again.';
+  }
+  if (
+    lower.includes('pgrst') ||
+    lower.includes('postgresql') ||
+    lower.includes('sqlstate') ||
+    lower.includes('schema') ||
+    lower.includes('relation') ||
+    lower.includes('column')
+  ) {
     return 'Something went wrong while processing your request. Please try again.';
   }
 
@@ -133,7 +163,7 @@ export async function checkUsernameAvailability(username: string): Promise<Usern
     return { status: 'error', message: 'Unable to check username right now. Please try again.' };
   } catch (err: any) {
     console.error('[checkUsernameAvailability] Unexpected error:', err);
-    return { status: 'error', message: err?.message || 'Unable to check username right now. Please try again.' };
+    return { status: 'error', message: formatFriendlyErrorMessage(err) };
   }
 }
 
@@ -142,18 +172,23 @@ export async function checkUsernameAvailability(username: string): Promise<Usern
  */
 export async function getProfile(userId: string): Promise<Profile | null> {
   const supabase = getSupabaseBrowserClient();
-  if (!supabase) return null;
+  if (!supabase || !userId) return null;
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
 
-  if (error || !data) {
+    if (error || !data) {
+      return null;
+    }
+    return data as Profile;
+  } catch (err) {
+    console.error('Error fetching profile:', err);
     return null;
   }
-  return data as Profile;
 }
 
 /**
@@ -161,18 +196,23 @@ export async function getProfile(userId: string): Promise<Profile | null> {
  */
 export async function getAccount(userId: string): Promise<Account | null> {
   const supabase = getSupabaseBrowserClient();
-  if (!supabase) return null;
+  if (!supabase || !userId) return null;
 
-  const { data, error } = await supabase
-    .from('accounts')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
 
-  if (error || !data) {
+    if (error || !data) {
+      return null;
+    }
+    return data as Account;
+  } catch (err) {
+    console.error('Error fetching account:', err);
     return null;
   }
-  return data as Account;
 }
 
 /**
@@ -180,18 +220,23 @@ export async function getAccount(userId: string): Promise<Account | null> {
  */
 export async function getPrivateContact(userId: string): Promise<UserPrivateContact | null> {
   const supabase = getSupabaseBrowserClient();
-  if (!supabase) return null;
+  if (!supabase || !userId) return null;
 
-  const { data, error } = await supabase
-    .from('user_private_contacts')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from('user_private_contacts')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
 
-  if (error || !data) {
+    if (error || !data) {
+      return null;
+    }
+    return data as UserPrivateContact;
+  } catch (err) {
+    console.error('Error fetching private contact:', err);
     return null;
   }
-  return data as UserPrivateContact;
 }
 
 /**
@@ -202,17 +247,22 @@ export async function getSkillsCatalog(): Promise<Skill[]> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) throw new Error('We couldn\'t load the skill catalog. Check your connection and try again.');
 
-  const { data, error } = await supabase
-    .from('skills')
-    .select('id,name,category')
-    .order('name', { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from('skills')
+      .select('id,name,category')
+      .order('name', { ascending: true });
 
-  if (error) {
-    console.error('Failed to fetch skills catalog:', error);
-    throw new Error('We couldn\'t load the skill catalog. Check your connection and try again.');
+    if (error) {
+      console.error('Failed to fetch skills catalog:', error);
+      throw new Error(formatFriendlyErrorMessage(error));
+    }
+
+    return (data || []) as Skill[];
+  } catch (err: any) {
+    console.error('Failed to fetch skills catalog exception:', err);
+    throw new Error(formatFriendlyErrorMessage(err));
   }
-
-  return (data || []) as Skill[];
 }
 
 /**
@@ -223,29 +273,34 @@ export async function searchSkillsCatalog(query: string, category?: string): Pro
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return [];
 
-  let req = supabase
-    .from('skills')
-    .select('id,name,category')
-    .order('name', { ascending: true })
-    .limit(50);
+  try {
+    let req = supabase
+      .from('skills')
+      .select('id,name,category')
+      .order('name', { ascending: true })
+      .limit(50);
 
-  const cleanQuery = query.trim();
-  if (cleanQuery) {
-    req = req.ilike('name', `%${cleanQuery}%`);
-  }
+    const cleanQuery = query.trim();
+    if (cleanQuery) {
+      req = req.ilike('name', `%${cleanQuery}%`);
+    }
 
-  if (category && category !== 'All') {
-    req = req.eq('category', category);
-  }
+    if (category && category !== 'All') {
+      req = req.eq('category', category);
+    }
 
-  const { data, error } = await req;
+    const { data, error } = await req;
 
-  if (error) {
-    console.error('Error searching skills catalog:', error);
+    if (error) {
+      console.error('Error searching skills catalog:', error);
+      return [];
+    }
+
+    return (data || []) as Skill[];
+  } catch (err) {
+    console.error('Unexpected error searching skills catalog:', err);
     return [];
   }
-
-  return (data || []) as Skill[];
 }
 
 /**
@@ -253,17 +308,22 @@ export async function searchSkillsCatalog(query: string, category?: string): Pro
  */
 export async function getUserSkills(userId: string): Promise<{ predefined: UserSkill[]; custom: UserCustomSkill[] }> {
   const supabase = getSupabaseBrowserClient();
-  if (!supabase) return { predefined: [], custom: [] };
+  if (!supabase || !userId) return { predefined: [], custom: [] };
 
-  const [predefinedRes, customRes] = await Promise.all([
-    supabase.from('user_skills').select('*, skills(*)').eq('user_id', userId),
-    supabase.from('user_custom_skills').select('*').eq('user_id', userId),
-  ]);
+  try {
+    const [predefinedRes, customRes] = await Promise.all([
+      supabase.from('user_skills').select('*, skills(*)').eq('user_id', userId),
+      supabase.from('user_custom_skills').select('*').eq('user_id', userId),
+    ]);
 
-  return {
-    predefined: (predefinedRes.data || []) as UserSkill[],
-    custom: (customRes.data || []) as UserCustomSkill[],
-  };
+    return {
+      predefined: (predefinedRes.data || []) as UserSkill[],
+      custom: (customRes.data || []) as UserCustomSkill[],
+    };
+  } catch (err) {
+    console.error('Error fetching user skills:', err);
+    return { predefined: [], custom: [] };
+  }
 }
 
 /**
@@ -276,17 +336,22 @@ export async function addUserSkill(
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { success: false, error: 'Supabase client not initialized.' };
 
-  const { data, error } = await supabase.rpc('add_user_skill', {
-    p_skill_id: params.skillId || null,
-    p_custom_skill_name: params.customSkillName || null,
-  });
+  try {
+    const { data, error } = await supabase.rpc('add_user_skill', {
+      p_skill_id: params.skillId || null,
+      p_custom_skill_name: params.customSkillName || null,
+    });
 
-  if (error) {
-    console.error('[addUserSkill] RPC error:', error);
-    return { success: false, error: formatFriendlyErrorMessage(error) };
+    if (error) {
+      console.error('[addUserSkill] RPC error:', error);
+      return { success: false, error: formatFriendlyErrorMessage(error) };
+    }
+
+    return data;
+  } catch (err: any) {
+    console.error('[addUserSkill] Exception:', err);
+    return { success: false, error: formatFriendlyErrorMessage(err) };
   }
-
-  return data;
 }
 
 /**
@@ -294,12 +359,17 @@ export async function addUserSkill(
  */
 export async function removeUserSkill(skillType: 'predefined' | 'custom', skillId: string): Promise<boolean> {
   const supabase = getSupabaseBrowserClient();
-  if (!supabase) return false;
+  if (!supabase || !skillId) return false;
 
-  const table = skillType === 'predefined' ? 'user_skills' : 'user_custom_skills';
-  const { error } = await supabase.from(table).delete().eq('id', skillId);
+  try {
+    const table = skillType === 'predefined' ? 'user_skills' : 'user_custom_skills';
+    const { error } = await supabase.from(table).delete().eq('id', skillId);
 
-  return !error;
+    return !error;
+  } catch (err) {
+    console.error('Error removing user skill:', err);
+    return false;
+  }
 }
 
 /**
@@ -309,11 +379,15 @@ export async function completeProfile(): Promise<{ success: boolean; profile_com
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { success: false, error: 'Supabase client not initialized.' };
 
-  const { data, error } = await supabase.rpc('complete_profile');
+  try {
+    const { data, error } = await supabase.rpc('complete_profile');
 
-  if (error) {
-    return { success: false, error: formatFriendlyErrorMessage(error) };
+    if (error) {
+      return { success: false, error: formatFriendlyErrorMessage(error) };
+    }
+
+    return data;
+  } catch (err: any) {
+    return { success: false, error: formatFriendlyErrorMessage(err) };
   }
-
-  return data;
 }
