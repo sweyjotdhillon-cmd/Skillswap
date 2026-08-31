@@ -61,9 +61,12 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  -- 1. Normalize NEW username to lowercase if provided
+  -- 1. Normalize NEW username to trimmed lowercase if provided
   IF NEW.username IS NOT NULL THEN
-    NEW.username := LOWER(NEW.username);
+    NEW.username := LOWER(TRIM(NEW.username));
+    IF NEW.username = '' THEN
+      NEW.username := NULL;
+    END IF;
   END IF;
 
   -- 2. Enforce Immutability: Block change once OLD username is set

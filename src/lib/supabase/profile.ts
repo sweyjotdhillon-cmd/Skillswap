@@ -83,9 +83,10 @@ export function formatFriendlyErrorMessage(error: any): string {
   if (
     lower.includes('idx_profiles_username_lower') ||
     lower.includes('profiles_username_key') ||
-    (lower.includes('username') && (lower.includes('already taken') || lower.includes('unique constraint') || lower.includes('duplicate key')))
+    lower.includes('profiles_username_lower') ||
+    (lower.includes('username') && (lower.includes('already taken') || lower.includes('unique constraint') || lower.includes('duplicate key') || lower.includes('violates unique')))
   ) {
-    return 'This username is already taken. Please choose another.';
+    return 'This username was just taken. Please choose another username.';
   }
 
   // 4. Google / Identity Errors
