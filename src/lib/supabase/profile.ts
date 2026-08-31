@@ -166,20 +166,24 @@ export async function getPrivateContact(userId: string): Promise<UserPrivateCont
 
 /**
  * Fetch predefined catalog skills.
+ * Sanitizes technical Supabase/PostgREST errors into clean UI exceptions or fallbacks.
  */
 export async function getSkillsCatalog(): Promise<Skill[]> {
   const supabase = getSupabaseBrowserClient();
-  if (!supabase) return [];
+  if (!supabase) throw new Error('Unable to connect to service. Please try again.');
 
   const { data, error } = await supabase
     .from('skills')
     .select('*')
+    .order('category', { ascending: true })
     .order('name', { ascending: true });
 
-  if (error || !data) {
-    return [];
+  if (error) {
+    console.error('Failed to fetch skills catalog:', error);
+    throw new Error('Unable to load skills right now. Please try again.');
   }
-  return data as Skill[];
+
+  return (data || []) as Skill[];
 }
 
 /**
@@ -216,7 +220,16 @@ export async function addUserSkill(
   });
 
   if (error) {
-    return { success: false, error: error.message };
+    console.error('[addUserSkill] RPC error:', error);
+    let userMsg = 'Unable to add skill right now. Please try again.';
+    if (error.message.includes('Maximum skill limit reached') || error.message.includes('10 total skills')) {
+      userMsg = 'Maximum skill limit reached. You can select up to 10 skills total.';
+    } else if (error.message.includes('already exists in predefined skills catalog')) {
+      userMsg = 'This skill already exists in the predefined catalog. Please select it from the catalog.';
+    } else if (error.message.includes('duplicate') || error.message.includes('already exists')) {
+      userMsg = 'This skill has already been added.';
+    }
+    return { success: false, error: userMsg };
   }
 
   return data;

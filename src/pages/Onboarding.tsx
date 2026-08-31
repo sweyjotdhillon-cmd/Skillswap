@@ -43,7 +43,9 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
   // Step 3 State: Skills
   const [skillsCatalog, setSkillsCatalog] = useState<Skill[]>([]);
   const [skillsLoading, setSkillsLoading] = useState<boolean>(true);
+  const [skillsError, setSkillsError] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedSkills, setSelectedSkills] = useState<SelectedSkill[]>([]);
   const [customSkillModalOpen, setCustomSkillModalOpen] = useState<boolean>(false);
   const [customSkillInput, setCustomSkillInput] = useState<string>('');
@@ -76,27 +78,23 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
     }
   }, [user, profile]);
 
-  // Fetch Predefined Skills Catalog once
-  useEffect(() => {
-    let isMounted = true;
-    async function loadCatalog() {
-      try {
-        const catalog = await getSkillsCatalog();
-        if (isMounted) {
-          setSkillsCatalog(catalog);
-          setSkillsLoading(false);
-        }
-      } catch (err) {
-        console.error('Failed to load skills catalog:', err);
-        if (isMounted) {
-          setSkillsLoading(false);
-        }
-      }
+  // Fetch Predefined Skills Catalog once (with reload ability)
+  const loadSkillsCatalog = async () => {
+    setSkillsLoading(true);
+    setSkillsError('');
+    try {
+      const catalog = await getSkillsCatalog();
+      setSkillsCatalog(catalog);
+    } catch (err: any) {
+      console.error('Failed to load skills catalog:', err);
+      setSkillsError('Unable to load skills right now. Please try again.');
+    } finally {
+      setSkillsLoading(false);
     }
-    loadCatalog();
-    return () => {
-      isMounted = false;
-    };
+  };
+
+  useEffect(() => {
+    loadSkillsCatalog();
   }, []);
 
   // Avatar URL resolution
@@ -484,15 +482,24 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
     }
   };
 
-  // Filter skills for Step 3 catalog search
-  const filteredCatalog = skillsCatalog.filter((s) => {
-    const isAlreadySelected = selectedSkills.some(
-      (sel) => !sel.isCustom && sel.skillId === s.id
-    );
-    if (isAlreadySelected) return false;
+  // Extract unique categories for filter chips
+  const catalogCategories = ['All', ...Array.from(new Set(skillsCatalog.map((s) => s.category))).sort()];
 
-    if (!searchQuery.trim()) return true;
-    return s.name.toLowerCase().includes(searchQuery.trim().toLowerCase());
+  // Filter skills for Step 3 catalog search & category
+  const filteredCatalog = skillsCatalog.filter((s) => {
+    // Category filter
+    if (selectedCategory !== 'All' && s.category !== selectedCategory) {
+      return false;
+    }
+
+    // Search query filter (trimmed, case-insensitive)
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+
+    return (
+      s.name.toLowerCase().includes(query) ||
+      s.category.toLowerCase().includes(query)
+    );
   });
 
   return (
@@ -719,6 +726,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
              ================================================================ */}
           {step === 3 && (
             <form onSubmit={handleStep3Continue} className="onboarding-form">
+              {/* Step Header */}
               <div className="onboarding-header">
                 <div className="onboarding-header-row">
                   <div>
@@ -727,7 +735,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                       Tell the community what you're good at.
                     </p>
                   </div>
-                  <div className="skills-counter-badge">
+                  <div className={`skills-counter-badge ${selectedSkills.length >= 10 ? 'skills-counter-badge--full' : ''}`}>
                     {selectedSkills.length} / 10 skills selected
                   </div>
                 </div>
@@ -739,22 +747,39 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                 </div>
               )}
 
-              {/* Selected Skill Chips */}
+              {selectedSkills.length >= 10 && (
+                <div className="onboarding-alert onboarding-alert--info" role="status">
+                  You can select up to 10 skills. Remove a skill to choose a different one.
+                </div>
+              )}
+
+              {/* Selected Skill Chips Box */}
               <div className="onboarding-selected-skills-section">
-                <span className="section-mini-label">Selected Skills</span>
+                <div className="selected-skills-header-row">
+                  <span className="section-mini-label">Selected Skills</span>
+                  {selectedSkills.length > 0 && (
+                    <span className="selected-skills-count-text">
+                      {selectedSkills.length} of 10 selected
+                    </span>
+                  )}
+                </div>
+
                 {selectedSkills.length === 0 ? (
-                  <p className="empty-skills-note">No skills selected yet. Choose from below or add a custom skill.</p>
+                  <p className="empty-skills-note">
+                    No skills selected yet. Choose from the catalog below or add a custom skill.
+                  </p>
                 ) : (
                   <div className="skills-chips-wrapper">
                     {selectedSkills.map((s) => (
                       <span key={s.id} className="skill-chip">
-                        {s.name}
+                        <span className="skill-chip-name">{s.name}</span>
                         {s.isCustom && <small className="custom-skill-badge">Custom</small>}
                         <button
                           type="button"
                           className="skill-chip-remove"
                           onClick={() => handleRemoveSkill(s.id)}
                           aria-label={`Remove skill ${s.name}`}
+                          title="Remove skill"
                         >
                           ×
                         </button>
@@ -764,64 +789,177 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                 )}
               </div>
 
-              {/* Search & Predefined Skills Catalog */}
-              <div className="form-group">
-                <div className="skills-search-row">
-                  <div className="input-wrapper search-wrapper">
-                    <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="11" cy="11" r="8" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                    <input
-                      type="text"
-                      className="form-input search-input"
-                      placeholder="Search skills (e.g. Python, Design, Excel...)"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    className="add-custom-skill-trigger-btn"
-                    onClick={() => {
-                      setCustomSkillError('');
-                      setCustomSkillModalOpen(true);
-                    }}
-                    disabled={selectedSkills.length >= 10}
-                  >
-                    + Add another skill
-                  </button>
+              {/* Search Field */}
+              <div className="form-group skills-search-group">
+                <div className="input-wrapper search-wrapper">
+                  <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    type="text"
+                    className="form-input search-input"
+                    placeholder="Search skills (e.g. Python, Design, Excel...)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      className="search-clear-btn"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Clear search"
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
-                <p className="form-helper-text">Add a skill not in the list (max 10 total)</p>
               </div>
 
-              {/* Popular / Filtered Predefined Catalog */}
+              {/* Category Filter Chips */}
+              <div className="category-filter-container">
+                <div className="category-chips-scroll">
+                  {catalogCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      className={`category-filter-chip ${selectedCategory === cat ? 'category-filter-chip--active' : ''}`}
+                      onClick={() => setSelectedCategory(cat)}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Main Predefined Catalog Grid */}
               <div className="onboarding-catalog-section">
-                <span className="section-mini-label">
-                  {searchQuery ? 'Search Results' : 'Recommended & Popular Skills'}
-                </span>
+                <div className="catalog-section-header">
+                  <span className="section-mini-label">
+                    {searchQuery
+                      ? `Search Results (${filteredCatalog.length})`
+                      : selectedCategory !== 'All'
+                      ? `${selectedCategory} (${filteredCatalog.length})`
+                      : `Popular & All Skills (${skillsCatalog.length})`}
+                  </span>
+                </div>
+
                 {skillsLoading ? (
-                  <div className="skills-catalog-loading">Loading skills catalog...</div>
+                  <div className="skills-catalog-loading">
+                    <div className="spinner-dots" />
+                    <span>Loading skills catalog...</span>
+                  </div>
+                ) : skillsError ? (
+                  <div className="skills-catalog-error">
+                    <p>{skillsError}</p>
+                    <button
+                      type="button"
+                      className="skills-retry-btn"
+                      onClick={loadSkillsCatalog}
+                    >
+                      Try Again
+                    </button>
+                  </div>
                 ) : (
-                  <div className="catalog-skills-grid">
-                    {filteredCatalog.slice(0, 30).map((skill) => (
-                      <button
-                        key={skill.id}
-                        type="button"
-                        className="catalog-skill-pill"
-                        onClick={() => handleSelectSkill(skill)}
-                        disabled={selectedSkills.length >= 10}
-                      >
-                        + {skill.name}
-                      </button>
-                    ))}
-                    {filteredCatalog.length === 0 && (
-                      <p className="no-catalog-results">
-                        No catalog skills match "{searchQuery}". Click "+ Add another skill" to add it as a custom skill!
-                      </p>
+                  <div className="catalog-skills-scroll-container">
+                    {filteredCatalog.length === 0 ? (
+                      <div className="no-catalog-results">
+                        <p className="no-catalog-results-text">
+                          No skills found matching "{searchQuery}".
+                        </p>
+                        <button
+                          type="button"
+                          className="inline-add-custom-btn"
+                          onClick={() => {
+                            setCustomSkillInput(searchQuery.trim());
+                            setCustomSkillError('');
+                            setCustomSkillModalOpen(true);
+                          }}
+                          disabled={selectedSkills.length >= 10}
+                        >
+                          + Add "{searchQuery.trim()}" as a custom skill
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="catalog-skills-grid">
+                        {filteredCatalog.map((skill) => {
+                          const isSelected = selectedSkills.some(
+                            (sel) => !sel.isCustom && sel.skillId === skill.id
+                          );
+                          const isMaxReached = selectedSkills.length >= 10;
+
+                          return (
+                            <div
+                              key={skill.id}
+                              className={`catalog-skill-card ${isSelected ? 'catalog-skill-card--selected' : ''}`}
+                              onClick={() => {
+                                if (isSelected) {
+                                  const item = selectedSkills.find(
+                                    (s) => !s.isCustom && s.skillId === skill.id
+                                  );
+                                  if (item) handleRemoveSkill(item.id);
+                                } else if (!isMaxReached) {
+                                  handleSelectSkill(skill);
+                                }
+                              }}
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  if (isSelected) {
+                                    const item = selectedSkills.find(
+                                      (s) => !s.isCustom && s.skillId === skill.id
+                                    );
+                                    if (item) handleRemoveSkill(item.id);
+                                  } else if (!isMaxReached) {
+                                    handleSelectSkill(skill);
+                                  }
+                                }
+                              }}
+                            >
+                              <div className="catalog-skill-card-info">
+                                <span className="catalog-skill-name">{skill.name}</span>
+                                <span className="catalog-skill-category">{skill.category}</span>
+                              </div>
+                              <div className="catalog-skill-card-action">
+                                {isSelected ? (
+                                  <span className="skill-action-icon skill-action-icon--selected" title="Selected (Click to remove)">
+                                    ✓
+                                  </span>
+                                ) : (
+                                  <span
+                                    className={`skill-action-icon skill-action-icon--add ${isMaxReached ? 'skill-action-icon--disabled' : ''}`}
+                                    title={isMaxReached ? 'Skill limit reached' : 'Add skill'}
+                                  >
+                                    +
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 )}
+              </div>
+
+              {/* Custom Skill Footer Trigger */}
+              <div className="custom-skill-footer">
+                <button
+                  type="button"
+                  className="add-custom-skill-secondary-btn"
+                  onClick={() => {
+                    setCustomSkillInput('');
+                    setCustomSkillError('');
+                    setCustomSkillModalOpen(true);
+                  }}
+                  disabled={selectedSkills.length >= 10}
+                >
+                  <span className="add-icon">+</span> Add custom skill
+                </button>
+                <span className="custom-skill-subtext">Add a skill not in the predefined catalog</span>
               </div>
 
               {/* Form Actions */}
