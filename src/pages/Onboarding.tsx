@@ -343,7 +343,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
       throw new Error('Supabase client unavailable.');
     }
 
-    // 1. Upsert Profile (id, full_name, bio, username, avatar_url, profile_completed = false initially)
+    // 1. Upsert Profile (id, full_name, bio, username, avatar_url)
     const { error: profileUpdateError } = await supabase
       .from('profiles')
       .upsert(
@@ -353,7 +353,6 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
           bio: data.bio.trim() || null,
           username: data.username.trim().toLowerCase(),
           avatar_url: data.avatarUrl || null,
-          profile_completed: false,
         },
         { onConflict: 'id' }
       );
