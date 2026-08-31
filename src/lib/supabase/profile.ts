@@ -49,6 +49,36 @@ export interface UserCustomSkill {
 }
 
 /**
+ * Sanitizes technical database/PostgREST/PostgreSQL error messages into user-friendly messages.
+ */
+export function formatFriendlyErrorMessage(error: any): string {
+  if (!error) return 'An unexpected error occurred. Please try again.';
+  const msg = typeof error === 'string' ? error : error.message || '';
+  const lower = msg.toLowerCase();
+
+  if (lower.includes('unique constraint') || lower.includes('duplicate key') || lower.includes('already taken') || lower.includes('idx_profiles_username_lower')) {
+    return 'This username is already taken. Please choose another.';
+  }
+  if (lower.includes('maximum skill limit reached') || lower.includes('10 total skills') || lower.includes('10 skills')) {
+    return 'You can select up to 10 skills.';
+  }
+  if (lower.includes('already exists in predefined skills catalog') || lower.includes('exists in predefined')) {
+    return 'This skill exists in the predefined catalog. Please select it from the catalog.';
+  }
+  if (lower.includes('duplicate') || lower.includes('already exists')) {
+    return 'This skill has already been added.';
+  }
+  if (lower.includes('not authenticated') || lower.includes('jwt expired') || lower.includes('session expired')) {
+    return 'Your session has expired. Please sign in again.';
+  }
+  if (lower.includes('pgrst') || lower.includes('postgresql') || lower.includes('sqlstate') || lower.includes('schema')) {
+    return 'Something went wrong while processing your request. Please try again.';
+  }
+
+  return msg || 'Something went wrong. Please try again.';
+}
+
+/**
  * Validates whether a username matches the required format:
  * 3 to 30 characters, lowercase letters a-z, digits 0-9, underscores, and periods.
  */
@@ -170,7 +200,7 @@ export async function getPrivateContact(userId: string): Promise<UserPrivateCont
  */
 export async function getSkillsCatalog(): Promise<Skill[]> {
   const supabase = getSupabaseBrowserClient();
-  if (!supabase) throw new Error('Unable to connect to service. Please try again.');
+  if (!supabase) throw new Error('We couldn\'t load the skill catalog. Check your connection and try again.');
 
   const { data, error } = await supabase
     .from('skills')
@@ -179,7 +209,40 @@ export async function getSkillsCatalog(): Promise<Skill[]> {
 
   if (error) {
     console.error('Failed to fetch skills catalog:', error);
-    throw new Error('Unable to load skills right now. Please try again.');
+    throw new Error('We couldn\'t load the skill catalog. Check your connection and try again.');
+  }
+
+  return (data || []) as Skill[];
+}
+
+/**
+ * Perform server-side search against public.skills using case-insensitive partial match (`ilike`).
+ * Supports searching catalogs with 1000+ skills without fetching all rows on client.
+ */
+export async function searchSkillsCatalog(query: string, category?: string): Promise<Skill[]> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return [];
+
+  let req = supabase
+    .from('skills')
+    .select('id,name,category')
+    .order('name', { ascending: true })
+    .limit(50);
+
+  const cleanQuery = query.trim();
+  if (cleanQuery) {
+    req = req.ilike('name', `%${cleanQuery}%`);
+  }
+
+  if (category && category !== 'All') {
+    req = req.eq('category', category);
+  }
+
+  const { data, error } = await req;
+
+  if (error) {
+    console.error('Error searching skills catalog:', error);
+    return [];
   }
 
   return (data || []) as Skill[];
@@ -220,15 +283,7 @@ export async function addUserSkill(
 
   if (error) {
     console.error('[addUserSkill] RPC error:', error);
-    let userMsg = 'Unable to add skill right now. Please try again.';
-    if (error.message.includes('Maximum skill limit reached') || error.message.includes('10 total skills')) {
-      userMsg = 'Maximum skill limit reached. You can select up to 10 skills total.';
-    } else if (error.message.includes('already exists in predefined skills catalog')) {
-      userMsg = 'This skill already exists in the predefined catalog. Please select it from the catalog.';
-    } else if (error.message.includes('duplicate') || error.message.includes('already exists')) {
-      userMsg = 'This skill has already been added.';
-    }
-    return { success: false, error: userMsg };
+    return { success: false, error: formatFriendlyErrorMessage(error) };
   }
 
   return data;
@@ -257,7 +312,7 @@ export async function completeProfile(): Promise<{ success: boolean; profile_com
   const { data, error } = await supabase.rpc('complete_profile');
 
   if (error) {
-    return { success: false, error: error.message };
+    return { success: false, error: formatFriendlyErrorMessage(error) };
   }
 
   return data;
