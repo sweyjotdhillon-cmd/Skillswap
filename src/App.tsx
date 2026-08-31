@@ -95,7 +95,21 @@ function AppContent() {
     path === '/forgot-password' ||
     path === '/reset-password';
 
-  if (!loading && !profileLoading && user && (isVerified || isGoogleUser) && !isAuthPage) {
+  // Smooth loading state on initial boot or profile fetch to prevent opening lag & layout shifts
+  if (loading || (user && (isVerified || isGoogleUser) && !isAuthPage && profileLoading)) {
+    return (
+      <div className="page-shell" style={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', padding: '3rem 1rem' }}>
+          <div className="spinner-dots" style={{ width: '28px', height: '28px' }} />
+          <span style={{ fontSize: '0.95rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+            Loading SkillSwap...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (user && (isVerified || isGoogleUser) && !isAuthPage) {
     if (!profile || profile.profile_completed === false) {
       return <OnboardingPage onNavigate={navigate} redirectTo={path !== '/onboarding' ? path : undefined} />;
     }
