@@ -20,31 +20,47 @@ export function HeroVisual() {
           </filter>
         </defs>
 
-        {/* 1. Main broad watercolor sweep (thickest on left, tapering around) */}
+        {/* The overlapping, imperfect strokes intentionally mirror the painted circle in the supplied hero artwork. */}
         <path
-          d="M 310 75 C 445 75, 545 165, 545 280 C 545 395, 445 485, 310 485 C 160 485, 110 380, 110 280 C 110 170, 175 75, 310 75 Z"
+          d="M 303 82 C 427 61, 536 150, 548 270 C 562 392, 468 490, 338 500 C 200 510, 106 417, 105 289 C 104 177, 185 97, 303 82"
           fill="none"
           stroke="url(#ensoGrad)"
-          strokeWidth="70"
+          strokeWidth="74"
           strokeLinecap="round"
           filter="url(#ensoBlur)"
         />
 
-        {/* 2. Secondary brush layer creating ring texture */}
+        {/* Dry-brush layers keep the loop organic rather than mathematically circular. */}
         <path
-          d="M 320 88 C 440 88, 532 170, 532 280 C 532 390, 440 472, 320 472 C 180 472, 135 375, 135 280 C 135 180, 195 88, 320 88 Z"
+          d="M 296 91 C 424 77, 524 166, 531 278 C 539 393, 445 480, 329 484 C 204 489, 132 404, 130 287 C 128 178, 198 103, 296 91"
           fill="none"
           stroke="#e2d5c3"
-          strokeWidth="42"
+          strokeWidth="39"
           strokeLinecap="round"
           opacity="0.75"
         />
+        <path
+          d="M 267 103 C 186 125, 145 196, 146 280 C 146 378, 215 453, 316 463"
+          fill="none"
+          stroke="#d6c5ae"
+          strokeWidth="9"
+          strokeLinecap="round"
+          opacity="0.42"
+        />
+        <path
+          d="M 331 102 C 440 106, 514 182, 515 277 C 517 365, 459 433, 371 451"
+          fill="none"
+          stroke="#f4eee5"
+          strokeWidth="16"
+          strokeLinecap="round"
+          opacity="0.82"
+        />
 
         {/* 3. Fine circular strokes on right edge (Enso ring detail) */}
-        <circle cx="340" cy="280" r="195" fill="none" stroke="#d3c3ad" strokeWidth="2.5" opacity="0.45" />
-        <circle cx="340" cy="280" r="192" fill="none" stroke="#dfd2bf" strokeWidth="6" opacity="0.5" filter="url(#fineGlow)" />
-        <circle cx="340" cy="280" r="186" fill="none" stroke="#e8ded0" strokeWidth="12" opacity="0.6" />
-        <circle cx="340" cy="280" r="152" fill="none" stroke="#e0d2c0" strokeWidth="2" opacity="0.35" />
+        <ellipse cx="330" cy="286" rx="192" ry="190" fill="none" stroke="#d3c3ad" strokeWidth="2.5" opacity="0.45" />
+        <ellipse cx="330" cy="286" rx="187" ry="185" fill="none" stroke="#dfd2bf" strokeWidth="6" opacity="0.5" filter="url(#fineGlow)" />
+        <ellipse cx="330" cy="286" rx="180" ry="178" fill="none" stroke="#e8ded0" strokeWidth="12" opacity="0.6" />
+        <ellipse cx="330" cy="286" rx="148" ry="146" fill="none" stroke="#e0d2c0" strokeWidth="2" opacity="0.35" />
 
         {/* 4. Hand-drawn Pointer Lines & Arrows inside SVG */}
         {/* Top figure pointer line: from top figure head area (352, 126) curving up-right toward "I need a logo design" label */}
