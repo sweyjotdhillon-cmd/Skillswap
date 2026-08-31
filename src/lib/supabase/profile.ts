@@ -53,17 +53,41 @@ export interface UserCustomSkill {
  */
 export function formatFriendlyErrorMessage(error: any): string {
   if (!error) return 'An unexpected error occurred. Please try again.';
-  const msg = typeof error === 'string' ? error : error.message || '';
-  const lower = msg.toLowerCase();
+  const rawMsg = typeof error === 'string' ? error : error.message || error.details || '';
+  const lower = rawMsg.toLowerCase();
 
+  // 1. Immutable Username
+  if (lower.includes('immutable once set') || lower.includes('username is permanently immutable')) {
+    return 'Username cannot be changed once set.';
+  }
+
+  // 2. Specific Profile Completion Checks
+  if (lower.includes('username must be assigned first')) {
+    return 'Please set a username before completing your profile.';
+  }
+  if (lower.includes('full name is required')) {
+    return 'Full name is required.';
+  }
+
+  // 3. Username Uniqueness Errors
   if (
-    lower.includes('unique constraint') ||
-    lower.includes('duplicate key') ||
-    lower.includes('already taken') ||
-    lower.includes('idx_profiles_username_lower')
+    lower.includes('idx_profiles_username_lower') ||
+    lower.includes('profiles_username_key') ||
+    (lower.includes('username') && (lower.includes('already taken') || lower.includes('unique constraint') || lower.includes('duplicate key')))
   ) {
     return 'This username is already taken. Please choose another.';
   }
+
+  // 4. Google / Identity Errors
+  if (
+    lower.includes('already linked') ||
+    lower.includes('identity_already_exists') ||
+    lower.includes('already registered')
+  ) {
+    return 'An account with this Google email already exists. Please log in instead.';
+  }
+
+  // 5. Skill Limits & Predefined/Custom Skill Errors
   if (
     lower.includes('maximum skill limit reached') ||
     lower.includes('10 total skills') ||
@@ -77,9 +101,15 @@ export function formatFriendlyErrorMessage(error: any): string {
   ) {
     return 'This skill exists in the predefined catalog. Please select it from the catalog.';
   }
-  if (lower.includes('duplicate') || lower.includes('already exists')) {
+  if (
+    lower.includes('uq_user_skill') ||
+    lower.includes('idx_user_custom_skills_unique') ||
+    (lower.includes('skill') && (lower.includes('duplicate') || lower.includes('already exists') || lower.includes('already added')))
+  ) {
     return 'This skill has already been added.';
   }
+
+  // 6. Authentication / Session Expiry
   if (
     lower.includes('not authenticated') ||
     lower.includes('jwt expired') ||
@@ -87,6 +117,8 @@ export function formatFriendlyErrorMessage(error: any): string {
   ) {
     return 'Your session has expired. Please sign in again.';
   }
+
+  // 7. Network / Connection Errors
   if (
     lower.includes('failed to fetch') ||
     lower.includes('networkerror') ||
@@ -94,18 +126,21 @@ export function formatFriendlyErrorMessage(error: any): string {
   ) {
     return 'Unable to connect to the server. Please check your connection and try again.';
   }
+
+  // 8. Driver/Syntax/Database errors fallback
   if (
     lower.includes('pgrst') ||
     lower.includes('postgresql') ||
     lower.includes('sqlstate') ||
     lower.includes('schema') ||
     lower.includes('relation') ||
-    lower.includes('column')
+    lower.includes('column') ||
+    lower.includes('syntax error')
   ) {
     return 'Something went wrong while processing your request. Please try again.';
   }
 
-  return msg || 'Something went wrong. Please try again.';
+  return rawMsg || 'Something went wrong. Please try again.';
 }
 
 /**

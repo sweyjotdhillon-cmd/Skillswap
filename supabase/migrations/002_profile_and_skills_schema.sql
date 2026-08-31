@@ -89,8 +89,10 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  IF (OLD.profile_completed IS DISTINCT FROM NEW.profile_completed) AND (current_user IN ('authenticated', 'anon')) THEN
-    RAISE EXCEPTION 'profile_completed cannot be updated directly by clients. Please call complete_profile() function.';
+  IF (OLD.profile_completed IS DISTINCT FROM NEW.profile_completed) THEN
+    IF current_setting('app.allow_profile_completion', true) IS DISTINCT FROM 'true' THEN
+      RAISE EXCEPTION 'profile_completed cannot be updated directly by clients. Please call complete_profile() function.';
+    END IF;
   END IF;
   RETURN NEW;
 END;
@@ -268,7 +270,12 @@ BEGIN
 
     INSERT INTO public.user_skills (user_id, skill_id)
     VALUES (v_user_id, p_skill_id)
+    ON CONFLICT (user_id, skill_id) DO NOTHING
     RETURNING id INTO v_new_id;
+
+    IF v_new_id IS NULL THEN
+      SELECT id INTO v_new_id FROM public.user_skills WHERE user_id = v_user_id AND skill_id = p_skill_id;
+    END IF;
 
     RETURN jsonb_build_object('success', true, 'type', 'predefined', 'id', v_new_id);
   END IF;
@@ -283,7 +290,12 @@ BEGIN
 
   INSERT INTO public.user_custom_skills (user_id, skill_name)
   VALUES (v_user_id, v_clean_custom_name)
+  ON CONFLICT (user_id, LOWER(skill_name)) DO NOTHING
   RETURNING id INTO v_new_id;
+
+  IF v_new_id IS NULL THEN
+    SELECT id INTO v_new_id FROM public.user_custom_skills WHERE user_id = v_user_id AND LOWER(skill_name) = LOWER(v_clean_custom_name);
+  END IF;
 
   RETURN jsonb_build_object('success', true, 'type', 'custom', 'id', v_new_id);
 END;
@@ -322,11 +334,24 @@ BEGIN
     RAISE EXCEPTION 'Cannot complete profile: Full name is required.';
   END IF;
 
+  -- Set session setting to allow updating profile_completed
+  PERFORM set_config('app.allow_profile_completion', 'true', true);
+
   -- Update profiles table (Executes with table owner role privileges)
   UPDATE public.profiles
   SET profile_completed = TRUE,
       updated_at = NOW()
   WHERE id = v_user_id;
+
+  -- Ensure account record exists
+  INSERT INTO public.accounts (user_id, credits_balance)
+  VALUES (v_user_id, 0)
+  ON CONFLICT (user_id) DO NOTHING;
+
+  -- Ensure private contact record exists
+  INSERT INTO public.user_private_contacts (user_id)
+  VALUES (v_user_id)
+  ON CONFLICT (user_id) DO NOTHING;
 
   RETURN jsonb_build_object('success', true, 'profile_completed', true);
 END;
