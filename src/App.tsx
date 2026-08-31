@@ -106,6 +106,10 @@ function AppContent() {
     if (!loading && !user) {
       return <LoginPage onNavigate={navigate} redirectTo="/onboarding" />;
     }
+    // If user has already completed onboarding, redirect to dashboard/explore
+    if (!loading && !profileLoading && profile && profile.profile_completed === true) {
+      return <ExploreSwapsPage onNavigate={navigate} />;
+    }
     return <OnboardingPage onNavigate={navigate} redirectTo={redirectToParam} />;
   }
 

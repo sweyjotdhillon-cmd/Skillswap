@@ -3,10 +3,14 @@ import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/navigation/Navbar';
 import {
   getSkillsCatalog,
+  searchSkillsCatalog,
+  getUserSkills,
+  getPrivateContact,
   checkUsernameAvailability,
   validateUsernameFormat,
   addUserSkill,
   completeProfile,
+  formatFriendlyErrorMessage,
   type Skill,
 } from '../lib/supabase/profile';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
@@ -60,24 +64,73 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string>('');
 
-  // Pre-fill initial full name and bio from user/profile metadata
+  // Pre-fill existing user profile, contacts, and existing selected skills upon load
   useEffect(() => {
-    if (user || profile) {
+    let isMounted = true;
+    async function loadExistingUserData() {
+      if (!user) return;
+
       const initialName =
         profile?.full_name ||
         user?.user_metadata?.full_name ||
         user?.user_metadata?.name ||
         (user?.email ? user.email.split('@')[0] : '');
       setFullName(initialName);
+
       if (profile?.bio) {
         setBio(profile.bio);
       }
+
       if (profile?.username) {
         setUsername(profile.username);
         setUsernameStatus('available');
-        setUsernameMessage('Username is available');
+        setUsernameMessage('Username is set');
+      }
+
+      // Load existing private contact phone number
+      try {
+        const contact = await getPrivateContact(user.id);
+        if (isMounted && contact?.phone_number) {
+          setPhoneNumber(contact.phone_number);
+        }
+      } catch (err) {
+        console.warn('Could not load existing private contact:', err);
+      }
+
+      // Load existing user skills
+      try {
+        const existingSkills = await getUserSkills(user.id);
+        if (isMounted) {
+          const loadedSkills: SelectedSkill[] = [];
+          for (const s of existingSkills.predefined) {
+            loadedSkills.push({
+              id: `predefined-${s.skill_id}`,
+              name: s.skills?.name || 'Skill',
+              isCustom: false,
+              skillId: s.skill_id,
+            });
+          }
+          for (const cs of existingSkills.custom) {
+            loadedSkills.push({
+              id: `custom-${cs.id}`,
+              name: cs.skill_name,
+              isCustom: true,
+            });
+          }
+          if (loadedSkills.length > 0) {
+            setSelectedSkills(loadedSkills);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load existing user skills:', err);
       }
     }
+
+    loadExistingUserData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user, profile]);
 
   // Fetch Predefined Skills Catalog once (with reload ability)
@@ -234,17 +287,17 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
       return;
     }
 
-    // Check duplicate in predefined catalog
-    const predefinedMatch = skillsCatalog.find(
-      (s) => s.name.toLowerCase() === cleanName.toLowerCase()
-    );
+    // Check duplicate in predefined catalog or search results
+    const predefinedMatch =
+      skillsCatalog.find((s) => s.name.toLowerCase() === cleanName.toLowerCase()) ||
+      searchResults.find((s) => s.name.toLowerCase() === cleanName.toLowerCase());
+
     if (predefinedMatch) {
       setCustomSkillError(
-        `"${cleanName}" exists in the predefined catalog. Adding it as a predefined skill instead.`
+        `"${cleanName}" exists in the predefined catalog. Selected it as a predefined skill instead.`
       );
       handleSelectSkill(predefinedMatch);
       setCustomSkillInput('');
-      setCustomSkillError('');
       setCustomSkillModalOpen(false);
       return;
     }
@@ -490,10 +543,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
       });
     } catch (err: any) {
       console.error('Final onboarding submission error:', err);
-      const friendlyMsg =
-        err?.message?.includes('PGRST') || err?.message?.includes('PostgreSQL')
-          ? 'Something went wrong while creating your profile. Please try again.'
-          : err?.message || 'An error occurred during profile creation. Please try again.';
+      const friendlyMsg = formatFriendlyErrorMessage(err);
       setSubmitError(friendlyMsg);
       setIsSubmitting(false);
     }
@@ -516,19 +566,52 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
     return featured;
   }, [skillsCatalog]);
 
-  // Filter skills for Step 3 search & category
+  // Debounced server-side skill search query against public.skills catalog
+  const [searchResults, setSearchResults] = useState<Skill[]>([]);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const clean = searchQuery.trim();
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    if (!clean) {
+      setSearchResults([]);
+      return;
+    }
+
+    searchDebounceRef.current = setTimeout(async () => {
+      const results = await searchSkillsCatalog(clean, selectedCategory);
+      setSearchResults(results);
+    }, 250);
+
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [searchQuery, selectedCategory]);
+
   const trimmedSearch = searchQuery.trim().toLowerCase();
 
-  const searchMatchingSkills = trimmedSearch
-    ? skillsCatalog.filter((s) => s.name.toLowerCase().includes(trimmedSearch))
-    : [];
+  // Combine matching skills from searchResults query with skillsCatalog
+  const searchMatchingSkills = React.useMemo(() => {
+    if (!trimmedSearch) return [];
+    const combinedMap = new Map<string, Skill>();
+    for (const s of searchResults) {
+      combinedMap.set(s.id, s);
+    }
+    for (const s of skillsCatalog) {
+      if (s.name.toLowerCase().includes(trimmedSearch) || s.category.toLowerCase().includes(trimmedSearch)) {
+        combinedMap.set(s.id, s);
+      }
+    }
+    return Array.from(combinedMap.values());
+  }, [trimmedSearch, searchResults, skillsCatalog]);
 
   const categoryFilteredCatalog = skillsCatalog.filter((s) => {
-    // Category filter
     if (selectedCategory !== 'All' && s.category !== selectedCategory) {
       return false;
     }
-    // Search query filter
     if (!trimmedSearch) return true;
     return (
       s.name.toLowerCase().includes(trimmedSearch) ||
