@@ -967,6 +967,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                                 } else if (!isMaxReached) {
                                   handleSelectSkill(skill);
                                 }
+                                setSearchQuery('');
                               }}
                             >
                               <div className="search-result-item-info">

@@ -197,7 +197,7 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                 </div>
                 <a
                   href="/change-password"
-                  style={{ fontWeight: 600, fontSize: '1.05rem', padding: '0.5rem 0', borderBottom: '1px solid rgba(17, 22, 28, 0.06)' }}
+                  className="mobile-drawer-link"
                   onClick={(e) => {
                     e.preventDefault();
                     setMobileMenuOpen(false);
@@ -221,8 +221,7 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
               <>
                 <a
                   href="/login"
-                  className="mobile-drawer-cta"
-                  style={{ background: 'transparent', color: '#11161c', border: '1px solid #11161c' }}
+                  className="mobile-drawer-cta mobile-drawer-cta--outline"
                   onClick={(e) => {
                     e.preventDefault();
                     setMobileMenuOpen(false);

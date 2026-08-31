@@ -135,7 +135,12 @@ export function formatFriendlyErrorMessage(error: any): string {
     lower.includes('schema') ||
     lower.includes('relation') ||
     lower.includes('column') ||
-    lower.includes('syntax error')
+    lower.includes('syntax error') ||
+    lower.includes('23505') ||
+    lower.includes('23503') ||
+    lower.includes('42p01') ||
+    lower.includes('28000') ||
+    lower.includes('28p01')
   ) {
     return 'Something went wrong while processing your request. Please try again.';
   }
