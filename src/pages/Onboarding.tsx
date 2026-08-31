@@ -11,6 +11,8 @@ import {
   addUserSkill,
   completeProfile,
   formatFriendlyErrorMessage,
+  saveCurrentUserOnboardingProfile,
+  saveCurrentUserPrivateContact,
   type Skill,
 } from '../lib/supabase/profile';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
@@ -43,7 +45,9 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
   const [username, setUsername] = useState<string>('');
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable' | 'invalid' | 'error'>('idle');
   const [usernameMessage, setUsernameMessage] = useState<string>('');
+  const hasPermanentUsername = Boolean(profile?.username);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const usernameRequestRef = useRef(0);
 
   // Step 3 State: Skills
   const [skillsCatalog, setSkillsCatalog] = useState<Skill[]>([]);
@@ -175,7 +179,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
   const handleStep1Continue = (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) {
-      setStep1Error('Full Name is required.');
+      setStep1Error('Please enter your full name.');
       return;
     }
     if (bio.length > 160) {
@@ -188,6 +192,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
 
   // Step 2 Username handling with debounced availability check
   const handleUsernameChange = (val: string) => {
+    if (hasPermanentUsername) return;
     const lower = val.toLowerCase();
     const normalized = lower.trim();
     setUsername(lower);
@@ -217,8 +222,10 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
     setUsernameStatus('checking');
     setUsernameMessage('Checking availability...');
 
+    const requestId = ++usernameRequestRef.current;
     debounceTimerRef.current = setTimeout(async () => {
       const res = await checkUsernameAvailability(normalized);
+      if (requestId !== usernameRequestRef.current) return;
       if (res.status === 'available') {
         setUsernameStatus('available');
         setUsernameMessage('Username is available');
@@ -246,7 +253,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
   // Step 3 Skills Selection Handlers
   const handleSelectSkill = (skill: Skill) => {
     if (selectedSkills.length >= 10) {
-      setStep3Error('You can select up to 10 skills only.');
+      setStep3Error('You can select up to 10 skills.');
       return;
     }
     // Check if already selected
@@ -282,7 +289,11 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
     }
 
     if (selectedSkills.length >= 10) {
-      setCustomSkillError('Maximum 10 skills allowed.');
+      setCustomSkillError('You can select up to 10 skills.');
+      return;
+    }
+    if (skillsLoading || skillsError) {
+      setCustomSkillError('Wait for the predefined skill catalog to load before adding a custom skill.');
       return;
     }
 
@@ -323,98 +334,57 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
 
   const handleStep3Continue = (e: React.FormEvent) => {
     e.preventDefault();
+    if (selectedSkills.length === 0) {
+      setStep3Error('Please select at least one skill.');
+      return;
+    }
+    setStep3Error('');
     setStep(4);
   };
 
-  // Execute database profile finalization
-  const executeProfileFinalization = async (
-    targetUserId: string,
-    data: {
-      fullName: string;
-      bio: string;
-      username: string;
-      phoneNumber: string;
-      selectedSkills: SelectedSkill[];
-      avatarUrl?: string | null;
-    }
-  ) => {
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) {
-      throw new Error('Supabase client unavailable.');
-    }
+  // Persist required onboarding data in order. RPCs derive ownership from auth.uid().
+  const executeProfileFinalization = async (data: {
+    fullName: string;
+    bio: string;
+    username: string;
+    phoneNumber: string;
+    selectedSkills: SelectedSkill[];
+    avatarUrl?: string | null;
+  }) => {
+    await saveCurrentUserOnboardingProfile({
+      fullName: data.fullName,
+      bio: data.bio,
+      username: data.username,
+      avatarUrl: data.avatarUrl || null,
+    });
 
-    // 1. Upsert Profile (id, full_name, bio, username, avatar_url)
-    const { error: profileUpdateError } = await supabase
-      .from('profiles')
-      .upsert(
-        {
-          id: targetUserId,
-          full_name: data.fullName.trim(),
-          bio: data.bio.trim() || null,
-          username: data.username.trim().toLowerCase(),
-          avatar_url: data.avatarUrl || null,
-        },
-        { onConflict: 'id' }
-      );
-
-    if (profileUpdateError) {
-      if (profileUpdateError.message.includes('unique') || profileUpdateError.message.includes('taken')) {
-        throw new Error('This username is already taken. Please go back and pick another username.');
-      }
-      throw new Error(`Profile update failed: ${profileUpdateError.message}`);
-    }
-
-    // 2. Upsert Private Contact (phone_number)
     if (data.phoneNumber.trim()) {
-      const { error: contactError } = await supabase
-        .from('user_private_contacts')
-        .upsert(
-          {
-            user_id: targetUserId,
-            phone_number: data.phoneNumber.trim(),
-          },
-          { onConflict: 'user_id' }
-        );
-
-      if (contactError) {
-        console.warn('Failed to update private contact:', contactError);
-      }
+      await saveCurrentUserPrivateContact(data.phoneNumber);
     }
 
-    // 3. Add Selected Skills through RPC `add_user_skill()`
     for (const item of data.selectedSkills) {
-      if (item.isCustom) {
-        const res = await addUserSkill({ customSkillName: item.name });
-        if (!res.success && res.error && !res.error.includes('duplicate') && !res.error.includes('already exists')) {
-          console.warn(`Failed to add custom skill ${item.name}:`, res.error);
-        }
-      } else if (item.skillId) {
-        const res = await addUserSkill({ skillId: item.skillId });
-        if (!res.success && res.error && !res.error.includes('duplicate') && !res.error.includes('already exists')) {
-          console.warn(`Failed to add predefined skill ${item.name}:`, res.error);
-        }
+      const result = item.isCustom
+        ? await addUserSkill({ customSkillName: item.name })
+        : await addUserSkill({ skillId: item.skillId });
+      if (!result.success) {
+        throw new Error(`We couldn't save the skill “${item.name}”. ${result.error || 'Please try again.'}`);
       }
     }
 
-    // 4. Complete Profile via trusted RPC `complete_profile()`
-    const completeRes = await completeProfile();
-    if (!completeRes.success) {
-      throw new Error(completeRes.error || 'Failed to finalize profile completion.');
+    const completion = await completeProfile();
+    if (completion.success !== true || completion.profile_completed !== true) {
+      throw new Error(completion.error || 'We couldn’t complete your profile right now. Please try again.');
     }
 
-    // 5. Clear pending session storage if present
+    const refreshedProfile = await refreshProfile();
+    if (refreshedProfile?.profile_completed !== true) {
+      throw new Error('Your profile was saved, but we could not confirm completion. Please try again.');
+    }
+
     sessionStorage.removeItem('skillswap_pending_onboarding');
-
-    // 6. Refresh profile state in AuthContext
-    await refreshProfile();
-
-    // 7. Redirect user
     const targetPath = redirectTo || '/explore';
-    if (onNavigate) {
-      onNavigate(targetPath);
-    } else {
-      window.location.href = targetPath;
-    }
+    if (onNavigate) onNavigate(targetPath);
+    else window.location.href = targetPath;
   };
 
   // Check for returning post-OAuth identity linking state
@@ -441,7 +411,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
             pendingData.avatarUrl ||
             null;
 
-          await executeProfileFinalization(user.id, {
+          await executeProfileFinalization({
             fullName: pendingData.fullName,
             bio: pendingData.bio,
             username: pendingData.username,
@@ -453,7 +423,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
       } catch (err: any) {
         console.error('Failed to finalize onboarding after Google linking:', err);
         if (isMounted) {
-          setSubmitError(err.message || 'Error completing profile setup after Google linking.');
+          setSubmitError(formatFriendlyErrorMessage(err));
           setIsSubmitting(false);
         }
       }
@@ -478,6 +448,32 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
     setSubmitError('');
     setPhoneError('');
 
+    if (!fullName.trim()) {
+      setSubmitError('Please enter your full name.');
+      setStep(1);
+      return;
+    }
+    if (!username.trim()) {
+      setSubmitError('Please choose a username before continuing.');
+      setStep(2);
+      return;
+    }
+    if (!validateUsernameFormat(username.trim().toLowerCase())) {
+      setSubmitError('Please choose a valid username before continuing.');
+      setStep(2);
+      return;
+    }
+    if (selectedSkills.length === 0) {
+      setSubmitError('Please select at least one skill.');
+      setStep(3);
+      return;
+    }
+    if (selectedSkills.length > 10) {
+      setSubmitError('You can select up to 10 skills.');
+      setStep(3);
+      return;
+    }
+
     if (phoneNumber.trim() && !validatePhone(phoneNumber)) {
       setPhoneError('Please enter a valid phone number format.');
       return;
@@ -492,9 +488,10 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
     // Verify authenticated user from session
     const {
       data: { user: currentUser },
+      error: currentUserError,
     } = await supabase.auth.getUser();
 
-    if (!currentUser) {
+    if (currentUserError || !currentUser) {
       setSubmitError('Your session has expired. Please sign in again.');
       return;
     }
@@ -537,7 +534,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
       }
 
       // Non-anonymous user: finalize profile directly
-      await executeProfileFinalization(currentUser.id, {
+      await executeProfileFinalization({
         fullName,
         bio,
         username,
@@ -622,6 +619,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
       s.category.toLowerCase().includes(trimmedSearch)
     );
   });
+  const displayedCatalog = trimmedSearch ? searchMatchingSkills : categoryFilteredCatalog;
 
   return (
     <div className="page-shell">
@@ -775,6 +773,8 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                     autoCapitalize="off"
                     autoCorrect="off"
                     spellCheck="false"
+                    readOnly={hasPermanentUsername}
+                    aria-readonly={hasPermanentUsername}
                     className={`form-input username-input ${
                       usernameStatus === 'invalid' || usernameStatus === 'unavailable' || usernameStatus === 'error' ? 'input-error' : ''
                     }`}
@@ -819,7 +819,9 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
               </div>
 
               <p className="onboarding-permanent-note">
-                Username cannot be changed after creation.
+                {hasPermanentUsername
+                  ? 'This permanent username is read-only.'
+                  : 'Username cannot be changed after creation.'}
               </p>
 
               {/* Form Actions */}
@@ -1005,7 +1007,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                             setCustomSkillError('');
                             setCustomSkillModalOpen(true);
                           }}
-                          disabled={selectedSkills.length >= 10}
+                          disabled={selectedSkills.length >= 10 || skillsLoading || Boolean(skillsError)}
                         >
                           + Add "{searchQuery.trim()}" as a custom skill
                         </button>
@@ -1096,15 +1098,15 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                       <div className="catalog-section-header">
                         <span className="section-mini-label">
                           {trimmedSearch
-                            ? `FILTERED CATALOG (${categoryFilteredCatalog.length})`
+                            ? `FILTERED CATALOG (${displayedCatalog.length})`
                             : selectedCategory !== 'All'
-                            ? `${selectedCategory.toUpperCase()} (${categoryFilteredCatalog.length})`
+                            ? `${selectedCategory.toUpperCase()} (${displayedCatalog.length})`
                             : `ALL SKILLS (${skillsCatalog.length})`}
                         </span>
                       </div>
 
                       <div className="catalog-skills-scroll-container">
-                        {categoryFilteredCatalog.length === 0 ? (
+                        {displayedCatalog.length === 0 ? (
                           <div className="no-catalog-results">
                             <p className="no-catalog-results-text">
                               No skills found in category "{selectedCategory}"{trimmedSearch ? ` matching "${trimmedSearch}"` : ''}.
@@ -1112,7 +1114,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                           </div>
                         ) : (
                           <div className="catalog-skills-grid">
-                            {categoryFilteredCatalog.map((skill) => {
+                            {displayedCatalog.map((skill) => {
                               const isSelected = selectedSkills.some(
                                 (sel) => !sel.isCustom && sel.skillId === skill.id
                               );
