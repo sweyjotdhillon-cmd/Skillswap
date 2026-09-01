@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { useAuth } from '../context/AuthContext';
-import { addUserCredits } from '../lib/supabase/credits';
+import { settleReservedCreditTransfer } from '../lib/supabase/credits';
 
 export interface SwapParticipant {
   name: string;
@@ -15,6 +15,7 @@ export interface SwapParticipant {
 export interface AcceptedSwap {
   id: string;
   participant: SwapParticipant;
+  participantUserId?: string;
   title: string;
   description: string;
   credits: number;
@@ -32,6 +33,7 @@ export interface AcceptedSwap {
 export interface GivenSwap {
   id: string;
   participant: SwapParticipant;
+  participantUserId?: string;
   title: string;
   description: string;
   creditsOffered: number;
@@ -42,6 +44,7 @@ export interface GivenSwap {
   aboutSwap: string;
   whatHappensNext: string;
   timeAgo: string;
+  submittedWorkNotes?: string;
 }
 
 const INITIAL_ACCEPTED_SWAPS: AcceptedSwap[] = [
@@ -282,29 +285,16 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
     const fileNames = submitWorkFiles.map((f) => f.name);
 
-    // Only mutate database credits for real persisted backend swap records (non-mock IDs)
-    const isRealBackendSwap = Boolean(user && currentAcceptedSwap.id && !currentAcceptedSwap.id.startsWith('acc-'));
-
-    if (isRealBackendSwap && user) {
-      const idempotencyKey = `swap_completion_${currentAcceptedSwap.id}_${Date.now()}`;
-      await addUserCredits(
-        user.id,
-        currentAcceptedSwap.credits,
-        `Swap completion reward: ${currentAcceptedSwap.title}`,
-        idempotencyKey,
-        currentAcceptedSwap.id
-      );
-      await refreshAccount();
-    }
-
+    // Submission step: Record work submission without transferring credits immediately.
+    // Credit settlement occurs atomically when the review/completion step executes.
     setAcceptedSwaps((prev) =>
       prev.map((s) =>
         s.id === currentAcceptedSwap.id
           ? {
               ...s,
-              progress: 100,
-              status: 'Completed',
-              nextStep: 'Work submitted and completed!',
+              progress: 90,
+              status: 'Review',
+              nextStep: 'Work submitted and currently under review by provider.',
               submittedWorkNotes: submitWorkNotes,
               submittedFiles: fileNames,
             }
@@ -316,7 +306,50 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     setSubmitWorkNotes('');
     setSubmitWorkFiles([]);
 
-    setSubmitSuccessToast(`Successfully submitted work for "${currentAcceptedSwap.title}"!`);
+    setSubmitSuccessToast(`Work submitted for "${currentAcceptedSwap.title}"! Waiting for reviewer approval.`);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      if (isMountedRef.current) setSubmitSuccessToast(null);
+    }, 4000);
+  };
+
+  const handleApproveGivenSwap = async (swap: GivenSwap) => {
+    if (!user) return;
+
+    // Only settle real backend swap records with real user IDs (non-mock IDs)
+    const isRealBackendSwap = Boolean(swap.id && !swap.id.startsWith('giv-') && swap.participantUserId);
+
+    if (isRealBackendSwap && swap.participantUserId) {
+      const idempotencyKey = `swap_settlement:${swap.id}`;
+      const res = await settleReservedCreditTransfer(
+        user.id,
+        swap.participantUserId,
+        swap.creditsOffered,
+        `Atomic swap settlement: ${swap.title}`,
+        idempotencyKey,
+        swap.id
+      );
+
+      if (!res.success) {
+        setSubmitSuccessToast(`Failed to settle credits: ${res.error}`);
+        return;
+      }
+      await refreshAccount();
+    }
+
+    setGivenSwaps((prev) =>
+      prev.map((s) =>
+        s.id === swap.id
+          ? {
+              ...s,
+              submissionStatus: 'Completed',
+              statusBadge: 'Completed',
+            }
+          : s
+      )
+    );
+
+    setSubmitSuccessToast(`Swap "${swap.title}" completed! ${swap.creditsOffered} credits atomically transferred.`);
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => {
       if (isMountedRef.current) setSubmitSuccessToast(null);
@@ -667,6 +700,20 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
                 {/* MAJOR ACTION BUTTONS */}
                 <div className="as-detail-actions-row">
+                  {currentGivenSwap.submissionStatus === 'Completed' ? (
+                    <span className="as-status-badge as-status-badge--large as-status-badge--completed">
+                      ✓ Swap Completed & Credits Settled
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="as-btn as-btn--primary"
+                      onClick={() => handleApproveGivenSwap(currentGivenSwap)}
+                    >
+                      Approve Work & Transfer Credits
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     className="as-btn as-btn--secondary"
