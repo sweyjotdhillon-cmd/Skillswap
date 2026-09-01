@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
-import { useAuth } from '../context/AuthContext';
-import { settleReservedCreditTransfer } from '../lib/supabase/credits';
 
 export interface SwapParticipant {
   name: string;
@@ -170,7 +168,6 @@ type ActiveSwapsPageProps = {
 };
 
 export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
-  const { user, refreshAccount } = useAuth();
   const [activeTab, setActiveTab] = useState<'accepted' | 'given'>('accepted');
 
   const [acceptedSwaps, setAcceptedSwaps] = useState<AcceptedSwap[]>(INITIAL_ACCEPTED_SWAPS);
@@ -314,42 +311,11 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   };
 
   const handleApproveGivenSwap = async (swap: GivenSwap) => {
-    if (!user) return;
-
-    // Only settle real backend swap records with real user IDs (non-mock IDs)
-    const isRealBackendSwap = Boolean(swap.id && !swap.id.startsWith('giv-') && swap.participantUserId);
-
-    if (isRealBackendSwap && swap.participantUserId) {
-      const idempotencyKey = `swap_settlement:${swap.id}`;
-      const res = await settleReservedCreditTransfer(
-        user.id,
-        swap.participantUserId,
-        swap.creditsOffered,
-        `Atomic swap settlement: ${swap.title}`,
-        idempotencyKey,
-        swap.id
-      );
-
-      if (!res.success) {
-        setSubmitSuccessToast(`Failed to settle credits: ${res.error}`);
-        return;
-      }
-      await refreshAccount();
-    }
-
-    setGivenSwaps((prev) =>
-      prev.map((s) =>
-        s.id === swap.id
-          ? {
-              ...s,
-              submissionStatus: 'Completed',
-              statusBadge: 'Completed',
-            }
-          : s
-      )
-    );
-
-    setSubmitSuccessToast(`Swap "${swap.title}" completed! ${swap.creditsOffered} credits atomically transferred.`);
+    // This screen currently renders static demonstration records only.  It must never
+    // invoke a financial RPC for a mock identifier; real swaps are completed by
+    // complete_credit_swap(), which derives all settlement values from PostgreSQL.
+    setSubmitSuccessToast('Demo swaps cannot settle credits. Open a persisted swap to complete it.');
+    return;
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => {
       if (isMountedRef.current) setSubmitSuccessToast(null);

@@ -11,7 +11,7 @@ import { AdditionalMessageField } from '../components/create-swap/AdditionalMess
 import { CreateSwapActions } from '../components/create-swap/CreateSwapActions';
 import { SwapPreviewCard } from '../components/create-swap/SwapPreviewCard';
 import { useAuth } from '../context/AuthContext';
-import { reserveUserCredits } from '../lib/supabase/credits';
+import { createCreditSwap } from '../lib/supabase/credits';
 
 export interface CreateSwapFormState {
   topic: string;
@@ -69,6 +69,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'info'; text: string } | null>(null);
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -159,23 +160,24 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validate()) {
+    if (validate() && formState.chatPermission) {
+      setIsSubmitting(true);
       const amount = parseInt(formState.credits, 10);
-      const swapTopicSlug = formState.topic.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30);
-      const idempotencyKey = `swap_reservation_${swapTopicSlug}_${amount}_${Date.now()}`;
-
-      // Execute backend atomic credit reservation
-      const res = await reserveUserCredits(
-        amount,
-        `Swap offering hold: ${formState.topic.trim()}`,
-        idempotencyKey
-      );
+      const res = await createCreditSwap({
+        topic: formState.topic.trim(),
+        description: formState.description.trim(),
+        requirements: formState.requirements.trim(),
+        chatPermission: formState.chatPermission === 'permission' ? 'requester' : 'anyone',
+        creditAmount: amount,
+        additionalMessage: formState.additionalMessage.trim(),
+      });
 
       if (!res.success) {
         setErrors((prev) => ({
           ...prev,
           credits: res.error || 'Failed to reserve credits. Please try again.',
         }));
+        setIsSubmitting(false);
         return;
       }
 
@@ -188,12 +190,13 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       }
       setStatusMessage({
         type: 'success',
-        text: `Swap listing created! ${amount} credits reserved. Available balance: ${res.credits_balance ?? 0} credits (Reserved: ${res.credits_reserved ?? amount})`,
+        text: `Swap listing created and ${amount} credits reserved.`,
       });
       if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
       statusTimerRef.current = setTimeout(() => {
         setStatusMessage(null);
       }, 5000);
+      setIsSubmitting(false);
     } else {
       // Scroll to first error
       const firstErrorEl = document.querySelector('.error-message, .input-error, .permission-card--error');
@@ -297,6 +300,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
 
               <CreateSwapActions
                 onSaveDraft={handleSaveDraft}
+                isSubmitting={isSubmitting}
               />
             </form>
           </div>
