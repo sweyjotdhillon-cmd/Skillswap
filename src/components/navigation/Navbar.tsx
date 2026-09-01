@@ -97,11 +97,11 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                 className="nav-credit-indicator-btn"
                 onClick={() => setCreditModalOpen(true)}
                 title="Click to view Credit History & Account details"
-                aria-label={`Credit balance: ${accountLoading ? 'loading' : account ? account.credits_balance : 0} credits`}
+                aria-label={`Credit balance: ${accountLoading ? 'loading' : account ? account.credits_balance : 'unavailable'}`}
               >
                 <span className="nav-credit-icon">⚡</span>
                 <span className="nav-credit-amount">
-                  {accountLoading ? '...' : account ? account.credits_balance : 0}
+                  {accountLoading ? '...' : account ? account.credits_balance : '—'}
                 </span>
                 <span className="nav-credit-label">Credits</span>
               </button>
@@ -252,7 +252,7 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                       >
                         <span className="nav-credit-icon">⚡</span>
                         <span className="nav-credit-amount">
-                          {accountLoading ? '...' : account ? account.credits_balance : 0}
+                          {accountLoading ? '...' : account ? account.credits_balance : '—'}
                         </span>
                         <span className="nav-credit-label">Credits</span>
                       </button>

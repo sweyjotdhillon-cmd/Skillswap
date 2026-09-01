@@ -12,24 +12,24 @@ export function runCreditSystemTests() {
   // TEST 1: Initial Grant Idempotency Key Formatting
   console.log('Test 1: Initial grant idempotency key generation');
   const userId = '123e4567-e89b-12d3-a456-426614174000';
-  const expectedKey = `initial_grant_${userId}`;
-  assert(expectedKey === 'initial_grant_123e4567-e89b-12d3-a456-426614174000', 'Initial grant key format');
+  const expectedKey = `initial_grant:${userId}`;
+  assert(expectedKey === 'initial_grant:123e4567-e89b-12d3-a456-426614174000', 'Initial grant key format');
 
   // TEST 2: Credit Reservation Idempotency Key Formatting
   console.log('Test 2: Credit reservation idempotency key formatting');
-  const swapId = 'swap-123-abc';
-  const reservationKey = `swap_reservation_${swapId}_20_${Date.now()}`;
-  assert(reservationKey.startsWith('swap_reservation_swap-123-abc_20_'), 'Reservation key format prefix');
+  const swapId = '123e4567-e89b-12d3-a456-426614174000';
+  const reservationKey = `swap_reservation:${swapId}`;
+  assert(reservationKey === `swap_reservation:${swapId}`, 'Reservation key is stable for retries');
 
   // TEST 3: Credit Cancellation Release Key Formatting
   console.log('Test 3: Credit cancellation release key formatting');
-  const releaseKey = `swap_cancel_release_${swapId}`;
-  assert(releaseKey === 'swap_cancel_release_swap-123-abc', 'Release key format');
+  const releaseKey = `swap_release:${swapId}`;
+  assert(releaseKey === `swap_release:${swapId}`, 'Release key format');
 
   // TEST 4: Settlement Idempotency Key Formatting
   console.log('Test 4: Deterministic settlement idempotency key formatting');
   const settlementKey = `swap_settlement:${swapId}`;
-  assert(settlementKey === 'swap_settlement:swap-123-abc', 'Settlement key format');
+  assert(settlementKey === `swap_settlement:${swapId}`, 'Settlement key format');
 
   // TEST 5: Reservation Balance Accounting Invariants
   console.log('Test 5: Reservation balance state invariants');

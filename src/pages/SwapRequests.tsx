@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { useAuth } from '../context/AuthContext';
-import { releaseReservedCredits } from '../lib/supabase/credits';
 
 export interface UserInfo {
   name: string;
@@ -125,7 +124,7 @@ type SwapRequestsPageProps = {
 };
 
 export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
-  const { user, account, refreshAccount } = useAuth();
+  const { account } = useAuth();
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received');
   const [receivedRequests, setReceivedRequests] = useState<ReceivedRequest[]>(INITIAL_RECEIVED_REQUESTS);
   const [sentRequests, setSentRequests] = useState<SentRequest[]>(INITIAL_SENT_REQUESTS);
@@ -167,21 +166,6 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
     const target = receivedRequests.find((r) => r.id === id);
     if (!target) return;
 
-    // Only release database reserved credits for real persisted backend swap records (non-mock IDs)
-    const isRealBackendSwap = Boolean(user && target.id && !target.id.startsWith('rec-'));
-
-    if (isRealBackendSwap && user) {
-      const idempotencyKey = `swap_cancel_release_${id}`;
-      await releaseReservedCredits(
-        user.id,
-        target.creditsOffered,
-        `Declined swap request from ${target.user.name}`,
-        idempotencyKey,
-        id
-      );
-      await refreshAccount();
-    }
-
     setReceivedRequests((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: 'Declined' } : r))
     );
@@ -191,21 +175,6 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
   const handleCancelSent = async (id: string) => {
     const target = sentRequests.find((r) => r.id === id);
     if (!target) return;
-
-    // Only refund database reserved credits for real persisted backend swap records (non-mock IDs)
-    const isRealBackendSwap = Boolean(user && target.id && !target.id.startsWith('sent-'));
-
-    if (isRealBackendSwap && user) {
-      const idempotencyKey = `swap_cancel_release_${id}`;
-      await releaseReservedCredits(
-        user.id,
-        target.creditsOffered,
-        `Cancelled swap request to ${target.user.name}`,
-        idempotencyKey,
-        id
-      );
-      await refreshAccount();
-    }
 
     setSentRequests((prev) => prev.filter((r) => r.id !== id));
     showToast(`Cancelled swap request sent to ${target.user.name}.`);

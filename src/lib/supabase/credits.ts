@@ -35,6 +35,31 @@ export interface CreditOperationResult {
   error?: string;
 }
 
+export interface CreateCreditSwapInput {
+  topic: string;
+  description: string;
+  requirements: string;
+  chatPermission: 'requester' | 'participant' | 'anyone';
+  creditAmount: number;
+  additionalMessage?: string;
+}
+
+/** Creates the swap and its reservation in one database transaction. */
+export async function createCreditSwap(input: CreateCreditSwapInput): Promise<{ success: boolean; swapId?: string; error?: string }> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
+  const { data, error } = await supabase.rpc('create_credit_swap', {
+    p_topic: input.topic,
+    p_description: input.description,
+    p_requirements: input.requirements,
+    p_chat_permission: input.chatPermission,
+    p_credit_amount: input.creditAmount,
+    p_additional_message: input.additionalMessage || null,
+  });
+  if (error || !data) return { success: false, error: formatFriendlyErrorMessage(error ?? new Error('Swap creation returned no ID.')) };
+  return { success: true, swapId: data as string };
+}
+
 /**
  * Fetches or initializes the authenticated user's credit account record.
  * Executes the SECURITY DEFINER RPC `get_user_account` which performs
@@ -105,239 +130,5 @@ export async function getCreditTransactions(
   } catch (err) {
     console.error('Unexpected error fetching transaction history:', err);
     return [];
-  }
-}
-
-/**
- * Atomically reserves credits from the authenticated user's balance.
- */
-export async function reserveUserCredits(
-  amount: number,
-  reason: string,
-  idempotencyKey?: string,
-  relatedSwapId?: string,
-  metadata?: Record<string, unknown>
-): Promise<CreditOperationResult> {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase client is unavailable.' };
-  }
-
-  try {
-    const { data, error } = await supabase.rpc('reserve_my_credits', {
-      p_amount: amount,
-      p_reason: reason,
-      p_idempotency_key: idempotencyKey || null,
-      p_related_swap_id: relatedSwapId || null,
-      p_metadata: metadata || null,
-    });
-
-    if (error) {
-      return {
-        success: false,
-        error: formatFriendlyErrorMessage(error),
-      };
-    }
-
-    return data as CreditOperationResult;
-  } catch (err) {
-    return {
-      success: false,
-      error: formatFriendlyErrorMessage(err),
-    };
-  }
-}
-
-/**
- * Atomically releases reserved credits back to the user's available balance.
- */
-export async function releaseReservedCredits(
-  userId: string,
-  amount: number,
-  reason: string,
-  idempotencyKey?: string,
-  relatedSwapId?: string,
-  metadata?: Record<string, unknown>
-): Promise<CreditOperationResult> {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase client is unavailable.' };
-  }
-
-  try {
-    const { data, error } = await supabase.rpc('release_reserved_credits', {
-      p_user_id: userId,
-      p_amount: amount,
-      p_reason: reason,
-      p_idempotency_key: idempotencyKey || null,
-      p_related_swap_id: relatedSwapId || null,
-      p_metadata: metadata || null,
-    });
-
-    if (error) {
-      return {
-        success: false,
-        error: formatFriendlyErrorMessage(error),
-      };
-    }
-
-    return data as CreditOperationResult;
-  } catch (err) {
-    return {
-      success: false,
-      error: formatFriendlyErrorMessage(err),
-    };
-  }
-}
-
-/**
- * Atomically transfers reserved credits from payer to recipient upon swap completion.
- */
-export async function settleReservedCreditTransfer(
-  payerId: string,
-  recipientId: string,
-  amount: number,
-  reason: string,
-  idempotencyKey?: string,
-  relatedSwapId?: string,
-  metadata?: Record<string, unknown>
-): Promise<CreditOperationResult> {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase client is unavailable.' };
-  }
-
-  try {
-    const { data, error } = await supabase.rpc('settle_reserved_credit_transfer', {
-      p_payer_id: payerId,
-      p_recipient_id: recipientId,
-      p_amount: amount,
-      p_reason: reason,
-      p_idempotency_key: idempotencyKey || null,
-      p_related_swap_id: relatedSwapId || null,
-      p_metadata: metadata || null,
-    });
-
-    if (error) {
-      return {
-        success: false,
-        error: formatFriendlyErrorMessage(error),
-      };
-    }
-
-    return data as CreditOperationResult;
-  } catch (err) {
-    return {
-      success: false,
-      error: formatFriendlyErrorMessage(err),
-    };
-  }
-}
-
-/**
- * Legacy / Direct deduction helper (calls reserve_my_credits or deduct_credits).
- */
-export async function deductUserCredits(
-  amount: number,
-  reason: string,
-  idempotencyKey?: string,
-  relatedSwapId?: string,
-  metadata?: Record<string, unknown>
-): Promise<CreditOperationResult> {
-  return reserveUserCredits(amount, reason, idempotencyKey, relatedSwapId, metadata);
-}
-
-/**
- * Legacy refund helper alias.
- */
-export async function releaseSwapCredits(
-  userId: string,
-  amount: number,
-  reason: string,
-  idempotencyKey?: string,
-  relatedSwapId?: string
-): Promise<CreditOperationResult> {
-  return releaseReservedCredits(userId, amount, reason, idempotencyKey, relatedSwapId);
-}
-
-/**
- * Atomically adds credits to a user account (privileged / backend operation).
- */
-export async function addUserCredits(
-  userId: string,
-  amount: number,
-  reason: string,
-  idempotencyKey?: string,
-  relatedSwapId?: string,
-  metadata?: Record<string, unknown>
-): Promise<CreditOperationResult> {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase client is unavailable.' };
-  }
-
-  try {
-    const { data, error } = await supabase.rpc('add_credits', {
-      p_user_id: userId,
-      p_amount: amount,
-      p_reason: reason,
-      p_idempotency_key: idempotencyKey || null,
-      p_related_swap_id: relatedSwapId || null,
-      p_metadata: metadata || null,
-    });
-
-    if (error) {
-      return {
-        success: false,
-        error: formatFriendlyErrorMessage(error),
-      };
-    }
-
-    return data as CreditOperationResult;
-  } catch (err) {
-    return {
-      success: false,
-      error: formatFriendlyErrorMessage(err),
-    };
-  }
-}
-
-/**
- * Atomically transfers credits from authenticated user to recipient with deadlock protection.
- */
-export async function transferUserCredits(
-  toUserId: string,
-  amount: number,
-  reason: string,
-  idempotencyKey?: string,
-  relatedSwapId?: string
-): Promise<CreditOperationResult> {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase client is unavailable.' };
-  }
-
-  try {
-    const { data, error } = await supabase.rpc('transfer_credits', {
-      p_to_user_id: toUserId,
-      p_amount: amount,
-      p_reason: reason,
-      p_idempotency_key: idempotencyKey || null,
-      p_related_swap_id: relatedSwapId || null,
-    });
-
-    if (error) {
-      return {
-        success: false,
-        error: formatFriendlyErrorMessage(error),
-      };
-    }
-
-    return data as CreditOperationResult;
-  } catch (err) {
-    return {
-      success: false,
-      error: formatFriendlyErrorMessage(err),
-    };
   }
 }
