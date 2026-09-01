@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
+import { useAuth } from '../context/AuthContext';
+import { addUserCredits, releaseSwapCredits } from '../lib/supabase/credits';
 
 export interface UserInfo {
   name: string;
@@ -123,6 +125,7 @@ type SwapRequestsPageProps = {
 };
 
 export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
+  const { user, account, refreshAccount } = useAuth();
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received');
   const [receivedRequests, setReceivedRequests] = useState<ReceivedRequest[]>(INITIAL_RECEIVED_REQUESTS);
   const [sentRequests, setSentRequests] = useState<SentRequest[]>(INITIAL_SENT_REQUESTS);
@@ -150,9 +153,21 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
     }, 3500);
   };
 
-  const handleAcceptReceived = (id: string) => {
+  const handleAcceptReceived = async (id: string) => {
     const target = receivedRequests.find((r) => r.id === id);
     if (!target) return;
+
+    if (user) {
+      const idempotencyKey = `accept_req_${id}_${Date.now()}`;
+      await addUserCredits(
+        user.id,
+        target.creditsOffered,
+        `Accepted swap request from ${target.user.name} (${target.skillWanted})`,
+        idempotencyKey,
+        id
+      );
+      await refreshAccount();
+    }
 
     setReceivedRequests((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: 'Accepted' } : r))
@@ -161,7 +176,7 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
     showToast(`Accepted swap request from ${target.user.name}! +${target.creditsOffered} Credits added.`);
   };
 
-  const handleDeclineReceived = (id: string) => {
+  const handleDeclineReceived = async (id: string) => {
     const target = receivedRequests.find((r) => r.id === id);
     if (!target) return;
 
@@ -171,9 +186,21 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
     showToast(`Declined swap request from ${target.user.name}.`);
   };
 
-  const handleCancelSent = (id: string) => {
+  const handleCancelSent = async (id: string) => {
     const target = sentRequests.find((r) => r.id === id);
     if (!target) return;
+
+    if (user) {
+      const idempotencyKey = `cancel_req_${id}_${Date.now()}`;
+      await releaseSwapCredits(
+        user.id,
+        target.creditsOffered,
+        `Cancelled swap request to ${target.user.name}`,
+        idempotencyKey,
+        id
+      );
+      await refreshAccount();
+    }
 
     setSentRequests((prev) => prev.filter((r) => r.id !== id));
     showToast(`Cancelled swap request sent to ${target.user.name}.`);
@@ -224,7 +251,9 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
             {/* Credits Card */}
             <div className="sr-credits-card">
               <span className="sr-credits-label">Your Credits</span>
-              <span className="sr-credits-value">{credits}</span>
+              <span className="sr-credits-value">
+                {account?.credits_balance ?? credits}
+              </span>
             </div>
           </div>
         </header>

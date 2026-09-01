@@ -1,0 +1,12 @@
+
+> skillswap@0.1.0 dev
+> vite --host 0.0.0.0
+
+(node:108670) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+  VITE v8.2.2  ready in 3294 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://192.168.0.2:5173/  eth0
+  ➜  Debug:   http://localhost:5173/__debug
