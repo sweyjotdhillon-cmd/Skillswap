@@ -1,7 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { HeroVisual } from '../components/hero/HeroVisual';
 import { MOCK_SWAPS, Swap } from '../data/mockSwaps';
+import { useAuth } from '../context/AuthContext';
+import { getOpenSwaps, acceptCreditSwap, type SwapRecord } from '../lib/supabase/credits';
+
+export interface ExtendedSwap extends Swap {
+  isReal?: boolean;
+}
 
 const CATEGORIES = [
   'All',
@@ -29,19 +35,55 @@ interface ChatMessage {
 }
 
 export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
+  const { user, refreshAccount } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  // Modal states
-  const [selectedSwapForAccept, setSelectedSwapForAccept] = useState<Swap | null>(null);
-  const [requestSent, setRequestSent] = useState(false);
+  const [swaps, setSwaps] = useState<ExtendedSwap[]>(MOCK_SWAPS);
+  const [isAccepting, setIsAccepting] = useState(false);
 
-  const [selectedSwapForChat, setSelectedSwapForChat] = useState<Swap | null>(null);
+  // Modal states
+  const [selectedSwapForAccept, setSelectedSwapForAccept] = useState<ExtendedSwap | null>(null);
+  const [requestSent, setRequestSent] = useState(false);
+  const [acceptError, setAcceptError] = useState<string | null>(null);
+
+  const [selectedSwapForChat, setSelectedSwapForChat] = useState<ExtendedSwap | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
 
   const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
+
+  const loadRealOpenSwaps = useCallback(async () => {
+    try {
+      const realRecords: SwapRecord[] = await getOpenSwaps();
+      if (realRecords && realRecords.length > 0) {
+        const mappedReal: ExtendedSwap[] = realRecords.map((r) => {
+          const authorName = r.requester_profile?.full_name || 'SkillSwapper';
+          const authorAvatar = r.requester_profile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
+          return {
+            id: r.id,
+            isReal: true,
+            needSkill: r.topic,
+            offerSkill: 'Skill Exchange',
+            description: r.description,
+            personName: authorName,
+            avatar: authorAvatar,
+            rating: 5.0,
+            skillCredits: r.credit_amount,
+            category: 'Coding',
+          };
+        });
+        setSwaps([...mappedReal, ...MOCK_SWAPS]);
+      }
+    } catch (err) {
+      console.error('Error loading real open swaps:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRealOpenSwaps();
+  }, [loadRealOpenSwaps]);
 
   // Track mounted state and clean up pending timers on unmount
   useEffect(() => {
@@ -61,7 +103,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
     setSelectedSwapForChat(null);
   };
 
-  const filteredSwaps = MOCK_SWAPS.filter((swap) => {
+  const filteredSwaps = swaps.filter((swap) => {
     const matchesCategory =
       selectedCategory === 'All' || swap.category.toLowerCase() === selectedCategory.toLowerCase();
     const query = searchTerm.toLowerCase().trim();
@@ -289,10 +331,10 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             {!requestSent ? (
               <>
-                <h3 className="modal-title">Request this swap?</h3>
+                <h3 className="modal-title">Accept this swap?</h3>
                 <div className="modal-swap-details">
                   <div className="modal-detail-row">
-                    <span className="modal-label">You’re requesting:</span>
+                    <span className="modal-label">You’re accepting:</span>
                     <strong>{selectedSwapForAccept.needSkill}</strong>
                   </div>
                   <div className="modal-detail-user">
@@ -300,10 +342,17 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                   </div>
                 </div>
 
+                {acceptError && (
+                  <p className="error-message" style={{ margin: '12px 0 0' }} role="alert">
+                    {acceptError}
+                  </p>
+                )}
+
                 <div className="modal-actions">
                   <button
                     type="button"
                     className="modal-btn modal-btn--cancel"
+                    disabled={isAccepting}
                     onClick={() => setSelectedSwapForAccept(null)}
                   >
                     Cancel
@@ -311,25 +360,49 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                   <button
                     type="button"
                     className="modal-btn modal-btn--confirm"
-                    onClick={() => setRequestSent(true)}
+                    disabled={isAccepting}
+                    onClick={async () => {
+                      if (selectedSwapForAccept.isReal) {
+                        if (!user) {
+                          setAcceptError('Please log in to accept swaps.');
+                          return;
+                        }
+                        setIsAccepting(true);
+                        setAcceptError(null);
+                        const res = await acceptCreditSwap(selectedSwapForAccept.id);
+                        setIsAccepting(false);
+                        if (!res.success) {
+                          setAcceptError(res.error || 'Failed to accept swap.');
+                          return;
+                        }
+                        await refreshAccount();
+                        await loadRealOpenSwaps();
+                        setRequestSent(true);
+                      } else {
+                        setRequestSent(true);
+                      }
+                    }}
                   >
-                    Send Swap Request
+                    {isAccepting ? 'Accepting...' : 'Confirm Accept Swap'}
                   </button>
                 </div>
               </>
             ) : (
               <div className="modal-success-state">
                 <div className="success-icon-badge">✓</div>
-                <h3 className="modal-title">Swap request sent.</h3>
+                <h3 className="modal-title">Swap Accepted!</h3>
                 <p className="modal-subtext">
-                  We’ve notified <strong>{selectedSwapForAccept.personName}</strong> of your request.
+                  You are now paired with <strong>{selectedSwapForAccept.personName}</strong> for this skill exchange.
                 </p>
                 <button
                   type="button"
                   className="modal-btn modal-btn--confirm"
-                  onClick={() => setSelectedSwapForAccept(null)}
+                  onClick={() => {
+                    setSelectedSwapForAccept(null);
+                    if (onNavigate) onNavigate('/active-swaps');
+                  }}
                 >
-                  Done
+                  View Active Swaps
                 </button>
               </div>
             )}
