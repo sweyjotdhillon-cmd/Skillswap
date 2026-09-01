@@ -70,12 +70,16 @@ export interface CreateCreditSwapInput {
   chatPermission: 'requester' | 'participant' | 'anyone';
   creditAmount: number;
   additionalMessage?: string;
+  idempotencyKey?: string;
 }
 
-/** Creates the swap and its reservation in one database transaction. */
+/** Creates the swap and its reservation in one database transaction using a stable idempotency key. */
 export async function createCreditSwap(input: CreateCreditSwapInput): Promise<{ success: boolean; swapId?: string; error?: string }> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
+
+  const idempotencyKey = input.idempotencyKey || `swap_create:${crypto.randomUUID()}`;
+
   const { data, error } = await supabase.rpc('create_credit_swap', {
     p_topic: input.topic,
     p_description: input.description,
@@ -83,6 +87,7 @@ export async function createCreditSwap(input: CreateCreditSwapInput): Promise<{ 
     p_chat_permission: input.chatPermission,
     p_credit_amount: input.creditAmount,
     p_additional_message: input.additionalMessage || null,
+    p_idempotency_key: idempotencyKey,
   });
   if (error || !data) return { success: false, error: formatFriendlyErrorMessage(error ?? new Error('Swap creation returned no ID.')) };
   return { success: true, swapId: data as string };
