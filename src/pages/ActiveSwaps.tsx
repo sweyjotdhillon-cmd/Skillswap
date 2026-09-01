@@ -282,13 +282,18 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
           }
         });
 
+        setAcceptedSwaps(accepted);
         if (accepted.length > 0) {
-          setAcceptedSwaps(accepted);
           setSelectedAcceptedId(accepted[0].id);
+        } else {
+          setSelectedAcceptedId('');
         }
+
+        setGivenSwaps(given);
         if (given.length > 0) {
-          setGivenSwaps(given);
           setSelectedGivenId(given[0].id);
+        } else {
+          setSelectedGivenId('');
         }
       }
     } catch (err) {

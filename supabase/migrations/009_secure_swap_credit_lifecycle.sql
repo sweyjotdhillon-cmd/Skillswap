@@ -41,18 +41,35 @@ WHERE EXISTS (SELECT 1 FROM public.credit_transactions t
 
 CREATE OR REPLACE FUNCTION public.ensure_credit_account(p_user_id uuid)
 RETURNS public.accounts LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_account public.accounts; v_key text := 'initial_grant:' || p_user_id::text;
+DECLARE
+  v_account public.accounts;
+  v_key text := 'initial_grant:' || p_user_id::text;
 BEGIN
   IF p_user_id IS NULL THEN RAISE EXCEPTION 'User ID cannot be null.'; END IF;
+
   INSERT INTO public.accounts(user_id, credits_balance, credits_reserved, credits_earned, credits_spent)
   VALUES (p_user_id, 0, 0, 0, 0) ON CONFLICT (user_id) DO NOTHING;
+
   SELECT * INTO v_account FROM public.accounts WHERE user_id = p_user_id FOR UPDATE;
-  IF NOT EXISTS (SELECT 1 FROM public.credit_transactions WHERE user_id = p_user_id AND transaction_type = 'initial_grant') THEN
-    UPDATE public.accounts SET credits_balance = credits_balance + 100, credits_earned = credits_earned + 100
-      WHERE user_id = p_user_id RETURNING * INTO v_account;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.credit_transactions
+    WHERE user_id = p_user_id AND (transaction_type = 'initial_grant' OR idempotency_key = v_key)
+  ) THEN
+    UPDATE public.accounts
+    SET credits_balance = credits_balance + 100,
+        credits_earned = credits_earned + 100
+    WHERE user_id = p_user_id
+    RETURNING * INTO v_account;
+
     INSERT INTO public.credit_transactions(user_id, amount, balance_after, transaction_type, reason, idempotency_key)
-      VALUES (p_user_id, 100, v_account.credits_balance, 'initial_grant', 'Initial SkillSwap credit grant', v_key);
+    VALUES (p_user_id, 100, v_account.credits_balance, 'initial_grant', 'Initial SkillSwap credit grant', v_key);
+
+    INSERT INTO public.credit_operations(operation_id, user_id, operation_type, amount)
+    VALUES (v_key, p_user_id, 'initial_grant', 100)
+    ON CONFLICT (operation_id) DO NOTHING;
   END IF;
+
   RETURN v_account;
 END $$;
 
@@ -126,22 +143,124 @@ END $$;
 
 CREATE OR REPLACE FUNCTION public.cancel_credit_swap(p_swap_id uuid)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_user uuid:=auth.uid(); v_swap public.swaps; v_account public.accounts;
+DECLARE
+  v_user uuid := auth.uid();
+  v_swap public.swaps;
+  v_requester_account public.accounts;
+  v_status_to_set text;
 BEGIN
-  SELECT * INTO v_swap FROM public.swaps WHERE id=p_swap_id FOR UPDATE;
+  IF v_user IS NULL THEN RAISE EXCEPTION 'Not authenticated.'; END IF;
+
+  SELECT * INTO v_swap FROM public.swaps WHERE id = p_swap_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Swap not found.'; END IF;
-  IF v_swap.status IN ('cancelled','declined','withdrawn','expired') AND v_swap.requester_id=v_user THEN RETURN jsonb_build_object('success',true,'idempotent_retry',true); END IF;
-  IF v_user IS NULL OR v_swap.requester_id<>v_user OR v_swap.status NOT IN ('open','accepted','submitted') THEN RAISE EXCEPTION 'Swap cannot be cancelled.'; END IF;
-  SELECT * INTO v_account FROM public.accounts WHERE user_id=v_user FOR UPDATE;
-  IF v_account.credits_reserved < v_swap.credit_amount THEN RAISE EXCEPTION 'Reserved credit commitment is missing.'; END IF;
-  UPDATE public.accounts SET credits_reserved=credits_reserved-v_swap.credit_amount, credits_balance=credits_balance+v_swap.credit_amount WHERE user_id=v_user RETURNING * INTO v_account;
-  INSERT INTO public.credit_transactions(user_id,amount,balance_after,transaction_type,reason,related_swap_id,idempotency_key) VALUES(v_user,v_swap.credit_amount,v_account.credits_balance,'reservation_release','Swap cancelled; reservation released',p_swap_id::text,'swap_release:'||p_swap_id::text);
-  INSERT INTO public.credit_operations(operation_id,user_id,operation_type,amount,related_swap_id) VALUES('swap_release:'||p_swap_id::text,v_user,'release',v_swap.credit_amount,p_swap_id::text);
-  UPDATE public.swaps SET status='cancelled',cancelled_at=now() WHERE id=p_swap_id;
-  RETURN jsonb_build_object('success',true,'credits_balance',v_account.credits_balance,'credits_reserved',v_account.credits_reserved);
+
+  -- Idempotent check: if swap is already in a terminal cancelled/declined status
+  IF v_swap.status IN ('cancelled', 'declined', 'withdrawn', 'expired') THEN
+    IF v_swap.requester_id = v_user OR v_swap.participant_id = v_user THEN
+      RETURN jsonb_build_object('success', true, 'idempotent_retry', true);
+    END IF;
+  END IF;
+
+  -- Security check: caller must be requester OR participant (or participant eligible if open)
+  IF v_swap.requester_id <> v_user AND (v_swap.participant_id IS NULL OR v_swap.participant_id <> v_user) THEN
+    RAISE EXCEPTION 'Swap cannot be cancelled by this user.';
+  END IF;
+
+  IF v_swap.status NOT IN ('open', 'accepted', 'submitted') THEN
+    RAISE EXCEPTION 'Swap cannot be cancelled in its current status.';
+  END IF;
+
+  -- Determine new status: 'declined' if participant cancels, 'cancelled' if requester cancels
+  v_status_to_set := CASE WHEN v_swap.requester_id = v_user THEN 'cancelled' ELSE 'declined' END;
+
+  -- Lock and release reserved credits from requester's account
+  SELECT * INTO v_requester_account FROM public.accounts WHERE user_id = v_swap.requester_id FOR UPDATE;
+
+  IF v_requester_account.credits_reserved >= v_swap.credit_amount THEN
+    UPDATE public.accounts
+    SET credits_reserved = credits_reserved - v_swap.credit_amount,
+        credits_balance = credits_balance + v_swap.credit_amount
+    WHERE user_id = v_swap.requester_id
+    RETURNING * INTO v_requester_account;
+
+    INSERT INTO public.credit_transactions(user_id, amount, balance_after, transaction_type, reason, related_swap_id, idempotency_key)
+    VALUES (
+      v_swap.requester_id,
+      v_swap.credit_amount,
+      v_requester_account.credits_balance,
+      'reservation_release',
+      'Swap ' || v_status_to_set || '; reservation released',
+      p_swap_id::text,
+      'swap_release:' || p_swap_id::text
+    )
+    ON CONFLICT (idempotency_key) DO NOTHING;
+
+    INSERT INTO public.credit_operations(operation_id, user_id, operation_type, amount, related_swap_id)
+    VALUES ('swap_release:' || p_swap_id::text, v_swap.requester_id, 'release', v_swap.credit_amount, p_swap_id::text)
+    ON CONFLICT (operation_id) DO NOTHING;
+  END IF;
+
+  UPDATE public.swaps
+  SET status = v_status_to_set,
+      cancelled_at = now()
+  WHERE id = p_swap_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'status', v_status_to_set,
+    'requester_credits_balance', v_requester_account.credits_balance,
+    'requester_credits_reserved', v_requester_account.credits_reserved
+  );
+END $$;
+
+CREATE OR REPLACE FUNCTION public.reconcile_credit_balances()
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_total_accounts int := 0;
+  v_matching_accounts int := 0;
+  v_discrepancies_count int := 0;
+  v_discrepancy_details jsonb := '[]'::jsonb;
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT
+      a.user_id,
+      a.credits_balance AS stored_balance,
+      a.credits_reserved AS stored_reserved,
+      a.credits_earned AS stored_earned,
+      a.credits_spent AS stored_spent,
+      COALESCE(SUM(t.amount), 0) AS calculated_balance,
+      COALESCE(SUM(t.amount) FILTER (
+        WHERE t.transaction_type IN ('initial_grant', 'settlement_recipient', 'swap_reward', 'transfer_received')
+      ), 0) AS calculated_earned
+    FROM public.accounts a
+    LEFT JOIN public.credit_transactions t ON a.user_id = t.user_id
+    GROUP BY a.user_id, a.credits_balance, a.credits_reserved, a.credits_earned, a.credits_spent
+  LOOP
+    v_total_accounts := v_total_accounts + 1;
+    IF r.stored_balance = r.calculated_balance AND r.stored_earned = r.calculated_earned THEN
+      v_matching_accounts := v_matching_accounts + 1;
+    ELSE
+      v_discrepancies_count := v_discrepancies_count + 1;
+      v_discrepancy_details := v_discrepancy_details || jsonb_build_object(
+        'user_id', r.user_id,
+        'stored_balance', r.stored_balance,
+        'calculated_balance', r.calculated_balance,
+        'stored_earned', r.stored_earned,
+        'calculated_earned', r.calculated_earned
+      );
+    END IF;
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'total_accounts', v_total_accounts,
+    'matching_accounts', v_matching_accounts,
+    'discrepancies_count', v_discrepancies_count,
+    'discrepancies', v_discrepancy_details
+  );
 END $$;
 
 -- Old generic mutation RPCs are not a browser API.  Only lifecycle RPCs are executable.
 REVOKE EXECUTE ON FUNCTION public.ensure_credit_account(uuid), public.add_credits(uuid,integer,text,text,text,jsonb,text), public.credit_add_for_user(uuid,integer,text,text,text,jsonb), public.transfer_credits(uuid,integer,text,text,text,jsonb), public.credit_transfer(uuid,integer,text,text,text,jsonb), public.settle_reserved_credit_transfer(uuid,uuid,integer,text,text,text,jsonb), public.release_reserved_credits(uuid,integer,text,text,text,jsonb), public.reserve_my_credits(integer,text,text,text,jsonb), public.spend_my_credits(integer,text,text,text,jsonb), public.release_swap_credits(uuid,integer,text,text,text,jsonb) FROM anon, authenticated, public;
-GRANT EXECUTE ON FUNCTION public.create_credit_swap(text,text,text,text,integer,text), public.accept_credit_swap(uuid), public.submit_credit_swap(uuid), public.complete_credit_swap(uuid), public.cancel_credit_swap(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.create_credit_swap(text,text,text,text,integer,text), public.accept_credit_swap(uuid), public.submit_credit_swap(uuid), public.complete_credit_swap(uuid), public.cancel_credit_swap(uuid), public.reconcile_credit_balances() TO authenticated, service_role;
 NOTIFY pgrst, 'reload schema';
