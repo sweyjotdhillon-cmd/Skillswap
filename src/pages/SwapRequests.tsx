@@ -129,7 +129,7 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received');
   const [receivedRequests, setReceivedRequests] = useState<ReceivedRequest[]>(INITIAL_RECEIVED_REQUESTS);
   const [sentRequests, setSentRequests] = useState<SentRequest[]>(INITIAL_SENT_REQUESTS);
-  const [credits, setCredits] = useState<number>(120);
+  const [credits, setCredits] = useState<number>(100);
 
   // Modal State for View Profile / View Details
   const [selectedProfile, setSelectedProfile] = useState<UserInfo | null>(null);
@@ -157,7 +157,10 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
     const target = receivedRequests.find((r) => r.id === id);
     if (!target) return;
 
-    if (user) {
+    // Only mutate database credits for real persisted backend swap records (non-mock IDs)
+    const isRealBackendSwap = Boolean(user && target.id && !target.id.startsWith('rec-'));
+
+    if (isRealBackendSwap && user) {
       const idempotencyKey = `accept_req_${id}_${Date.now()}`;
       await addUserCredits(
         user.id,
@@ -173,7 +176,7 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
       prev.map((r) => (r.id === id ? { ...r, status: 'Accepted' } : r))
     );
     setCredits((prev) => prev + target.creditsOffered);
-    showToast(`Accepted swap request from ${target.user.name}! +${target.creditsOffered} Credits added.`);
+    showToast(`Accepted swap request from ${target.user.name}!`);
   };
 
   const handleDeclineReceived = async (id: string) => {
@@ -190,7 +193,10 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
     const target = sentRequests.find((r) => r.id === id);
     if (!target) return;
 
-    if (user) {
+    // Only refund database credits for real persisted backend swap records (non-mock IDs)
+    const isRealBackendSwap = Boolean(user && target.id && !target.id.startsWith('sent-'));
+
+    if (isRealBackendSwap && user) {
       const idempotencyKey = `cancel_req_${id}_${Date.now()}`;
       await releaseSwapCredits(
         user.id,

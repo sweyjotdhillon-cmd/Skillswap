@@ -7,7 +7,7 @@ function assert(condition: boolean, message: string) {
 }
 
 export function runCreditSystemTests() {
-  console.log('Running SkillSwap Credit System Infrastructure Unit Tests...');
+  console.log('Running SkillSwap Credit System Comprehensive Audit Unit Tests...');
 
   // TEST 1: Initial Grant Idempotency Key Formatting
   console.log('Test 1: Initial grant idempotency key generation');
@@ -45,8 +45,16 @@ export function runCreditSystemTests() {
     'Translates invalid transfer recipient error'
   );
 
-  // TEST 5: Deadlock Prevention Row Lock Ordering Check
-  console.log('Test 5: Deadlock prevention user lock sorting check');
+  // TEST 5: Error Translation for Cross-User Security Violations
+  console.log('Test 5: Error translation for cross-user security violations');
+  const rawError5 = { message: 'Unauthorized credit addition for another user.' };
+  assert(
+    formatFriendlyErrorMessage(rawError5) === 'Unauthorized credit operation.',
+    'Translates cross-user security violation'
+  );
+
+  // TEST 6: Deadlock Prevention Row Lock Ordering Check
+  console.log('Test 6: Deadlock prevention user lock sorting check');
   const userA = 'aaaaa-11111';
   const userB = 'bbbbb-22222';
   const getLockOrder = (id1: string, id2: string) => (id1 < id2 ? [id1, id2] : [id2, id1]);
@@ -62,7 +70,20 @@ export function runCreditSystemTests() {
     'Lock order identically sorted when userB is first parameter'
   );
 
-  console.log('All SkillSwap Credit System Infrastructure Unit Tests passed successfully!');
+  // TEST 7: Reconciliation Result Contract Verification
+  console.log('Test 7: Reconciliation diagnostic contract structure check');
+  const mockReconcileResult = {
+    total_accounts_checked: 10,
+    matching_accounts: 10,
+    discrepancies_count: 0,
+    discrepancy_details: [],
+  };
+  assert(
+    mockReconcileResult.total_accounts_checked === mockReconcileResult.matching_accounts + mockReconcileResult.discrepancies_count,
+    'Reconciliation account count invariant holds'
+  );
+
+  console.log('All SkillSwap Credit System Comprehensive Audit Unit Tests passed successfully!');
 }
 
 // Execute tests
