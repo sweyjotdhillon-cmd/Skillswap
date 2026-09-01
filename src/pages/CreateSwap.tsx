@@ -10,6 +10,8 @@ import { RequirementsField } from '../components/create-swap/RequirementsField';
 import { AdditionalMessageField } from '../components/create-swap/AdditionalMessageField';
 import { CreateSwapActions } from '../components/create-swap/CreateSwapActions';
 import { SwapPreviewCard } from '../components/create-swap/SwapPreviewCard';
+import { useAuth } from '../context/AuthContext';
+import { deductUserCredits } from '../lib/supabase/credits';
 
 export interface CreateSwapFormState {
   topic: string;
@@ -35,6 +37,7 @@ type CreateSwapPageProps = {
 
 export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
   const DRAFT_KEY = 'skillswap_create_swap_draft';
+  const { account, refreshAccount } = useAuth();
 
   const [formState, setFormState] = useState<CreateSwapFormState>(() => {
     try {
@@ -120,6 +123,8 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       const parsed = parseInt(formState.credits, 10);
       if (isNaN(parsed) || parsed <= 0) {
         newErrors.credits = 'Credits must be a valid positive number.';
+      } else if (account && parsed > account.credits_balance) {
+        newErrors.credits = `Insufficient credits balance. You currently have ${account.credits_balance} credits available.`;
       }
     }
 
@@ -152,9 +157,29 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
     }, 4000);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (validate()) {
+      const amount = parseInt(formState.credits, 10);
+      const idempotencyKey = `create_swap_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+      // Execute backend atomic deduction / reservation
+      const res = await deductUserCredits(
+        amount,
+        `Swap offering hold: ${formState.topic.trim()}`,
+        idempotencyKey
+      );
+
+      if (!res.success) {
+        setErrors((prev) => ({
+          ...prev,
+          credits: res.error || 'Failed to deduct credits. Please try again.',
+        }));
+        return;
+      }
+
+      await refreshAccount();
+
       try {
         localStorage.removeItem(DRAFT_KEY);
       } catch (_) {
@@ -162,7 +187,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       }
       setStatusMessage({
         type: 'success',
-        text: 'Swap creation form submitted successfully!',
+        text: `Swap listing created! ${amount} credits reserved. Remaining balance: ${res.credits_balance ?? (account?.credits_balance ?? 0) - amount}`,
       });
       if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
       statusTimerRef.current = setTimeout(() => {

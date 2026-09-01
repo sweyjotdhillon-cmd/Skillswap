@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
+import { useAuth } from '../context/AuthContext';
+import { addUserCredits } from '../lib/supabase/credits';
 
 export interface SwapParticipant {
   name: string;
@@ -165,6 +167,7 @@ type ActiveSwapsPageProps = {
 };
 
 export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
+  const { user, refreshAccount } = useAuth();
   const [activeTab, setActiveTab] = useState<'accepted' | 'given'>('accepted');
 
   const [acceptedSwaps, setAcceptedSwaps] = useState<AcceptedSwap[]>(INITIAL_ACCEPTED_SWAPS);
@@ -273,11 +276,23 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     setSubmitWorkFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmitWork = (e: React.FormEvent) => {
+  const handleSubmitWork = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentAcceptedSwap) return;
 
     const fileNames = submitWorkFiles.map((f) => f.name);
+
+    if (user) {
+      const idempotencyKey = `swap_completion_${currentAcceptedSwap.id}_${Date.now()}`;
+      await addUserCredits(
+        user.id,
+        currentAcceptedSwap.credits,
+        `Swap completion reward: ${currentAcceptedSwap.title}`,
+        idempotencyKey,
+        currentAcceptedSwap.id
+      );
+      await refreshAccount();
+    }
 
     setAcceptedSwaps((prev) =>
       prev.map((s) =>
@@ -285,8 +300,8 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
           ? {
               ...s,
               progress: 100,
-              status: 'Review',
-              nextStep: 'Work submitted! Awaiting review and approval from ' + s.participant.name + '.',
+              status: 'Completed',
+              nextStep: 'Work submitted and completed! ' + s.credits + ' SkillCredits credited to your balance.',
               submittedWorkNotes: submitWorkNotes,
               submittedFiles: fileNames,
             }
@@ -298,7 +313,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     setSubmitWorkNotes('');
     setSubmitWorkFiles([]);
 
-    setSubmitSuccessToast(`Successfully submitted work for "${currentAcceptedSwap.title}"!`);
+    setSubmitSuccessToast(`Successfully submitted work for "${currentAcceptedSwap.title}"! +${currentAcceptedSwap.credits} Credits awarded.`);
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => {
       if (isMountedRef.current) setSubmitSuccessToast(null);

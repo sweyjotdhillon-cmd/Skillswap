@@ -147,6 +147,21 @@ export function formatFriendlyErrorMessage(error: any): string {
     return 'This skill has already been added.';
   }
 
+  // 5.5. Credit System Errors
+  if (
+    lower.includes('insufficient credit balance') ||
+    lower.includes('chk_min_balance') ||
+    lower.includes('insufficient credits')
+  ) {
+    return 'Insufficient credit balance for this operation.';
+  }
+  if (lower.includes('credit amount must be greater than zero')) {
+    return 'Credit amount must be greater than zero.';
+  }
+  if (lower.includes('invalid transfer recipient')) {
+    return 'Invalid credit transfer recipient.';
+  }
+
   // 6. Authentication / Session Expiry
   if (
     lower.includes('not authenticated') ||

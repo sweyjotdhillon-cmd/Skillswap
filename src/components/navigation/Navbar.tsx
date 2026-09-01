@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Logo } from '../brand/Logo';
 import { useAuth } from '../../context/AuthContext';
+import { CreditHistoryModal } from '../credits/CreditHistoryModal';
 
 const navItems = [
   { label: 'Explore Swaps', path: '/explore' },
@@ -20,8 +21,9 @@ type NavbarProps = {
 
 export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentPath }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [creditModalOpen, setCreditModalOpen] = useState(false);
   const activePath = currentPath || window.location.pathname;
-  const { user, signOut } = useAuth();
+  const { user, account, accountLoading, signOut } = useAuth();
 
   // Accessibility & UX: Handle Escape key to close mobile drawer & body scroll lock
   useEffect(() => {
@@ -88,6 +90,21 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
       <div className="header-right-group">
         {user ? (
           <div className="auth-user-menu desktop-user-menu" style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            {/* Live Credit Indicator Pill */}
+            <button
+              type="button"
+              className="nav-credit-indicator-btn"
+              onClick={() => setCreditModalOpen(true)}
+              title="Click to view Credit History & Account details"
+              aria-label={`Credit balance: ${account?.credits_balance ?? 100} credits`}
+            >
+              <span className="nav-credit-icon">⚡</span>
+              <span className="nav-credit-amount">
+                {accountLoading ? '...' : account?.credits_balance ?? 100}
+              </span>
+              <span className="nav-credit-label">Credits</span>
+            </button>
+
             <a
               href="/profile"
               className="auth-link-bold nav-profile-link"
@@ -222,6 +239,23 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                 <div className="mobile-drawer-user-info">
                   <span className="mobile-user-label">Signed in as</span>
                   <strong className="mobile-user-email">{user.email}</strong>
+                  <div style={{ marginTop: '0.6rem' }}>
+                    <button
+                      type="button"
+                      className="nav-credit-indicator-btn"
+                      style={{ width: '100%', justifyContent: 'center' }}
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setCreditModalOpen(true);
+                      }}
+                    >
+                      <span className="nav-credit-icon">⚡</span>
+                      <span className="nav-credit-amount">
+                        {accountLoading ? '...' : account?.credits_balance ?? 100}
+                      </span>
+                      <span className="nav-credit-label">Credits</span>
+                    </button>
+                  </div>
                 </div>
                 <a
                   href="/profile"

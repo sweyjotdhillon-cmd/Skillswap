@@ -2,64 +2,81 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { getProfile, type Profile } from '../lib/supabase/profile';
+import { getUserAccount, type Account } from '../lib/supabase/credits';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
+  account: Account | null;
   loading: boolean;
   profileLoading: boolean;
+  accountLoading: boolean;
   isVerified: boolean;
   isGoogleUser: boolean;
   isAnonymous: boolean;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<Session | null>;
   refreshProfile: () => Promise<Profile | null>;
+  refreshAccount: () => Promise<Account | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   profile: null,
+  account: null,
   loading: true,
   profileLoading: true,
+  accountLoading: true,
   isVerified: false,
   isGoogleUser: false,
   isAnonymous: false,
   signOut: async () => {},
   refreshSession: async () => null,
   refreshProfile: async () => null,
+  refreshAccount: async () => null,
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [accountLoading, setAccountLoading] = useState(true);
 
   // Track the current user ID being processed to prevent race conditions
   const currentFetchUserIdRef = useRef<string | null>(null);
 
-  const fetchUserProfile = useCallback(async (userId: string): Promise<Profile | null> => {
+  const fetchUserProfileAndAccount = useCallback(async (userId: string): Promise<{ profile: Profile | null; account: Account | null }> => {
     currentFetchUserIdRef.current = userId;
     setProfileLoading(true);
+    setAccountLoading(true);
+
     try {
-      const userProfile = await getProfile(userId);
-      // Only set profile if this request is still for the active user
+      const [userProfile, userAccount] = await Promise.all([
+        getProfile(userId),
+        getUserAccount(),
+      ]);
+
       if (currentFetchUserIdRef.current === userId) {
         setProfile(userProfile);
+        setAccount(userAccount);
       }
-      return userProfile;
+      return { profile: userProfile, account: userAccount };
     } catch (err) {
-      console.error('Error fetching profile:', err);
+      console.error('Error fetching profile or account:', err);
       if (currentFetchUserIdRef.current === userId) {
         setProfile(null);
+        setAccount(null);
       }
-      return null;
+      return { profile: null, account: null };
     } finally {
       if (currentFetchUserIdRef.current === userId) {
         setProfileLoading(false);
+        setAccountLoading(false);
       }
     }
   }, []);
@@ -71,8 +88,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfileLoading(false);
       return null;
     }
-    return await fetchUserProfile(user.id);
-  }, [user, fetchUserProfile]);
+    const { profile } = await fetchUserProfileAndAccount(user.id);
+    return profile;
+  }, [user, fetchUserProfileAndAccount]);
+
+  const refreshAccount = useCallback(async (): Promise<Account | null> => {
+    if (!user) {
+      setAccount(null);
+      setAccountLoading(false);
+      return null;
+    }
+    setAccountLoading(true);
+    try {
+      const acc = await getUserAccount();
+      setAccount(acc);
+      return acc;
+    } catch (err) {
+      console.error('Error refreshing account:', err);
+      return null;
+    } finally {
+      setAccountLoading(false);
+    }
+  }, [user]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -95,11 +132,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(currentUser);
 
         if (currentUser) {
-          await fetchUserProfile(currentUser.id);
+          await fetchUserProfileAndAccount(currentUser.id);
         } else {
           currentFetchUserIdRef.current = null;
           setProfile(null);
+          setAccount(null);
           setProfileLoading(false);
+          setAccountLoading(false);
         }
         if (mounted) {
           setLoading(false);
@@ -110,7 +149,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (mounted) {
           currentFetchUserIdRef.current = null;
           setProfile(null);
+          setAccount(null);
           setProfileLoading(false);
+          setAccountLoading(false);
           setLoading(false);
         }
       });
@@ -131,11 +172,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(currentUser);
 
       if (currentUser) {
-        await fetchUserProfile(currentUser.id);
+        await fetchUserProfileAndAccount(currentUser.id);
       } else {
         currentFetchUserIdRef.current = null;
         setProfile(null);
+        setAccount(null);
         setProfileLoading(false);
+        setAccountLoading(false);
       }
       if (mounted) {
         setLoading(false);
@@ -146,7 +189,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchUserProfile]);
+  }, [fetchUserProfileAndAccount]);
 
   const refreshSession = async () => {
     const supabase = getSupabaseBrowserClient();
@@ -175,7 +218,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setSession(null);
     setProfile(null);
+    setAccount(null);
     setProfileLoading(false);
+    setAccountLoading(false);
 
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
@@ -205,14 +250,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         session,
         profile,
+        account,
         loading,
         profileLoading,
+        accountLoading,
         isVerified,
         isGoogleUser,
         isAnonymous,
         signOut,
         refreshSession,
         refreshProfile,
+        refreshAccount,
       }}
     >
       {children}
