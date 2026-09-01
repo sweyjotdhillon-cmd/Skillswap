@@ -100,7 +100,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
           }
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorType('generic');
       setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
@@ -125,8 +125,9 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
       if (error) {
         throw error;
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'An unexpected error occurred during Google sign in.');
+    } catch (err: unknown) {
+      const msg = (err as Error)?.message || 'An unexpected error occurred during Google sign in.';
+      setErrorMessage(msg);
     }
   };
 

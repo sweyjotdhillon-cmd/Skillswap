@@ -98,13 +98,13 @@ serve(async (req) => {
         if (rpcUser && rpcUser.length > 0) {
           userId = rpcUser[0].id;
         }
-      } catch (_) {
+      } catch {
         let page = 1;
         const perPage = 100;
         while (!userId && page <= 5) {
           const { data: userData } = await supabase.auth.admin.listUsers({ page, perPage });
           const users = userData?.users || [];
-          const found = users.find((u) => u.email?.toLowerCase() === cleanEmail);
+          const found = users.find((u: { email?: string; id: string }) => u.email?.toLowerCase() === cleanEmail);
           if (found) {
             userId = found.id;
           }
@@ -148,10 +148,11 @@ serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Unexpected error in complete-password-reset:', err);
+    const msg = (err as Error)?.message || 'An unexpected error occurred.';
     return new Response(
-      JSON.stringify({ error: 'SERVER_ERROR', message: err.message || 'An unexpected error occurred.' }),
+      JSON.stringify({ error: 'SERVER_ERROR', message: msg }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

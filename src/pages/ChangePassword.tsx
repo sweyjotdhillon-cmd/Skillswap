@@ -42,7 +42,7 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
   }, [user]);
 
   useEffect(() => {
-    loadPasswordState();
+    void loadPasswordState();
   }, [loadPasswordState]);
 
   const calculateStrength = (pwd: string) => {
@@ -140,7 +140,7 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
         const updatedHasPassword = await checkUserHasPassword();
         setHasPassword(updatedHasPassword !== null ? updatedHasPassword : true);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setLoading(false);

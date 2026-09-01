@@ -137,7 +137,6 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
   const [receivedRequests, setReceivedRequests] = useState<ReceivedRequest[]>(INITIAL_RECEIVED_REQUESTS);
   const [sentRequests, setSentRequests] = useState<SentRequest[]>(INITIAL_SENT_REQUESTS);
 
-  const [isLoadingSwaps, setIsLoadingSwaps] = useState(false);
   const [actionPendingId, setActionPendingId] = useState<string | null>(null);
 
   // Modal State for View Profile / View Details
@@ -164,7 +163,6 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
 
   const loadRealSwaps = useCallback(async () => {
     if (!user) return;
-    setIsLoadingSwaps(true);
     try {
       const records: SwapRecord[] = await getUserSwaps(user.id);
       if (records) {
@@ -234,14 +232,12 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
       }
     } catch (err) {
       console.error('Error loading real swaps:', err);
-    } finally {
-      setIsLoadingSwaps(false);
     }
   }, [user]);
 
   useEffect(() => {
     if (user) {
-      loadRealSwaps();
+      void loadRealSwaps();
     }
   }, [user, loadRealSwaps]);
 

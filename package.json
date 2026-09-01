@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test": "tsx src/lib/supabase/credits.test.ts",
+    "lint": "eslint .",
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
@@ -26,9 +27,15 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260828.1",
     "@electric-sql/pglite": "^0.5.8",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
-    "tsx": "^4.23.13"
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.5.5",
+    "globals": "^17.12.0",
+    "tsx": "^4.23.13",
+    "typescript-eslint": "^8.69.0"
   }
 }

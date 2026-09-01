@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useId, useRef } from 'react';
+import React, { useState, useEffect, useId, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/navigation/Navbar';
 import {
@@ -54,7 +54,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
   const [skillsLoading, setSkillsLoading] = useState<boolean>(true);
   const [skillsError, setSkillsError] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
+  const [, setIsSearchFocused] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedSkills, setSelectedSkills] = useState<SelectedSkill[]>([]);
   const [customSkillModalOpen, setCustomSkillModalOpen] = useState<boolean>(false);
@@ -138,28 +138,28 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
   }, [user, profile]);
 
   // Fetch Predefined Skills Catalog once (with reload ability)
-  const loadSkillsCatalog = async () => {
+  const loadSkillsCatalog = useCallback(async () => {
     setSkillsLoading(true);
     setSkillsError('');
     try {
       const catalog = await getSkillsCatalog();
       console.log(`[Skills Catalog] Successfully loaded ${catalog.length} skills from public.skills`);
       setSkillsCatalog(catalog);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load skills catalog:', err);
       setSkillsError('Unable to load skills right now. Please try again.');
     } finally {
       setSkillsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadSkillsCatalog();
+    void loadSkillsCatalog();
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
-  }, []);
+  }, [loadSkillsCatalog]);
 
   // Avatar URL resolution
   const avatarUrl =
@@ -420,7 +420,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
             avatarUrl: resolvedAvatar,
           });
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to finalize onboarding after Google linking:', err);
         sessionStorage.removeItem('skillswap_pending_onboarding');
         if (isMounted) {
@@ -430,17 +430,17 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
       }
     }
 
-    checkPendingLinking();
+    void checkPendingLinking();
 
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user, avatarUrl]);
 
   // Step 4 Validation & Final Submission
   const validatePhone = (phone: string): boolean => {
     if (!phone.trim()) return true;
-    const cleanPhone = phone.trim().replace(/[\s\-\(\)\+]/g, '');
+    const cleanPhone = phone.trim().replace(/[\s\-()+]/g, '');
     return /^\d{7,15}$/.test(cleanPhone);
   };
 
@@ -543,7 +543,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
         selectedSkills,
         avatarUrl,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Final onboarding submission error:', err);
       const friendlyMsg = formatFriendlyErrorMessage(err);
       setSubmitError(friendlyMsg);
@@ -574,22 +574,23 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
 
   useEffect(() => {
     const clean = searchQuery.trim();
-    if (searchDebounceRef.current) {
-      clearTimeout(searchDebounceRef.current);
-    }
+    let isCancelled = false;
 
     if (!clean) {
       setSearchResults([]);
       return;
     }
 
-    searchDebounceRef.current = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       const results = await searchSkillsCatalog(clean, selectedCategory);
-      setSearchResults(results);
+      if (!isCancelled) {
+        setSearchResults(results);
+      }
     }, 250);
 
     return () => {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      isCancelled = true;
+      clearTimeout(timer);
     };
   }, [searchQuery, selectedCategory]);
 

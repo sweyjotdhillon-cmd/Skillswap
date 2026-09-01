@@ -51,9 +51,10 @@ export interface UserCustomSkill {
 /**
  * Sanitizes technical database/PostgREST/PostgreSQL error messages into user-friendly messages.
  */
-export function formatFriendlyErrorMessage(error: any): string {
+export function formatFriendlyErrorMessage(error: unknown): string {
   if (!error) return 'An unexpected error occurred. Please try again.';
-  const rawMsg = typeof error === 'string' ? error : error.message || error.details || '';
+  const errObj = error as { message?: string; details?: string };
+  const rawMsg = typeof error === 'string' ? error : errObj.message || errObj.details || '';
   const lower = rawMsg.toLowerCase();
 
   const safeUiMessage = [
@@ -258,7 +259,7 @@ export async function checkUsernameAvailability(username: string): Promise<Usern
     }
 
     return { status: 'error', message: 'Unable to check username right now. Please try again.' };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[checkUsernameAvailability] Unexpected error:', err);
     return { status: 'error', message: formatFriendlyErrorMessage(err) };
   }
@@ -403,9 +404,9 @@ export async function getSkillsCatalog(): Promise<Skill[]> {
     }
 
     return (data || []) as Skill[];
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Failed to fetch skills catalog exception:', err);
-    throw new Error(formatFriendlyErrorMessage(err));
+    throw new Error(formatFriendlyErrorMessage(err), { cause: err });
   }
 }
 
@@ -495,7 +496,7 @@ export async function addUserSkill(
       return { success: false, error: 'We couldn’t save your profile right now. Please try again.' };
     }
     return data;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[addUserSkill] Exception:', err);
     return { success: false, error: formatFriendlyErrorMessage(err) };
   }
@@ -558,7 +559,7 @@ export async function completeProfile(): Promise<{ success: boolean; profile_com
       return { success: false, error: 'We couldn’t complete your profile right now. Please try again.' };
     }
     return data;
-  } catch (err: any) {
+  } catch (err: unknown) {
     return { success: false, error: formatFriendlyErrorMessage(err) };
   }
 }

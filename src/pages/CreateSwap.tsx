@@ -70,16 +70,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'info'; text: string } | null>(null);
-  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'info'; text: string } | null>(() => {
     try {
       const saved = localStorage.getItem(DRAFT_KEY);
       if (saved) {
@@ -93,15 +84,24 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
           parsed.chatPermission !== null
         );
         if (hasContent) {
-          setStatusMessage({ type: 'info', text: 'Restored your previously saved draft.' });
-          if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
-          statusTimerRef.current = setTimeout(() => setStatusMessage(null), 4000);
+          return { type: 'info', text: 'Restored your previously saved draft.' };
         }
       }
     } catch {
       // Ignore parse error
     }
-  }, []);
+    return null;
+  });
+  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (statusMessage?.text === 'Restored your previously saved draft.') {
+      statusTimerRef.current = setTimeout(() => setStatusMessage(null), 4000);
+    }
+    return () => {
+      if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+    };
+  }, [statusMessage]);
 
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
@@ -185,7 +185,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
 
       try {
         localStorage.removeItem(DRAFT_KEY);
-      } catch (_) {
+      } catch {
         // ignore
       }
       setStatusMessage({

@@ -93,7 +93,7 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
           }
         }, 1000);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
@@ -136,7 +136,7 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
         setSuccessMessage(`A new verification code has been sent to ${cleanEmail}.`);
         setCooldown(60);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setResending(false);

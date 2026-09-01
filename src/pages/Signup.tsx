@@ -65,7 +65,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
       }
 
       const cleanEmail = email.trim().toLowerCase();
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: {
@@ -94,7 +94,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
           window.location.href = verifyUrl;
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
@@ -120,7 +120,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
       } else {
         window.location.href = targetPath;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMessage(formatFriendlyErrorMessage(err));
     }
   };

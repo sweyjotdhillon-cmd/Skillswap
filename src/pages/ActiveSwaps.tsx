@@ -5,7 +5,6 @@ import {
   getUserSwaps,
   submitCreditSwap,
   completeCreditSwap,
-  cancelCreditSwap,
   type SwapRecord,
 } from '../lib/supabase/credits';
 
@@ -303,7 +302,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
   useEffect(() => {
     if (user) {
-      loadRealActiveSwaps();
+      void loadRealActiveSwaps();
     }
   }, [user, loadRealActiveSwaps]);
 
