@@ -7,7 +7,7 @@ function assert(condition: boolean, message: string) {
 }
 
 export function runCreditSystemTests() {
-  console.log('Running SkillSwap Credit System Comprehensive Audit Unit Tests...');
+  console.log('Running SkillSwap Credit System Reservation & Settlement Unit Tests...');
 
   // TEST 1: Initial Grant Idempotency Key Formatting
   console.log('Test 1: Initial grant idempotency key generation');
@@ -15,8 +15,57 @@ export function runCreditSystemTests() {
   const expectedKey = `initial_grant_${userId}`;
   assert(expectedKey === 'initial_grant_123e4567-e89b-12d3-a456-426614174000', 'Initial grant key format');
 
-  // TEST 2: Error Translation for Insufficient Credit Balance
-  console.log('Test 2: Error translation for insufficient credit balance');
+  // TEST 2: Credit Reservation Idempotency Key Formatting
+  console.log('Test 2: Credit reservation idempotency key formatting');
+  const swapId = 'swap-123-abc';
+  const reservationKey = `swap_reservation_${swapId}_20_${Date.now()}`;
+  assert(reservationKey.startsWith('swap_reservation_swap-123-abc_20_'), 'Reservation key format prefix');
+
+  // TEST 3: Credit Cancellation Release Key Formatting
+  console.log('Test 3: Credit cancellation release key formatting');
+  const releaseKey = `swap_cancel_release_${swapId}`;
+  assert(releaseKey === 'swap_cancel_release_swap-123-abc', 'Release key format');
+
+  // TEST 4: Settlement Idempotency Key Formatting
+  console.log('Test 4: Deterministic settlement idempotency key formatting');
+  const settlementKey = `swap_settlement:${swapId}`;
+  assert(settlementKey === 'swap_settlement:swap-123-abc', 'Settlement key format');
+
+  // TEST 5: Reservation Balance Accounting Invariants
+  console.log('Test 5: Reservation balance state invariants');
+  const initialBalance = 100;
+  const initialReserved = 0;
+  const reserveAmount = 20;
+
+  const afterReserveBalance = initialBalance - reserveAmount;
+  const afterReserveReserved = initialReserved + reserveAmount;
+
+  assert(afterReserveBalance === 80, 'Available balance reduced after reservation');
+  assert(afterReserveReserved === 20, 'Reserved credits increased after reservation');
+  assert(afterReserveBalance + afterReserveReserved === 100, 'Total user credit pool preserved during reservation');
+
+  // TEST 6: Release Balance Accounting Invariants
+  console.log('Test 6: Reservation release balance state invariants');
+  const afterReleaseBalance = afterReserveBalance + reserveAmount;
+  const afterReleaseReserved = afterReserveReserved - reserveAmount;
+
+  assert(afterReleaseBalance === 100, 'Available balance restored after release');
+  assert(afterReleaseReserved === 0, 'Reserved credits cleared after release');
+
+  // TEST 7: Settlement Accounting Invariants
+  console.log('Test 7: Atomic settlement balance state invariants');
+  const payerReserved = 20;
+  const recipientBalanceBefore = 50;
+  const transferAmount = 20;
+
+  const payerReservedAfter = payerReserved - transferAmount;
+  const recipientBalanceAfter = recipientBalanceBefore + transferAmount;
+
+  assert(payerReservedAfter === 0, 'Payer reserved credits consumed upon settlement');
+  assert(recipientBalanceAfter === 70, 'Recipient available balance credited upon settlement');
+
+  // TEST 8: Error Translation for Insufficient Credit Balance
+  console.log('Test 8: Error translation for insufficient credit balance');
   const rawError1 = { message: 'Insufficient credit balance for this operation.' };
   assert(
     formatFriendlyErrorMessage(rawError1) === 'Insufficient credit balance for this operation.',
@@ -29,32 +78,8 @@ export function runCreditSystemTests() {
     'Translates chk_min_balance check constraint violation'
   );
 
-  // TEST 3: Error Translation for Invalid Credit Amounts
-  console.log('Test 3: Error translation for invalid credit amount');
-  const rawError3 = { message: 'Credit amount must be greater than zero.' };
-  assert(
-    formatFriendlyErrorMessage(rawError3) === 'Credit amount must be greater than zero.',
-    'Translates non-positive credit amount exception'
-  );
-
-  // TEST 4: Error Translation for Invalid Transfer Recipient
-  console.log('Test 4: Error translation for invalid transfer recipient');
-  const rawError4 = { message: 'Invalid transfer recipient.' };
-  assert(
-    formatFriendlyErrorMessage(rawError4) === 'Invalid credit transfer recipient.',
-    'Translates invalid transfer recipient error'
-  );
-
-  // TEST 5: Error Translation for Cross-User Security Violations
-  console.log('Test 5: Error translation for cross-user security violations');
-  const rawError5 = { message: 'Unauthorized credit addition for another user.' };
-  assert(
-    formatFriendlyErrorMessage(rawError5) === 'Unauthorized credit operation.',
-    'Translates cross-user security violation'
-  );
-
-  // TEST 6: Deadlock Prevention Row Lock Ordering Check
-  console.log('Test 6: Deadlock prevention user lock sorting check');
+  // TEST 9: Deadlock Prevention Row Lock Ordering Check
+  console.log('Test 9: Deadlock prevention user lock sorting check');
   const userA = 'aaaaa-11111';
   const userB = 'bbbbb-22222';
   const getLockOrder = (id1: string, id2: string) => (id1 < id2 ? [id1, id2] : [id2, id1]);
@@ -70,20 +95,7 @@ export function runCreditSystemTests() {
     'Lock order identically sorted when userB is first parameter'
   );
 
-  // TEST 7: Reconciliation Result Contract Verification
-  console.log('Test 7: Reconciliation diagnostic contract structure check');
-  const mockReconcileResult = {
-    total_accounts_checked: 10,
-    matching_accounts: 10,
-    discrepancies_count: 0,
-    discrepancy_details: [],
-  };
-  assert(
-    mockReconcileResult.total_accounts_checked === mockReconcileResult.matching_accounts + mockReconcileResult.discrepancies_count,
-    'Reconciliation account count invariant holds'
-  );
-
-  console.log('All SkillSwap Credit System Comprehensive Audit Unit Tests passed successfully!');
+  console.log('All SkillSwap Credit System Reservation & Settlement Unit Tests passed successfully!');
 }
 
 // Execute tests

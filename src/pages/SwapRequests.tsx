@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { useAuth } from '../context/AuthContext';
-import { addUserCredits, releaseSwapCredits } from '../lib/supabase/credits';
+import { releaseReservedCredits } from '../lib/supabase/credits';
 
 export interface UserInfo {
   name: string;
@@ -129,7 +129,6 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received');
   const [receivedRequests, setReceivedRequests] = useState<ReceivedRequest[]>(INITIAL_RECEIVED_REQUESTS);
   const [sentRequests, setSentRequests] = useState<SentRequest[]>(INITIAL_SENT_REQUESTS);
-  const [credits, setCredits] = useState<number>(100);
 
   // Modal State for View Profile / View Details
   const [selectedProfile, setSelectedProfile] = useState<UserInfo | null>(null);
@@ -157,31 +156,31 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
     const target = receivedRequests.find((r) => r.id === id);
     if (!target) return;
 
-    // Only mutate database credits for real persisted backend swap records (non-mock IDs)
-    const isRealBackendSwap = Boolean(user && target.id && !target.id.startsWith('rec-'));
-
-    if (isRealBackendSwap && user) {
-      const idempotencyKey = `accept_req_${id}_${Date.now()}`;
-      await addUserCredits(
-        user.id,
-        target.creditsOffered,
-        `Accepted swap request from ${target.user.name} (${target.skillWanted})`,
-        idempotencyKey,
-        id
-      );
-      await refreshAccount();
-    }
-
+    // Transition request status to Accepted. Settlement will occur upon swap completion.
     setReceivedRequests((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: 'Accepted' } : r))
     );
-    setCredits((prev) => prev + target.creditsOffered);
-    showToast(`Accepted swap request from ${target.user.name}!`);
+    showToast(`Accepted swap request from ${target.user.name}! Swap is now active.`);
   };
 
   const handleDeclineReceived = async (id: string) => {
     const target = receivedRequests.find((r) => r.id === id);
     if (!target) return;
+
+    // Only release database reserved credits for real persisted backend swap records (non-mock IDs)
+    const isRealBackendSwap = Boolean(user && target.id && !target.id.startsWith('rec-'));
+
+    if (isRealBackendSwap && user) {
+      const idempotencyKey = `swap_cancel_release_${id}`;
+      await releaseReservedCredits(
+        user.id,
+        target.creditsOffered,
+        `Declined swap request from ${target.user.name}`,
+        idempotencyKey,
+        id
+      );
+      await refreshAccount();
+    }
 
     setReceivedRequests((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: 'Declined' } : r))
@@ -193,12 +192,12 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
     const target = sentRequests.find((r) => r.id === id);
     if (!target) return;
 
-    // Only refund database credits for real persisted backend swap records (non-mock IDs)
+    // Only refund database reserved credits for real persisted backend swap records (non-mock IDs)
     const isRealBackendSwap = Boolean(user && target.id && !target.id.startsWith('sent-'));
 
     if (isRealBackendSwap && user) {
-      const idempotencyKey = `cancel_req_${id}_${Date.now()}`;
-      await releaseSwapCredits(
+      const idempotencyKey = `swap_cancel_release_${id}`;
+      await releaseReservedCredits(
         user.id,
         target.creditsOffered,
         `Cancelled swap request to ${target.user.name}`,
@@ -258,7 +257,7 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
             <div className="sr-credits-card">
               <span className="sr-credits-label">Your Credits</span>
               <span className="sr-credits-value">
-                {account?.credits_balance ?? credits}
+                {account ? account.credits_balance : '...'}
               </span>
             </div>
           </div>

@@ -11,7 +11,7 @@ import { AdditionalMessageField } from '../components/create-swap/AdditionalMess
 import { CreateSwapActions } from '../components/create-swap/CreateSwapActions';
 import { SwapPreviewCard } from '../components/create-swap/SwapPreviewCard';
 import { useAuth } from '../context/AuthContext';
-import { deductUserCredits } from '../lib/supabase/credits';
+import { reserveUserCredits } from '../lib/supabase/credits';
 
 export interface CreateSwapFormState {
   topic: string;
@@ -161,10 +161,11 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
     e.preventDefault();
     if (validate()) {
       const amount = parseInt(formState.credits, 10);
-      const idempotencyKey = `create_swap_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      const swapTopicSlug = formState.topic.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30);
+      const idempotencyKey = `swap_reservation_${swapTopicSlug}_${amount}_${Date.now()}`;
 
-      // Execute backend atomic deduction / reservation
-      const res = await deductUserCredits(
+      // Execute backend atomic credit reservation
+      const res = await reserveUserCredits(
         amount,
         `Swap offering hold: ${formState.topic.trim()}`,
         idempotencyKey
@@ -173,7 +174,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       if (!res.success) {
         setErrors((prev) => ({
           ...prev,
-          credits: res.error || 'Failed to deduct credits. Please try again.',
+          credits: res.error || 'Failed to reserve credits. Please try again.',
         }));
         return;
       }
@@ -187,7 +188,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       }
       setStatusMessage({
         type: 'success',
-        text: `Swap listing created! ${amount} credits reserved. Remaining balance: ${res.credits_balance ?? (account?.credits_balance ?? 0) - amount}`,
+        text: `Swap listing created! ${amount} credits reserved. Available balance: ${res.credits_balance ?? 0} credits (Reserved: ${res.credits_reserved ?? amount})`,
       });
       if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
       statusTimerRef.current = setTimeout(() => {
