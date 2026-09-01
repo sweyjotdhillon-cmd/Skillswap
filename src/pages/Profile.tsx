@@ -73,7 +73,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
       setPredefinedSkills(skillsData.predefined);
       setCustomSkills(skillsData.custom);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error loading profile page data:', err);
       setErrorMsg(formatFriendlyErrorMessage(err));
     } finally {
@@ -82,7 +82,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   }, [user, authProfile]);
 
   useEffect(() => {
-    loadProfileData();
+    void loadProfileData();
   }, [loadProfileData]);
 
   // Load skills catalog when Manage Skills modal opens
@@ -148,7 +148,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       await refreshProfile();
       await loadProfileData();
       setIsEditProfileOpen(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to update profile:', err);
       setEditError(formatFriendlyErrorMessage(err));
     } finally {
@@ -175,7 +175,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         setSkillSuccess('Skill added successfully.');
         await loadProfileData();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setSkillError(formatFriendlyErrorMessage(err));
     } finally {
       setSkillSubmitting(false);
@@ -206,7 +206,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         setSkillSuccess(`Custom skill "${cleanName}" added.`);
         await loadProfileData();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setSkillError(formatFriendlyErrorMessage(err));
     } finally {
       setSkillSubmitting(false);
@@ -226,7 +226,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       } else {
         setSkillError('Could not remove skill. Please try again.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setSkillError(formatFriendlyErrorMessage(err));
     } finally {
       setSkillSubmitting(false);

@@ -1,7 +1,6 @@
 import { PGlite } from '@electric-sql/pglite';
 import fs from 'fs';
 import path from 'path';
-import { formatFriendlyErrorMessage } from './profile';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -89,7 +88,14 @@ export async function runCreditSystemTests() {
   await setAuthUser(userA);
   await db.exec(`SELECT public.ensure_credit_account('${userA}'::uuid);`);
 
-  let res = await db.query<any>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
+  type AccountRow = {
+    credits_balance: number;
+    credits_reserved: number;
+    credits_earned: number;
+    credits_spent: number;
+  };
+
+  let res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
   assert(res.rows[0].credits_balance === 100, 'Initial balance is 100');
   assert(res.rows[0].credits_reserved === 0, 'Initial reserved is 0');
   assert(res.rows[0].credits_earned === 100, 'Initial earned is 100');
@@ -97,7 +103,7 @@ export async function runCreditSystemTests() {
 
   // Retry initializer
   await db.exec(`SELECT public.ensure_credit_account('${userA}'::uuid);`);
-  res = await db.query<any>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
+  res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
   assert(res.rows[0].credits_balance === 100, 'Retry initializer preserves 100 balance');
   assert(res.rows[0].credits_earned === 100, 'Retry initializer preserves 100 earned');
   console.log('  -> Initial grant exactly once verified.');
@@ -107,16 +113,16 @@ export async function runCreditSystemTests() {
   // =========================================================================
   console.log('Test 2: Create swap & credit reservation...');
   const swapKey1 = 'swap_create:op_test_1';
-  res = await db.query<any>(`
+  let swapRes = await db.query<{ swap_id: string }>(`
     SELECT public.create_credit_swap(
       'React Consulting', 'Provide React code review', 'Need React expert',
       'anyone', 20, 'Looking forward', '${swapKey1}'
     ) AS swap_id;
   `);
-  const swap1Id = res.rows[0].swap_id;
+  const swap1Id = swapRes.rows[0].swap_id;
   assert(Boolean(swap1Id), 'Swap 1 created successfully');
 
-  res = await db.query<any>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
+  res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
   assert(res.rows[0].credits_balance === 80, 'Available balance reduced to 80');
   assert(res.rows[0].credits_reserved === 20, 'Reserved credits increased to 20');
   console.log('  -> Swap reservation atomic balance state verified.');
@@ -125,23 +131,23 @@ export async function runCreditSystemTests() {
   // TEST 3: Create Swap Idempotency (Duplicate Request)
   // =========================================================================
   console.log('Test 3: Create swap idempotency on duplicate call...');
-  res = await db.query<any>(`
+  swapRes = await db.query<{ swap_id: string }>(`
     SELECT public.create_credit_swap(
       'React Consulting', 'Provide React code review', 'Need React expert',
       'anyone', 20, 'Looking forward', '${swapKey1}'
     ) AS swap_id;
   `);
-  const duplicateSwapId = res.rows[0].swap_id;
+  const duplicateSwapId = swapRes.rows[0].swap_id;
   assert(duplicateSwapId === swap1Id, 'Duplicate create call returns identical swap ID');
 
-  res = await db.query<any>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
+  res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
   assert(res.rows[0].credits_balance === 80, 'Balance remains 80 after duplicate create call');
   assert(res.rows[0].credits_reserved === 20, 'Reserved remains 20 after duplicate create call');
 
-  const swapsCount = await db.query<any>(`SELECT COUNT(*) FROM public.swaps WHERE requester_id = '${userA}';`);
+  const swapsCount = await db.query<{ count: string | number }>(`SELECT COUNT(*) FROM public.swaps WHERE requester_id = '${userA}';`);
   assert(Number(swapsCount.rows[0].count) === 1, 'Only 1 swap record exists');
 
-  const txCount = await db.query<any>(`SELECT COUNT(*) FROM public.credit_transactions WHERE user_id = '${userA}' AND transaction_type = 'reservation';`);
+  const txCount = await db.query<{ count: string | number }>(`SELECT COUNT(*) FROM public.credit_transactions WHERE user_id = '${userA}' AND transaction_type = 'reservation';`);
   assert(Number(txCount.rows[0].count) === 1, 'Only 1 reservation transaction exists');
   console.log('  -> Create swap idempotency verified.');
 
@@ -157,13 +163,13 @@ export async function runCreditSystemTests() {
         'anyone', 200, NULL, 'swap_create:op_excessive'
       );
     `);
-  } catch (err: any) {
+  } catch (err: unknown) {
     errorCaught = true;
-    assert(err.message.includes('Insufficient credit balance'), 'Correct error message thrown');
+    assert((err as Error).message.includes('Insufficient credit balance'), 'Correct error message thrown');
   }
   assert(errorCaught, 'Insufficient balance error was caught');
 
-  res = await db.query<any>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
+  res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
   assert(res.rows[0].credits_balance === 80, 'Available balance remains 80 after failed swap');
   assert(res.rows[0].credits_reserved === 20, 'Reserved credits remain 20 after failed swap');
   console.log('  -> Insufficient balance protection verified.');
@@ -174,11 +180,11 @@ export async function runCreditSystemTests() {
   console.log('Test 5: Swap cancellation & reservation release...');
   await db.query(`SELECT public.cancel_credit_swap('${swap1Id}'::uuid);`);
 
-  res = await db.query<any>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
+  res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
   assert(res.rows[0].credits_balance === 100, 'Available balance restored to 100 upon cancellation');
   assert(res.rows[0].credits_reserved === 0, 'Reserved credits cleared to 0 upon cancellation');
 
-  const swapStatus = await db.query<any>(`SELECT status FROM public.swaps WHERE id = '${swap1Id}';`);
+  const swapStatus = await db.query<{ status: string }>(`SELECT status FROM public.swaps WHERE id = '${swap1Id}';`);
   assert(swapStatus.rows[0].status === 'cancelled', 'Swap status updated to cancelled');
   console.log('  -> Cancellation and release verified.');
 
@@ -186,10 +192,10 @@ export async function runCreditSystemTests() {
   // TEST 6: Duplicate Cancellation Idempotency
   // =========================================================================
   console.log('Test 6: Duplicate cancellation idempotency...');
-  res = await db.query<any>(`SELECT public.cancel_credit_swap('${swap1Id}'::uuid) AS result;`);
-  assert(res.rows[0].result.idempotent_retry === true, 'Duplicate cancellation returns idempotent_retry flag');
+  const cancelRes = await db.query<{ result: { idempotent_retry?: boolean } }>(`SELECT public.cancel_credit_swap('${swap1Id}'::uuid) AS result;`);
+  assert(cancelRes.rows[0].result.idempotent_retry === true, 'Duplicate cancellation returns idempotent_retry flag');
 
-  res = await db.query<any>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
+  res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
   assert(res.rows[0].credits_balance === 100, 'Balance remains 100 (no extra refund)');
   assert(res.rows[0].credits_reserved === 0, 'Reserved remains 0');
   console.log('  -> Duplicate cancellation idempotency verified.');
@@ -199,13 +205,13 @@ export async function runCreditSystemTests() {
   // =========================================================================
   console.log('Test 7: Complete swap lifecycle and atomic settlement...');
   // User A creates Swap 2 (20 credits)
-  res = await db.query<any>(`
+  swapRes = await db.query<{ swap_id: string }>(`
     SELECT public.create_credit_swap(
       'TypeScript Mentoring', 'Provide TS guidance', 'Beginner friendly',
       'anyone', 20, NULL, 'swap_create:op_test_2'
     ) AS swap_id;
   `);
-  const swap2Id = res.rows[0].swap_id;
+  const swap2Id = swapRes.rows[0].swap_id;
 
   // Initialize User B
   await setAuthUser(userB);
@@ -220,13 +226,13 @@ export async function runCreditSystemTests() {
   await db.query(`SELECT public.complete_credit_swap('${swap2Id}'::uuid);`);
 
   // Check User A (Payer) Account
-  res = await db.query<any>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
+  res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
   assert(res.rows[0].credits_balance === 80, 'Payer balance remains 80');
   assert(res.rows[0].credits_reserved === 0, 'Payer reserved credits cleared');
   assert(res.rows[0].credits_spent === 20, 'Payer credits_spent updated to 20');
 
   // Check User B (Recipient) Account
-  res = await db.query<any>(`SELECT * FROM public.accounts WHERE user_id = '${userB}';`);
+  res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userB}';`);
   assert(res.rows[0].credits_balance === 120, 'Recipient balance increased by 20 to 120');
   assert(res.rows[0].credits_earned === 120, 'Recipient earned credits increased by 20 to 120');
   console.log('  -> Complete settlement lifecycle verified.');
@@ -235,10 +241,10 @@ export async function runCreditSystemTests() {
   // TEST 8: Duplicate Settlement Idempotency
   // =========================================================================
   console.log('Test 8: Duplicate settlement idempotency...');
-  res = await db.query<any>(`SELECT public.complete_credit_swap('${swap2Id}'::uuid) AS result;`);
-  assert(res.rows[0].result.idempotent_retry === true, 'Duplicate completion returns idempotent_retry');
+  const completeRes = await db.query<{ result: { idempotent_retry?: boolean } }>(`SELECT public.complete_credit_swap('${swap2Id}'::uuid) AS result;`);
+  assert(completeRes.rows[0].result.idempotent_retry === true, 'Duplicate completion returns idempotent_retry');
 
-  res = await db.query<any>(`SELECT * FROM public.accounts WHERE user_id = '${userB}';`);
+  res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userB}';`);
   assert(res.rows[0].credits_balance === 120, 'Recipient balance remains 120 (no double payout)');
   assert(res.rows[0].credits_earned === 120, 'Recipient earned remains 120');
   console.log('  -> Duplicate settlement idempotency verified.');
@@ -254,9 +260,9 @@ export async function runCreditSystemTests() {
   errorCaught = false;
   try {
     await db.query(`SELECT public.complete_credit_swap('${swap2Id}'::uuid);`);
-  } catch (err: any) {
+  } catch (err: unknown) {
     errorCaught = true;
-    assert(err.message.includes('not eligible for completion'), 'Throws not eligible error for unauthorized user');
+    assert((err as Error).message.includes('not eligible for completion'), 'Throws not eligible error for unauthorized user');
   }
   assert(errorCaught, 'Unauthorized completion attempt blocked');
 
@@ -264,9 +270,9 @@ export async function runCreditSystemTests() {
   errorCaught = false;
   try {
     await db.query(`SELECT public.cancel_credit_swap('${swap2Id}'::uuid);`);
-  } catch (err: any) {
+  } catch (err: unknown) {
     errorCaught = true;
-    assert(err.message.includes('cannot be cancelled'), 'Throws cannot be cancelled error for unauthorized user');
+    assert((err as Error).message.includes('cannot be cancelled'), 'Throws cannot be cancelled error for unauthorized user');
   }
   assert(errorCaught, 'Unauthorized cancellation attempt blocked');
   console.log('  -> Security rules against unauthorized mutations verified.');
@@ -294,7 +300,7 @@ export async function runCreditSystemTests() {
   assert(fulfilledCount === 5, 'Exactly 5 swaps succeeded (5 * 20 = 100 credits)');
   assert(rejectedCount === 1, 'Exactly 1 swap rejected due to insufficient credits');
 
-  res = await db.query<any>(`SELECT * FROM public.accounts WHERE user_id = '${userC}';`);
+  res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userC}';`);
   assert(res.rows[0].credits_balance === 0, 'Available balance is exactly 0');
   assert(res.rows[0].credits_reserved === 100, 'Reserved credits is exactly 100');
   console.log('  -> Concurrency safety & non-negative balance boundary verified.');
@@ -303,8 +309,15 @@ export async function runCreditSystemTests() {
   // TEST 11: Account Reconciliation Diagnostic Check
   // =========================================================================
   console.log('Test 11: Comprehensive account reconciliation check...');
-  res = await db.query<any>(`SELECT public.reconcile_credit_balances() AS recon;`);
-  const recon = res.rows[0].recon;
+  type ReconRow = {
+    recon: {
+      total_accounts: number;
+      matching_accounts: number;
+      discrepancies_count: number;
+    };
+  };
+  const reconRes = await db.query<ReconRow>(`SELECT public.reconcile_credit_balances() AS recon;`);
+  const recon = reconRes.rows[0].recon;
 
   assert(recon.total_accounts === 3, 'Reconciled 3 test accounts');
   assert(recon.matching_accounts === 3, 'All 3 accounts match accounting model exactly');

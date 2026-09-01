@@ -148,10 +148,11 @@ serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Unexpected error in verify-password-reset-otp:', err);
+    const msg = (err as Error)?.message || 'An unexpected error occurred.';
     return new Response(
-      JSON.stringify({ error: 'SERVER_ERROR', message: err.message || 'An unexpected error occurred.' }),
+      JSON.stringify({ error: 'SERVER_ERROR', message: msg }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

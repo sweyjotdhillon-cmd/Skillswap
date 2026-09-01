@@ -37,13 +37,14 @@ async function callEdgeFunction(functionName: string, body: object) {
       console.error(`Supabase Edge Function '${functionName}' invoke error:`, error);
 
       let errorMessage = error.message || '';
-      if ((error as any).context && typeof (error as any).context.json === 'function') {
+      const errCtx = error as unknown as { context?: { json?: () => Promise<{ message?: string }> } };
+      if (errCtx.context && typeof errCtx.context.json === 'function') {
         try {
-          const jsonErr = await (error as any).context.json();
+          const jsonErr = await errCtx.context.json();
           if (jsonErr && jsonErr.message) {
             errorMessage = jsonErr.message;
           }
-        } catch (_) {
+        } catch {
           // ignore
         }
       }
@@ -52,7 +53,7 @@ async function callEdgeFunction(functionName: string, body: object) {
         return { data: null, error: { message: formatFriendlyErrorMessage(errorMessage) } };
       }
       primaryError = errorMessage;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`Exception invoking Edge Function '${functionName}':`, err);
       primaryError = formatFriendlyErrorMessage(err);
     }
@@ -72,7 +73,7 @@ async function callEdgeFunction(functionName: string, body: object) {
         body: JSON.stringify(body),
       });
 
-      const resData: any = await response.json().catch(() => ({}));
+      const resData = (await response.json().catch(() => ({}))) as { message?: string };
       if (!response.ok) {
         const msg = resData?.message
           ? formatFriendlyErrorMessage(resData.message)
@@ -80,7 +81,7 @@ async function callEdgeFunction(functionName: string, body: object) {
         return { data: null, error: { message: msg } };
       }
       return { data: resData, error: null };
-    } catch (fetchErr: any) {
+    } catch (fetchErr: unknown) {
       console.error(`Direct fetch to Edge Function '${functionName}' failed:`, fetchErr);
     }
   }
@@ -184,8 +185,9 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
 
       setStep('otp');
       setCooldown(45);
-      setSuccessMessage(data?.message || "We've sent a 6-digit verification code to your email if an account exists.");
-    } catch (err: any) {
+      const resMsg = (data as { message?: string })?.message;
+      setSuccessMessage(resMsg || "We've sent a 6-digit verification code to your email if an account exists.");
+    } catch (err: unknown) {
       setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
@@ -286,10 +288,16 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
         return;
       }
 
-      setRecoveryToken(data.recoveryToken);
+      const recToken = (data as { recoveryToken?: string })?.recoveryToken;
+      if (!recToken) {
+        setErrorMessage('Verification failed. Please try again.');
+        return;
+      }
+
+      setRecoveryToken(recToken);
       setSuccessMessage('Code verified successfully. Please enter your new password.');
       setStep('new-password');
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
@@ -305,7 +313,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
 
     try {
       const cleanEmail = email.trim().toLowerCase();
-      const { data, error } = await callEdgeFunction('request-password-reset', { email: cleanEmail });
+      const { error } = await callEdgeFunction('request-password-reset', { email: cleanEmail });
 
       if (error) {
         setErrorMessage(formatFriendlyErrorMessage(error.message));
@@ -313,7 +321,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
         setSuccessMessage(`A new 6-digit verification code has been sent to ${cleanEmail}.`);
         setCooldown(45);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setResending(false);
@@ -356,7 +364,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
     setLoading(true);
     try {
       const cleanEmail = email.trim().toLowerCase();
-      const { data, error } = await callEdgeFunction('complete-password-reset', {
+      const { error } = await callEdgeFunction('complete-password-reset', {
         email: cleanEmail,
         recoveryToken,
         newPassword,
@@ -367,7 +375,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
       } else {
         setStep('success');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setLoading(false);

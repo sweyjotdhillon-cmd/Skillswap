@@ -87,14 +87,14 @@ serve(async (req) => {
       if (rpcUser && rpcUser.length > 0) {
         matchedUser = rpcUser[0];
       }
-    } catch (_) {
+      } catch {
       // Fallback to admin.listUsers if RPC function is unavailable
       let page = 1;
       const perPage = 100;
       while (!matchedUser && page <= 5) {
         const { data: userData } = await supabase.auth.admin.listUsers({ page, perPage });
         const users = userData?.users || [];
-        const found = users.find((u) => u.email?.toLowerCase() === cleanEmail);
+          const found = users.find((u: { email?: string; id: string }) => u.email?.toLowerCase() === cleanEmail);
         if (found) {
           matchedUser = { id: found.id, email: found.email || cleanEmail };
           break;
@@ -188,7 +188,7 @@ serve(async (req) => {
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-      } catch (emailErr: any) {
+      } catch (emailErr: unknown) {
         console.error('Exception during Brevo email send:', emailErr);
         return new Response(
           JSON.stringify({
@@ -208,10 +208,11 @@ serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Unexpected error in request-password-reset:', err);
+    const msg = (err as Error)?.message || 'An unexpected error occurred.';
     return new Response(
-      JSON.stringify({ error: 'SERVER_ERROR', message: err.message || 'An unexpected error occurred.' }),
+      JSON.stringify({ error: 'SERVER_ERROR', message: msg }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
