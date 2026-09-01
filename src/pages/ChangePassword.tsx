@@ -9,7 +9,7 @@ type ChangePasswordPageProps = {
 };
 
 export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
-  const { user, isGoogleUser } = useAuth();
+  const { user } = useAuth();
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
   const [checkingPasswordState, setCheckingPasswordState] = useState(true);
 
@@ -36,8 +36,7 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
 
     setCheckingPasswordState(true);
     const result = await checkUserHasPassword();
-    // Fallback: if RPC returns null due to connection glitch, default safely to requiring password
-    setHasPassword(result !== null ? result : true);
+    setHasPassword(result);
     setCheckingPasswordState(false);
   }, [user]);
 
@@ -138,7 +137,7 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
 
         // Refresh password credential state authoritatively
         const updatedHasPassword = await checkUserHasPassword();
-        setHasPassword(updatedHasPassword !== null ? updatedHasPassword : true);
+        setHasPassword(updatedHasPassword);
       }
     } catch (err: unknown) {
       setErrorMessage(formatFriendlyErrorMessage(err));
@@ -162,6 +161,25 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
               </svg>
               <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>Loading security settings...</p>
             </div>
+          ) : hasPassword === null ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem', textAlign: 'center' }}>
+              <div className="auth-alert auth-alert--error" role="alert" style={{ marginBottom: '1.5rem', width: '100%' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>We couldn't verify your password status. Please try again.</span>
+              </div>
+              <button
+                type="button"
+                className="auth-submit-btn"
+                onClick={() => void loadPasswordState()}
+                style={{ width: 'auto', padding: '0.6rem 1.5rem' }}
+              >
+                Retry
+              </button>
+            </div>
           ) : (
             <>
               <div className="auth-card-header">
@@ -175,7 +193,7 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
                 </p>
               </div>
 
-              {isFirstTimePasswordSetup && isGoogleUser && (
+              {isFirstTimePasswordSetup && (
                 <div className="auth-alert auth-alert--info" style={{ backgroundColor: 'rgba(3, 105, 161, 0.08)', borderColor: 'rgba(3, 105, 161, 0.2)', color: '#0369a1', marginBottom: '1.5rem' }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
                     <circle cx="12" cy="12" r="10" />
@@ -183,7 +201,7 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
                     <line x1="12" y1="8" x2="12.01" y2="8" />
                   </svg>
                   <span>
-                    Your account was created with Google Sign-In. You can set a password below to enable email/password login alongside Google. You will not be asked for a previous password.
+                    Your account does not currently have a password. You can create one below to enable email/password login alongside your existing sign-in method. You will not be asked for a previous password because no password has been set yet.
                   </span>
                 </div>
               )}

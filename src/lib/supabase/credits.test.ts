@@ -56,6 +56,7 @@ export async function runCreditSystemTests() {
     '008_credit_reservation_system.sql',
     '009_secure_swap_credit_lifecycle.sql',
     '010_credit_system_idempotency_and_reconciliation.sql',
+    '011_has_user_password_rpc.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -63,7 +64,7 @@ export async function runCreditSystemTests() {
     const sql = fs.readFileSync(filePath, 'utf8');
     await db.exec(sql);
   }
-  console.log('✓ Applied all 10 schema migrations cleanly into PostgreSQL engine.');
+  console.log(`✓ Applied all ${migrationFiles.length} schema migrations cleanly into PostgreSQL engine.`);
 
   // Setup test users in auth.users and public.profiles
   const userA = '10000000-0000-0000-0000-000000000001';
