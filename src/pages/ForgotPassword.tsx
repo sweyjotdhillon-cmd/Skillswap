@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
+import { formatFriendlyErrorMessage } from '../lib/supabase/profile';
 
 type ForgotPasswordPageProps = {
   onNavigate?: (path: string) => void;
@@ -48,12 +49,12 @@ async function callEdgeFunction(functionName: string, body: object) {
       }
 
       if (errorMessage && !errorMessage.includes('Failed to send a request')) {
-        return { data: null, error: { message: errorMessage } };
+        return { data: null, error: { message: formatFriendlyErrorMessage(errorMessage) } };
       }
       primaryError = errorMessage;
     } catch (err: any) {
       console.error(`Exception invoking Edge Function '${functionName}':`, err);
-      primaryError = err?.message || null;
+      primaryError = formatFriendlyErrorMessage(err);
     }
   }
 
@@ -73,7 +74,9 @@ async function callEdgeFunction(functionName: string, body: object) {
 
       const resData: any = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const msg = resData?.message || primaryError || "We couldn't send the verification code. Please check your email address and try again.";
+        const msg = resData?.message
+          ? formatFriendlyErrorMessage(resData.message)
+          : primaryError || "We couldn't send the verification code. Please check your email address and try again.";
         return { data: null, error: { message: msg } };
       }
       return { data: resData, error: null };
@@ -84,7 +87,7 @@ async function callEdgeFunction(functionName: string, body: object) {
 
   const userFriendlyError =
     primaryError && !primaryError.includes('Failed to send a request')
-      ? primaryError
+      ? formatFriendlyErrorMessage(primaryError)
       : "We couldn't send the verification code right now. Please check your email address and try again.";
 
   return { data: null, error: { message: userFriendlyError } };
@@ -175,7 +178,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
       const { data, error } = await callEdgeFunction('request-password-reset', { email: cleanEmail });
 
       if (error) {
-        setErrorMessage(error.message);
+        setErrorMessage(formatFriendlyErrorMessage(error.message));
         return;
       }
 
@@ -183,7 +186,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
       setCooldown(45);
       setSuccessMessage(data?.message || "We've sent a 6-digit verification code to your email if an account exists.");
     } catch (err: any) {
-      setErrorMessage(err.message || 'An error occurred while requesting verification code.');
+      setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -274,7 +277,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
       });
 
       if (error) {
-        setErrorMessage(error.message || 'That code is incorrect. Please try again.');
+        setErrorMessage(formatFriendlyErrorMessage(error.message));
         return;
       }
 
@@ -287,7 +290,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
       setSuccessMessage('Code verified successfully. Please enter your new password.');
       setStep('new-password');
     } catch (err: any) {
-      setErrorMessage(err.message || 'That code is incorrect. Please try again.');
+      setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -305,13 +308,13 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
       const { data, error } = await callEdgeFunction('request-password-reset', { email: cleanEmail });
 
       if (error) {
-        setErrorMessage(error.message);
+        setErrorMessage(formatFriendlyErrorMessage(error.message));
       } else {
         setSuccessMessage(`A new 6-digit verification code has been sent to ${cleanEmail}.`);
         setCooldown(45);
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'An error occurred while resending verification code.');
+      setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setResending(false);
     }
@@ -360,12 +363,12 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
       });
 
       if (error) {
-        setErrorMessage(error.message);
+        setErrorMessage(formatFriendlyErrorMessage(error.message));
       } else {
         setStep('success');
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'An error occurred while updating your password.');
+      setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }

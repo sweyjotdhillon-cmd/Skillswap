@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
+import { formatFriendlyErrorMessage } from '../lib/supabase/profile';
 
 type SignupPageProps = {
   onNavigate?: (path: string) => void;
@@ -82,7 +83,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
         ) {
           setErrorMessage('Account already exists');
         } else {
-          setErrorMessage(error.message);
+          setErrorMessage(formatFriendlyErrorMessage(error));
         }
       } else {
         // Always navigate to email OTP verification screen on email/password signup
@@ -94,7 +95,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
         }
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'An unexpected error occurred during signup.');
+      setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -120,7 +121,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
         window.location.href = targetPath;
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'An unexpected error occurred during Google onboarding start.');
+      setErrorMessage(formatFriendlyErrorMessage(err));
     }
   };
 

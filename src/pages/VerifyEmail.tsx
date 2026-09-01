@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { useAuth } from '../context/AuthContext';
+import { formatFriendlyErrorMessage } from '../lib/supabase/profile';
 
 type VerifyEmailPageProps = {
   onNavigate?: (path: string) => void;
@@ -77,7 +78,7 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
         } else if (error.message.includes('invalid') || error.message.includes('Token is invalid')) {
           setErrorMessage('Invalid verification code. Please check your email and try again.');
         } else {
-          setErrorMessage(error.message);
+          setErrorMessage(formatFriendlyErrorMessage(error));
         }
       } else {
         setSuccessMessage('Email verified successfully!');
@@ -93,7 +94,7 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
         }, 1000);
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'An unexpected error occurred during verification.');
+      setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -129,14 +130,14 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
         if (error.message.includes('rate limit') || error.status === 429) {
           setErrorMessage('Too many requests. Please wait a minute before requesting another code.');
         } else {
-          setErrorMessage(error.message);
+          setErrorMessage(formatFriendlyErrorMessage(error));
         }
       } else {
         setSuccessMessage(`A new verification code has been sent to ${cleanEmail}.`);
         setCooldown(60);
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'An error occurred while resending code.');
+      setErrorMessage(formatFriendlyErrorMessage(err));
     } finally {
       setResending(false);
     }

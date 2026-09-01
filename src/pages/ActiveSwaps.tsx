@@ -189,13 +189,21 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
   const chatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       if (chatTimerRef.current) clearTimeout(chatTimerRef.current);
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, []);
+
+  const handleCloseChatModal = () => {
+    if (chatTimerRef.current) clearTimeout(chatTimerRef.current);
+    setActiveChatUser(null);
+  };
 
   // Selected swap getters with safe null fallback
   const currentAcceptedSwap = acceptedSwaps.find((s) => s.id === selectedAcceptedId) || acceptedSwaps[0] || null;
@@ -236,6 +244,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
     if (chatTimerRef.current) clearTimeout(chatTimerRef.current);
     chatTimerRef.current = setTimeout(() => {
+      if (!isMountedRef.current) return;
       setActiveChatUser((current) => {
         if (current) {
           setChatMessages((prev) => [
@@ -291,7 +300,9 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
     setSubmitSuccessToast(`Successfully submitted work for "${currentAcceptedSwap.title}"!`);
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setSubmitSuccessToast(null), 4000);
+    toastTimerRef.current = setTimeout(() => {
+      if (isMountedRef.current) setSubmitSuccessToast(null);
+    }, 4000);
   };
 
   return (
@@ -748,7 +759,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
       {/* CHAT MODAL */}
       {activeChatUser && (
-        <div className="modal-overlay" onClick={() => setActiveChatUser(null)}>
+        <div className="modal-overlay" onClick={handleCloseChatModal}>
           <div className="modal-content chat-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="chat-modal-header">
               <div className="chat-user-header-info">
@@ -761,7 +772,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
               <button
                 type="button"
                 className="chat-close-btn"
-                onClick={() => setActiveChatUser(null)}
+                onClick={handleCloseChatModal}
               >
                 ×
               </button>
