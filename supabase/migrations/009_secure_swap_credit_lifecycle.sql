@@ -143,5 +143,8 @@ END $$;
 
 -- Old generic mutation RPCs are not a browser API.  Only lifecycle RPCs are executable.
 REVOKE EXECUTE ON FUNCTION public.ensure_credit_account(uuid), public.add_credits(uuid,integer,text,text,text,jsonb,text), public.credit_add_for_user(uuid,integer,text,text,text,jsonb), public.transfer_credits(uuid,integer,text,text,text,jsonb), public.credit_transfer(uuid,integer,text,text,text,jsonb), public.settle_reserved_credit_transfer(uuid,uuid,integer,text,text,text,jsonb), public.release_reserved_credits(uuid,integer,text,text,text,jsonb), public.reserve_my_credits(integer,text,text,text,jsonb), public.spend_my_credits(integer,text,text,text,jsonb), public.release_swap_credits(uuid,integer,text,text,text,jsonb) FROM anon, authenticated, public;
+-- PostgreSQL grants EXECUTE to PUBLIC by default. Explicit revocation is mandatory for
+-- SECURITY DEFINER functions; the following GRANT must not accidentally expose them to anon.
+REVOKE EXECUTE ON FUNCTION public.create_credit_swap(text,text,text,text,integer,text), public.accept_credit_swap(uuid), public.submit_credit_swap(uuid), public.complete_credit_swap(uuid), public.cancel_credit_swap(uuid) FROM public, anon;
 GRANT EXECUTE ON FUNCTION public.create_credit_swap(text,text,text,text,integer,text), public.accept_credit_swap(uuid), public.submit_credit_swap(uuid), public.complete_credit_swap(uuid), public.cancel_credit_swap(uuid) TO authenticated, service_role;
 NOTIFY pgrst, 'reload schema';
