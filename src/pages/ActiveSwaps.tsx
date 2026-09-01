@@ -282,7 +282,10 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
     const fileNames = submitWorkFiles.map((f) => f.name);
 
-    if (user) {
+    // Only mutate database credits for real persisted backend swap records (non-mock IDs)
+    const isRealBackendSwap = Boolean(user && currentAcceptedSwap.id && !currentAcceptedSwap.id.startsWith('acc-'));
+
+    if (isRealBackendSwap && user) {
       const idempotencyKey = `swap_completion_${currentAcceptedSwap.id}_${Date.now()}`;
       await addUserCredits(
         user.id,
@@ -301,7 +304,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
               ...s,
               progress: 100,
               status: 'Completed',
-              nextStep: 'Work submitted and completed! ' + s.credits + ' SkillCredits credited to your balance.',
+              nextStep: 'Work submitted and completed!',
               submittedWorkNotes: submitWorkNotes,
               submittedFiles: fileNames,
             }
@@ -313,7 +316,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     setSubmitWorkNotes('');
     setSubmitWorkFiles([]);
 
-    setSubmitSuccessToast(`Successfully submitted work for "${currentAcceptedSwap.title}"! +${currentAcceptedSwap.credits} Credits awarded.`);
+    setSubmitSuccessToast(`Successfully submitted work for "${currentAcceptedSwap.title}"!`);
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => {
       if (isMountedRef.current) setSubmitSuccessToast(null);

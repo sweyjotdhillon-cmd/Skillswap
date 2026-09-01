@@ -161,6 +161,9 @@ export function formatFriendlyErrorMessage(error: any): string {
   if (lower.includes('invalid transfer recipient')) {
     return 'Invalid credit transfer recipient.';
   }
+  if (lower.includes('unauthorized credit addition') || lower.includes('unauthorized credit release')) {
+    return 'Unauthorized credit operation.';
+  }
 
   // 6. Authentication / Session Expiry
   if (
