@@ -1,6 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { useAuth } from '../context/AuthContext';
+import {
+  getUserSwaps,
+  acceptCreditSwap,
+  cancelCreditSwap,
+  type SwapRecord,
+} from '../lib/supabase/credits';
 
 export interface UserInfo {
   name: string;
@@ -11,22 +17,24 @@ export interface UserInfo {
 
 export interface ReceivedRequest {
   id: string;
+  isReal?: boolean;
   user: UserInfo;
   skillWanted: string;
   creditsOffered: number;
   message: string;
   receivedAt: string;
-  status: 'Pending' | 'Accepted' | 'Declined';
+  status: 'Pending' | 'Accepted' | 'Declined' | 'Cancelled';
 }
 
 export interface SentRequest {
   id: string;
+  isReal?: boolean;
   user: UserInfo;
   skillWanted: string;
   creditsOffered: number;
   message: string;
   sentAt: string;
-  status: 'Pending' | 'Accepted' | 'Declined';
+  status: 'Pending' | 'Accepted' | 'Declined' | 'Cancelled';
 }
 
 const INITIAL_RECEIVED_REQUESTS: ReceivedRequest[] = [
@@ -124,10 +132,13 @@ type SwapRequestsPageProps = {
 };
 
 export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
-  const { account } = useAuth();
+  const { user, account, refreshAccount } = useAuth();
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received');
   const [receivedRequests, setReceivedRequests] = useState<ReceivedRequest[]>(INITIAL_RECEIVED_REQUESTS);
   const [sentRequests, setSentRequests] = useState<SentRequest[]>(INITIAL_SENT_REQUESTS);
+
+  const [isLoadingSwaps, setIsLoadingSwaps] = useState(false);
+  const [actionPendingId, setActionPendingId] = useState<string | null>(null);
 
   // Modal State for View Profile / View Details
   const [selectedProfile, setSelectedProfile] = useState<UserInfo | null>(null);
@@ -151,33 +162,154 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
     }, 3500);
   };
 
+  const loadRealSwaps = useCallback(async () => {
+    if (!user) return;
+    setIsLoadingSwaps(true);
+    try {
+      const records: SwapRecord[] = await getUserSwaps(user.id);
+      if (records) {
+        const received: ReceivedRequest[] = [];
+        const sent: SentRequest[] = [];
+
+        records.forEach((swap) => {
+          const isSent = swap.requester_id === user.id;
+          const partnerProfile = isSent ? swap.participant_profile : swap.requester_profile;
+          const partnerName = partnerProfile?.full_name || (isSent ? 'Open Swap Participant' : 'Community Member');
+          const partnerRole = partnerProfile?.username ? `@${partnerProfile.username}` : 'SkillSwapper';
+          const partnerAvatar = partnerProfile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
+
+          const formattedDate = new Date(swap.created_at).toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+          });
+
+          const statusMap: Record<string, ReceivedRequest['status']> = {
+            open: 'Pending',
+            accepted: 'Accepted',
+            submitted: 'Accepted',
+            completed: 'Accepted',
+            cancelled: 'Cancelled',
+            declined: 'Declined',
+            withdrawn: 'Cancelled',
+            expired: 'Cancelled',
+          };
+
+          if (isSent) {
+            sent.push({
+              id: swap.id,
+              isReal: true,
+              user: {
+                name: partnerName,
+                role: partnerRole,
+                location: 'SkillSwap Network',
+                avatar: partnerAvatar,
+              },
+              skillWanted: swap.topic,
+              creditsOffered: swap.credit_amount,
+              message: swap.description,
+              sentAt: `Created ${formattedDate}`,
+              status: statusMap[swap.status] || 'Pending',
+            });
+          } else {
+            received.push({
+              id: swap.id,
+              isReal: true,
+              user: {
+                name: partnerName,
+                role: partnerRole,
+                location: 'SkillSwap Network',
+                avatar: partnerAvatar,
+              },
+              skillWanted: swap.topic,
+              creditsOffered: swap.credit_amount,
+              message: swap.description,
+              receivedAt: `Received ${formattedDate}`,
+              status: statusMap[swap.status] || 'Pending',
+            });
+          }
+        });
+
+        setReceivedRequests(received);
+        setSentRequests(sent);
+      }
+    } catch (err) {
+      console.error('Error loading real swaps:', err);
+    } finally {
+      setIsLoadingSwaps(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadRealSwaps();
+    }
+  }, [user, loadRealSwaps]);
+
   const handleAcceptReceived = async (id: string) => {
     const target = receivedRequests.find((r) => r.id === id);
-    if (!target) return;
+    if (!target || actionPendingId) return;
 
-    // Transition request status to Accepted. Settlement will occur upon swap completion.
-    setReceivedRequests((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: 'Accepted' } : r))
-    );
-    showToast(`Accepted swap request from ${target.user.name}! Swap is now active.`);
+    if (target.isReal) {
+      setActionPendingId(id);
+      const res = await acceptCreditSwap(id);
+      setActionPendingId(null);
+      if (!res.success) {
+        showToast(res.error || 'Failed to accept swap request.');
+        return;
+      }
+      await refreshAccount();
+      await loadRealSwaps();
+      showToast(`Accepted swap request from ${target.user.name}! Swap is now active.`);
+    } else {
+      setReceivedRequests((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status: 'Accepted' } : r))
+      );
+      showToast(`(Demo) Accepted swap request from ${target.user.name}!`);
+    }
   };
 
   const handleDeclineReceived = async (id: string) => {
     const target = receivedRequests.find((r) => r.id === id);
-    if (!target) return;
+    if (!target || actionPendingId) return;
 
-    setReceivedRequests((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: 'Declined' } : r))
-    );
-    showToast(`Declined swap request from ${target.user.name}.`);
+    if (target.isReal) {
+      setActionPendingId(id);
+      const res = await cancelCreditSwap(id);
+      setActionPendingId(null);
+      if (!res.success) {
+        showToast(res.error || 'Failed to decline request.');
+        return;
+      }
+      await refreshAccount();
+      await loadRealSwaps();
+      showToast(`Declined swap request from ${target.user.name}.`);
+    } else {
+      setReceivedRequests((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status: 'Declined' } : r))
+      );
+      showToast(`(Demo) Declined swap request from ${target.user.name}.`);
+    }
   };
 
   const handleCancelSent = async (id: string) => {
     const target = sentRequests.find((r) => r.id === id);
-    if (!target) return;
+    if (!target || actionPendingId) return;
 
-    setSentRequests((prev) => prev.filter((r) => r.id !== id));
-    showToast(`Cancelled swap request sent to ${target.user.name}.`);
+    if (target.isReal) {
+      setActionPendingId(id);
+      const res = await cancelCreditSwap(id);
+      setActionPendingId(null);
+      if (!res.success) {
+        showToast(res.error || 'Failed to cancel swap request.');
+        return;
+      }
+      await refreshAccount();
+      await loadRealSwaps();
+      showToast(`Cancelled swap request sent to ${target.user.name}. Reserved credits released.`);
+    } else {
+      setSentRequests((prev) => prev.filter((r) => r.id !== id));
+      showToast(`(Demo) Cancelled swap request sent to ${target.user.name}.`);
+    }
   };
 
   const activeReceivedCount = receivedRequests.filter((r) => r.status === 'Pending').length;
@@ -339,23 +471,25 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
                           <button
                             type="button"
                             className="sr-btn sr-btn--accept"
+                            disabled={actionPendingId === req.id}
                             onClick={() => handleAcceptReceived(req.id)}
                           >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="sr-btn-icon">
                               <polyline points="20 6 9 17 4 12" />
                             </svg>
-                            Accept
+                            {actionPendingId === req.id ? 'Processing...' : 'Accept'}
                           </button>
                           <button
                             type="button"
                             className="sr-btn sr-btn--decline"
+                            disabled={actionPendingId === req.id}
                             onClick={() => handleDeclineReceived(req.id)}
                           >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="sr-btn-icon">
                               <line x1="18" y1="6" x2="6" y2="18" />
                               <line x1="6" y1="6" x2="18" y2="18" />
                             </svg>
-                            Decline
+                            {actionPendingId === req.id ? 'Processing...' : 'Decline'}
                           </button>
                         </>
                       ) : (
@@ -469,9 +603,10 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
                         <button
                           type="button"
                           className="sr-btn sr-btn--cancel"
+                          disabled={actionPendingId === req.id}
                           onClick={() => handleCancelSent(req.id)}
                         >
-                          Cancel Request
+                          {actionPendingId === req.id ? 'Cancelling...' : 'Cancel Request'}
                         </button>
                       )}
                     </div>

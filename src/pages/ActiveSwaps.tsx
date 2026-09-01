@@ -1,5 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
+import { useAuth } from '../context/AuthContext';
+import {
+  getUserSwaps,
+  submitCreditSwap,
+  completeCreditSwap,
+  cancelCreditSwap,
+  type SwapRecord,
+} from '../lib/supabase/credits';
 
 export interface SwapParticipant {
   name: string;
@@ -12,6 +20,7 @@ export interface SwapParticipant {
 
 export interface AcceptedSwap {
   id: string;
+  isReal?: boolean;
   participant: SwapParticipant;
   participantUserId?: string;
   title: string;
@@ -30,6 +39,7 @@ export interface AcceptedSwap {
 
 export interface GivenSwap {
   id: string;
+  isReal?: boolean;
   participant: SwapParticipant;
   participantUserId?: string;
   title: string;
@@ -168,6 +178,7 @@ type ActiveSwapsPageProps = {
 };
 
 export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
+  const { user, refreshAccount } = useAuth();
   const [activeTab, setActiveTab] = useState<'accepted' | 'given'>('accepted');
 
   const [acceptedSwaps, setAcceptedSwaps] = useState<AcceptedSwap[]>(INITIAL_ACCEPTED_SWAPS);
@@ -175,6 +186,8 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
   const [selectedAcceptedId, setSelectedAcceptedId] = useState<string>(INITIAL_ACCEPTED_SWAPS[0].id);
   const [selectedGivenId, setSelectedGivenId] = useState<string>(INITIAL_GIVEN_SWAPS[0].id);
+
+  const [isMutating, setIsMutating] = useState(false);
 
   // Modals state
   const [isSubmitWorkModalOpen, setIsSubmitWorkModalOpen] = useState(false);
@@ -193,6 +206,101 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   const chatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
+
+  const loadRealActiveSwaps = useCallback(async () => {
+    if (!user) return;
+    try {
+      const records: SwapRecord[] = await getUserSwaps(user.id);
+      if (records) {
+        const accepted: AcceptedSwap[] = [];
+        const given: GivenSwap[] = [];
+
+        records.forEach((swap) => {
+          if (['open', 'cancelled', 'declined', 'withdrawn', 'expired'].includes(swap.status)) return;
+
+          const isRequester = swap.requester_id === user.id;
+          const partnerProfile = isRequester ? swap.participant_profile : swap.requester_profile;
+          const partnerName = partnerProfile?.full_name || 'SkillSwapper';
+          const partnerAvatar = partnerProfile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
+
+          const createdDate = new Date(swap.created_at).toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          });
+
+          if (!isRequester) {
+            // User is participant (accepted to deliver skill)
+            const statusLabel = swap.status === 'submitted' ? 'Review' : swap.status === 'completed' ? 'Completed' : 'In Progress';
+            const progress = swap.status === 'completed' ? 100 : swap.status === 'submitted' ? 90 : 50;
+
+            accepted.push({
+              id: swap.id,
+              isReal: true,
+              participant: {
+                name: partnerName,
+                location: 'SkillSwap Community',
+                avatar: partnerAvatar,
+                rating: '4.9',
+              },
+              title: swap.topic,
+              description: swap.description,
+              credits: swap.credit_amount,
+              startedOn: createdDate,
+              deadline: 'Flexible',
+              progress,
+              status: statusLabel,
+              aboutSwap: swap.requirements || swap.description,
+              nextStep: swap.status === 'submitted' ? 'Waiting for requester to review and approve.' : swap.status === 'completed' ? 'Swap completed and credits received!' : 'Complete deliverable and click Submit Work.',
+              timeAgo: createdDate,
+            });
+          } else {
+            // User is requester (created swap, waiting for work or reviewing)
+            const submissionStatus = swap.status === 'submitted' ? 'Submitted for Review' : swap.status === 'completed' ? 'Completed' : 'Not submitted yet';
+            const statusBadge = swap.status === 'submitted' ? 'In Review' : swap.status === 'completed' ? 'Completed' : 'Waiting for Submission';
+
+            given.push({
+              id: swap.id,
+              isReal: true,
+              participant: {
+                name: partnerName,
+                location: 'SkillSwap Community',
+                avatar: partnerAvatar,
+                rating: '4.9',
+              },
+              title: swap.topic,
+              description: swap.description,
+              creditsOffered: swap.credit_amount,
+              acceptedOn: createdDate,
+              expectedBy: 'Flexible',
+              submissionStatus,
+              statusBadge,
+              aboutSwap: swap.requirements || swap.description,
+              whatHappensNext: swap.status === 'submitted' ? 'Review the submitted work and click Approve Work & Transfer Credits to settle.' : swap.status === 'completed' ? 'Credits settled and swap closed.' : 'Participant is working on deliverables.',
+              timeAgo: createdDate,
+            });
+          }
+        });
+
+        if (accepted.length > 0) {
+          setAcceptedSwaps(accepted);
+          setSelectedAcceptedId(accepted[0].id);
+        }
+        if (given.length > 0) {
+          setGivenSwaps(given);
+          setSelectedGivenId(given[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading real active swaps:', err);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadRealActiveSwaps();
+    }
+  }, [user, loadRealActiveSwaps]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -278,32 +386,45 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
   const handleSubmitWork = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentAcceptedSwap) return;
+    if (!currentAcceptedSwap || isMutating) return;
 
-    const fileNames = submitWorkFiles.map((f) => f.name);
+    if (currentAcceptedSwap.isReal) {
+      setIsMutating(true);
+      const res = await submitCreditSwap(currentAcceptedSwap.id);
+      setIsMutating(false);
 
-    // Submission step: Record work submission without transferring credits immediately.
-    // Credit settlement occurs atomically when the review/completion step executes.
-    setAcceptedSwaps((prev) =>
-      prev.map((s) =>
-        s.id === currentAcceptedSwap.id
-          ? {
-              ...s,
-              progress: 90,
-              status: 'Review',
-              nextStep: 'Work submitted and currently under review by provider.',
-              submittedWorkNotes: submitWorkNotes,
-              submittedFiles: fileNames,
-            }
-          : s
-      )
-    );
+      if (!res.success) {
+        setSubmitSuccessToast(res.error || 'Failed to submit work.');
+        return;
+      }
+      await refreshAccount();
+      await loadRealActiveSwaps();
+      setIsSubmitWorkModalOpen(false);
+      setSubmitWorkNotes('');
+      setSubmitWorkFiles([]);
+      setSubmitSuccessToast(`Work submitted for "${currentAcceptedSwap.title}"! Waiting for reviewer approval.`);
+    } else {
+      const fileNames = submitWorkFiles.map((f) => f.name);
+      setAcceptedSwaps((prev) =>
+        prev.map((s) =>
+          s.id === currentAcceptedSwap.id
+            ? {
+                ...s,
+                progress: 90,
+                status: 'Review',
+                nextStep: 'Work submitted and currently under review by provider.',
+                submittedWorkNotes: submitWorkNotes,
+                submittedFiles: fileNames,
+              }
+            : s
+        )
+      );
+      setIsSubmitWorkModalOpen(false);
+      setSubmitWorkNotes('');
+      setSubmitWorkFiles([]);
+      setSubmitSuccessToast(`(Demo) Work submitted for "${currentAcceptedSwap.title}".`);
+    }
 
-    setIsSubmitWorkModalOpen(false);
-    setSubmitWorkNotes('');
-    setSubmitWorkFiles([]);
-
-    setSubmitSuccessToast(`Work submitted for "${currentAcceptedSwap.title}"! Waiting for reviewer approval.`);
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => {
       if (isMountedRef.current) setSubmitSuccessToast(null);
@@ -311,11 +432,24 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   };
 
   const handleApproveGivenSwap = async (swap: GivenSwap) => {
-    // This screen currently renders static demonstration records only.  It must never
-    // invoke a financial RPC for a mock identifier; real swaps are completed by
-    // complete_credit_swap(), which derives all settlement values from PostgreSQL.
-    setSubmitSuccessToast('Demo swaps cannot settle credits. Open a persisted swap to complete it.');
-    return;
+    if (isMutating) return;
+
+    if (swap.isReal) {
+      setIsMutating(true);
+      const res = await completeCreditSwap(swap.id);
+      setIsMutating(false);
+
+      if (!res.success) {
+        setSubmitSuccessToast(res.error || 'Failed to complete swap and settle credits.');
+        return;
+      }
+      await refreshAccount();
+      await loadRealActiveSwaps();
+      setSubmitSuccessToast(`Swap completed! ${swap.creditsOffered} credits settled successfully.`);
+    } else {
+      setSubmitSuccessToast('Demo swaps cannot settle credits. Create a real swap to test settlement.');
+    }
+
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => {
       if (isMountedRef.current) setSubmitSuccessToast(null);
@@ -674,9 +808,10 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     <button
                       type="button"
                       className="as-btn as-btn--primary"
+                      disabled={isMutating}
                       onClick={() => handleApproveGivenSwap(currentGivenSwap)}
                     >
-                      Approve Work & Transfer Credits
+                      {isMutating ? 'Settling...' : 'Approve Work & Transfer Credits'}
                     </button>
                   )}
 
