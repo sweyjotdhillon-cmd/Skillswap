@@ -484,6 +484,27 @@ export async function addUserSkill(
 }
 
 /**
+ * Invokes public.has_user_password() RPC to authoritatively check if the current
+ * authenticated user has a password credential set in auth.users.
+ */
+export async function checkUserHasPassword(): Promise<boolean | null> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return null;
+
+  try {
+    const { data, error } = await supabase.rpc('has_user_password');
+    if (error) {
+      console.error('Error checking has_user_password:', error);
+      return null;
+    }
+    return typeof data === 'boolean' ? data : null;
+  } catch (err) {
+    console.error('Exception in checkUserHasPassword:', err);
+    return null;
+  }
+}
+
+/**
  * Delete a user skill by ID (either predefined or custom).
  */
 export async function removeUserSkill(skillType: 'predefined' | 'custom', skillId: string): Promise<boolean> {

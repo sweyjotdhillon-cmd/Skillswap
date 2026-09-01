@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { useAuth } from '../context/AuthContext';
-import { formatFriendlyErrorMessage } from '../lib/supabase/profile';
+import { formatFriendlyErrorMessage, checkUserHasPassword } from '../lib/supabase/profile';
 
 type ChangePasswordPageProps = {
   onNavigate?: (path: string) => void;
@@ -10,6 +10,9 @@ type ChangePasswordPageProps = {
 
 export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
   const { user, isGoogleUser } = useAuth();
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null);
+  const [checkingPasswordState, setCheckingPasswordState] = useState(true);
+
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -23,6 +26,24 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [errors, setErrors] = useState<{ currentPassword?: string; newPassword?: string; confirmPassword?: string }>({});
+
+  const loadPasswordState = useCallback(async () => {
+    if (!user) {
+      setHasPassword(null);
+      setCheckingPasswordState(false);
+      return;
+    }
+
+    setCheckingPasswordState(true);
+    const result = await checkUserHasPassword();
+    // Fallback: if RPC returns null due to connection glitch, default safely to requiring password
+    setHasPassword(result !== null ? result : true);
+    setCheckingPasswordState(false);
+  }, [user]);
+
+  useEffect(() => {
+    loadPasswordState();
+  }, [loadPasswordState]);
 
   const calculateStrength = (pwd: string) => {
     if (!pwd) return { score: 0, label: '', color: '' };
@@ -40,17 +61,10 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
 
   const strength = calculateStrength(newPassword);
 
-  const hasPasswordProvider = Boolean(
-    user &&
-      (user.app_metadata?.provider === 'email' ||
-        (Array.isArray(user.app_metadata?.providers) && user.app_metadata.providers.includes('email')) ||
-        (Array.isArray(user.identities) && user.identities.some((id) => id.provider === 'email')))
-  );
-
   const validate = () => {
     const newErrs: { currentPassword?: string; newPassword?: string; confirmPassword?: string } = {};
 
-    if (hasPasswordProvider) {
+    if (hasPassword === true) {
       if (!currentPassword) {
         newErrs.currentPassword = 'Please enter your current password.';
       }
@@ -95,8 +109,8 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
         return;
       }
 
-      // Re-authenticate if user has a password credential
-      if (hasPasswordProvider) {
+      // Re-authenticate if user already has a password credential
+      if (hasPassword === true) {
         const { error: reauthErr } = await supabase.auth.signInWithPassword({
           email: user.email!,
           password: currentPassword,
@@ -109,7 +123,7 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
         }
       }
 
-      // Update user password
+      // Update user password via Supabase Auth
       const { error: updateErr } = await supabase.auth.updateUser({
         password: newPassword,
       });
@@ -117,10 +131,14 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
       if (updateErr) {
         setErrorMessage(formatFriendlyErrorMessage(updateErr));
       } else {
-        setSuccessMessage('Password changed successfully. A security notification has been recorded for your account.');
+        setSuccessMessage('Password updated successfully.');
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
+
+        // Refresh password credential state authoritatively
+        const updatedHasPassword = await checkUserHasPassword();
+        setHasPassword(updatedHasPassword !== null ? updatedHasPassword : true);
       }
     } catch (err: any) {
       setErrorMessage(formatFriendlyErrorMessage(err));
@@ -129,34 +147,46 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
     }
   };
 
+  const isFirstTimePasswordSetup = hasPassword === false;
+
   return (
     <div className="page-shell">
       <Navbar onNavigate={onNavigate} />
       <main className="auth-layout-grid" style={{ gridTemplateColumns: '1fr', maxWidth: '540px', margin: '0 auto' }}>
         <section className="auth-card-container">
-          <div className="auth-card-header">
-            <h2 className="auth-card-title">
-              {!hasPasswordProvider && isGoogleUser ? 'Set Password' : 'Change Password'}
-            </h2>
-            <p className="auth-card-subtitle">
-              {!hasPasswordProvider && isGoogleUser
-                ? 'Create a password for your SkillSwap account so you can log in using email and password.'
-                : 'Update your SkillSwap account security credentials.'}
-            </p>
-          </div>
-
-          {isGoogleUser && !hasPasswordProvider && (
-            <div className="auth-alert auth-alert--info" style={{ backgroundColor: 'rgba(3, 105, 161, 0.08)', borderColor: 'rgba(3, 105, 161, 0.2)', color: '#0369a1', marginBottom: '1.5rem' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="16" x2="12" y2="12" />
-                <line x1="12" y1="8" x2="12.01" y2="8" />
+          {checkingPasswordState ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1rem', gap: '1rem' }}>
+              <svg className="spinner" viewBox="0 0 24 24" width="28" height="28" style={{ animation: 'spin 1s linear infinite', color: 'var(--accent-color, #d6a64a)' }}>
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" opacity="0.25" />
+                <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" opacity="0.75" />
               </svg>
-              <span>
-                Your account was created with Google Sign-In. You can set a password below to enable email/password login alongside Google. You will not be asked for a previous password.
-              </span>
+              <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>Loading security settings...</p>
             </div>
-          )}
+          ) : (
+            <>
+              <div className="auth-card-header">
+                <h2 className="auth-card-title">
+                  {isFirstTimePasswordSetup ? 'Set Password' : 'Change Password'}
+                </h2>
+                <p className="auth-card-subtitle">
+                  {isFirstTimePasswordSetup
+                    ? 'Create a password for your SkillSwap account so you can log in using email and password.'
+                    : 'Update your SkillSwap account security credentials.'}
+                </p>
+              </div>
+
+              {isFirstTimePasswordSetup && isGoogleUser && (
+                <div className="auth-alert auth-alert--info" style={{ backgroundColor: 'rgba(3, 105, 161, 0.08)', borderColor: 'rgba(3, 105, 161, 0.2)', color: '#0369a1', marginBottom: '1.5rem' }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  <span>
+                    Your account was created with Google Sign-In. You can set a password below to enable email/password login alongside Google. You will not be asked for a previous password.
+                  </span>
+                </div>
+              )}
 
           {errorMessage && (
             <div className="auth-alert auth-alert--error" role="alert">
@@ -180,7 +210,7 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
           )}
 
           <form onSubmit={handleSubmit} noValidate>
-            {hasPasswordProvider && (
+            {hasPassword === true && (
               <div className="auth-form-group">
                 <label htmlFor="current-password-input" className="auth-label">
                   Current Password
@@ -387,6 +417,8 @@ export function ChangePasswordPage({ onNavigate }: ChangePasswordPageProps) {
               ← Back to Explore
             </button>
           </p>
+            </>
+          )}
         </section>
       </main>
     </div>
