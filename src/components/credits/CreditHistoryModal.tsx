@@ -116,7 +116,7 @@ export function CreditHistoryModal({ isOpen, onClose }: CreditHistoryModalProps)
           <div className="credit-stat-card credit-stat-card--primary">
             <span className="credit-stat-label">Available Balance</span>
             <span className="credit-stat-value">
-              {accountLoading ? '...' : account ? account.credits_balance : 0}{' '}
+              {accountLoading ? '...' : account ? account.credits_balance : 'Unavailable'}{' '}
               <span className="credit-unit">Credits</span>
             </span>
           </div>
@@ -124,21 +124,21 @@ export function CreditHistoryModal({ isOpen, onClose }: CreditHistoryModalProps)
           <div className="credit-stat-card">
             <span className="credit-stat-label">Reserved</span>
             <span className="credit-stat-value" style={{ color: '#E65100' }}>
-              {accountLoading ? '...' : account ? account.credits_reserved : 0}
+              {accountLoading ? '...' : account ? account.credits_reserved : 'Unavailable'}
             </span>
           </div>
 
           <div className="credit-stat-card">
             <span className="credit-stat-label">Lifetime Earned</span>
             <span className="credit-stat-value credit-stat-value--green">
-              +{accountLoading ? '...' : account ? account.credits_earned : 0}
+              {accountLoading ? '...' : account ? `+${account.credits_earned}` : 'Unavailable'}
             </span>
           </div>
 
           <div className="credit-stat-card">
             <span className="credit-stat-label">Lifetime Spent</span>
             <span className="credit-stat-value credit-stat-value--muted">
-              -{accountLoading ? '...' : account ? account.credits_spent : 0}
+              {accountLoading ? '...' : account ? `-${account.credits_spent}` : 'Unavailable'}
             </span>
           </div>
         </div>
