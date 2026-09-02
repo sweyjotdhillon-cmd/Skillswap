@@ -11,12 +11,30 @@ export function CreditHistoryModal({ isOpen, onClose }: CreditHistoryModalProps)
   const { account, accountLoading, refreshAccount } = useAuth();
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [loadingTx, setLoadingTx] = useState<boolean>(true);
+  const [errorTx, setErrorTx] = useState<string | null>(null);
+  const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
+
+  const fetchLedger = async () => {
+    setLoadingTx(true);
+    setErrorTx(null);
+    refreshAccount();
+    try {
+      const txs = await getCreditTransactions(50, 0);
+      setTransactions(txs);
+    } catch (err) {
+      console.error('Failed to load credit history:', err);
+      setErrorTx('Unable to load credit history ledger. Please check your connection and try again.');
+    } finally {
+      setLoadingTx(false);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) return;
 
     let isMounted = true;
     setLoadingTx(true);
+    setErrorTx(null);
 
     refreshAccount();
     getCreditTransactions(50, 0)
@@ -28,7 +46,10 @@ export function CreditHistoryModal({ isOpen, onClose }: CreditHistoryModalProps)
       })
       .catch((err) => {
         console.error('Failed to load credit history:', err);
-        if (isMounted) setLoadingTx(false);
+        if (isMounted) {
+          setErrorTx('Unable to load credit history ledger. Please check your connection and try again.');
+          setLoadingTx(false);
+        }
       });
 
     return () => {
@@ -154,40 +175,96 @@ export function CreditHistoryModal({ isOpen, onClose }: CreditHistoryModalProps)
               <div className="spinner-dots" style={{ width: '20px', height: '20px', margin: '0 auto 0.5rem' }} />
               Loading credit history...
             </div>
+          ) : errorTx ? (
+            <div className="sr-empty-state" style={{ padding: '1.5rem', textAlign: 'center', background: 'rgba(239, 68, 68, 0.08)', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+              <p style={{ color: '#dc2626', fontWeight: 600, margin: '0 0 0.75rem 0', fontSize: '0.875rem' }}>
+                {errorTx}
+              </p>
+              <button
+                type="button"
+                className="modal-btn"
+                style={{ background: 'var(--shell-border, rgba(17,22,28,0.15))', fontSize: '0.825rem', padding: '0.35rem 0.85rem' }}
+                onClick={fetchLedger}
+              >
+                Retry Loading
+              </button>
+            </div>
           ) : transactions.length === 0 ? (
             <div className="sr-empty-state" style={{ padding: '2rem', textAlign: 'center' }}>
-              <p>No credit transactions recorded yet.</p>
+              <p>No credit transactions yet.</p>
             </div>
           ) : (
             <div className="credit-tx-list">
-              {transactions.map((tx) => (
-                <div key={tx.id} className="credit-tx-item">
-                  <div className="credit-tx-left">
-                    <span className={`credit-tx-badge ${getTxBadgeClass(tx.amount, tx.transaction_type)}`}>
-                      {getTxTypeLabel(tx.transaction_type)}
-                    </span>
-                    <span className="credit-tx-reason">{tx.reason}</span>
-                  </div>
+              {transactions.map((tx) => {
+                const hasExtraDetails = Boolean(tx.related_swap_id || tx.id);
+                const isExpanded = expandedTxId === tx.id;
 
-                  <div className="credit-tx-right">
-                    <span className={`credit-tx-amount ${tx.amount > 0 ? 'credit-amount--positive' : 'credit-amount--negative'}`}>
-                      {tx.amount > 0 ? `+${tx.amount}` : tx.amount}
-                    </span>
-                    <span className="credit-tx-balance-after">
-                      Balance: {tx.balance_after}
-                    </span>
-                    <span className="credit-tx-date">
-                      {new Date(tx.created_at).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
+                return (
+                  <div
+                    key={tx.id}
+                    className={`credit-tx-item ${hasExtraDetails ? 'credit-tx-item--interactive' : ''}`}
+                    onClick={() => {
+                      if (hasExtraDetails) {
+                        setExpandedTxId(isExpanded ? null : tx.id);
+                      }
+                    }}
+                    tabIndex={hasExtraDetails ? 0 : undefined}
+                    role={hasExtraDetails ? 'button' : undefined}
+                    aria-expanded={hasExtraDetails ? isExpanded : undefined}
+                    onKeyDown={(e) => {
+                      if (hasExtraDetails && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        setExpandedTxId(isExpanded ? null : tx.id);
+                      }
+                    }}
+                  >
+                    <div className="credit-tx-main-row">
+                      <div className="credit-tx-left">
+                        <span className={`credit-tx-badge ${getTxBadgeClass(tx.amount, tx.transaction_type)}`}>
+                          {getTxTypeLabel(tx.transaction_type)}
+                        </span>
+                        <span className="credit-tx-reason">{tx.reason}</span>
+                      </div>
+
+                      <div className="credit-tx-right">
+                        <span className={`credit-tx-amount ${tx.amount > 0 ? 'credit-amount--positive' : 'credit-amount--negative'}`}>
+                          {tx.amount > 0 ? `+${tx.amount} Credits` : `${tx.amount} Credits`}
+                        </span>
+                        <span className="credit-tx-balance-after">
+                          Balance: {tx.balance_after}
+                        </span>
+                        <span className="credit-tx-date">
+                          {new Date(tx.created_at).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                          {' · '}
+                          {new Date(tx.created_at).toLocaleTimeString(undefined, {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                    </div>
+
+                    {hasExtraDetails && isExpanded && (
+                      <div className="credit-tx-details">
+                        <div className="credit-tx-detail-row">
+                          <span className="credit-tx-detail-label">Transaction ID:</span>
+                          <span className="credit-tx-detail-value">{tx.id}</span>
+                        </div>
+                        {tx.related_swap_id && (
+                          <div className="credit-tx-detail-row">
+                            <span className="credit-tx-detail-label">Related Swap ID:</span>
+                            <span className="credit-tx-detail-value">{tx.related_swap_id}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
