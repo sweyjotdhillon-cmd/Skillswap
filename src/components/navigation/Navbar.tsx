@@ -196,7 +196,7 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
               </div>
             </>
           ) : (
-            <div className="auth-user-menu" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div className="auth-user-menu desktop-user-menu">
               <a
                 className="auth-link-bold"
                 style={{ fontSize: '0.925rem', marginRight: '0.5rem' }}
