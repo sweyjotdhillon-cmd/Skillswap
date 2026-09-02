@@ -23,7 +23,6 @@ export interface SwapParticipant {
 /** Presentation view model for an accepted swap where user delivers work */
 export interface AcceptedSwap {
   id: string;
-  isReal?: boolean;
   participant: SwapParticipant;
   participantUserId?: string;
   title: string;
@@ -43,7 +42,6 @@ export interface AcceptedSwap {
 /** Presentation view model for a given swap where user created request and offers credits */
 export interface GivenSwap {
   id: string;
-  isReal?: boolean;
   participant: SwapParticipant;
   participantUserId?: string;
   title: string;
@@ -58,112 +56,6 @@ export interface GivenSwap {
   timeAgo: string;
   submittedWorkNotes?: string;
 }
-
-const INITIAL_ACCEPTED_SWAPS: AcceptedSwap[] = [
-  {
-    id: 'acc-1',
-    participant: {
-      name: 'Alex Sharma',
-      location: 'Mumbai, India',
-      avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
-      swapsCompleted: 14,
-      bio: 'Senior Video Producer & Editor with over 5 years of experience in Premiere Pro and After Effects.',
-    },
-    title: 'Advanced Video Editing',
-    description: 'Learn cinematic editing, transitions, color grading & effects using Premiere Pro.',
-    credits: 20,
-    startedOn: 'May 20, 2025',
-    deadline: 'May 28, 2025',
-    progress: 65,
-    status: 'In Progress',
-    aboutSwap: 'In this swap, Alex is guiding you through multi-cam editing, audio leveling, speed ramping, and color correction workflows for cinematic storytelling.',
-    nextStep: 'Complete Module 3 exercise on color grading and submit your project timeline export for review.',
-    timeAgo: '2 days ago',
-  },
-  {
-    id: 'acc-2',
-    participant: {
-      name: 'Neha Verma',
-      location: 'Bengaluru, India',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-      swapsCompleted: 22,
-      bio: 'Lead Product Designer passionate about design systems, accessibility, and interactive Figma prototypes.',
-    },
-    title: 'UI/UX Design Fundamentals',
-    description: 'Master wireframing, component design, auto-layout and interactive prototyping in Figma.',
-    credits: 15,
-    startedOn: 'May 22, 2025',
-    deadline: 'Jun 2, 2025',
-    progress: 40,
-    status: 'In Progress',
-    aboutSwap: 'Covering user research synthesis, wireframing, design system component creation, and interactive click-through prototyping.',
-    nextStep: 'Submit your initial low-fidelity mobile app wireframes before moving on to auto-layout components.',
-    timeAgo: '3 hours ago',
-  },
-  {
-    id: 'acc-3',
-    participant: {
-      name: 'Rohit Patel',
-      location: 'Delhi, India',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-      swapsCompleted: 9,
-      bio: 'SEO Strategist & Organic Growth Consultant helping creators and SaaS platforms scale search traffic.',
-    },
-    title: 'SEO Strategy Basics',
-    description: 'Learn keyword research, on-page optimization, and technical SEO audit fundamentals.',
-    credits: 10,
-    startedOn: 'May 18, 2025',
-    deadline: 'May 25, 2025',
-    progress: 90,
-    status: 'Review',
-    aboutSwap: 'Practical SEO teardown covering keyword intent, meta tags structure, internal linking, and site performance audits.',
-    nextStep: 'Your submitted keyword audit matrix is currently under final review by Rohit.',
-    timeAgo: '1 day ago',
-  },
-];
-
-const INITIAL_GIVEN_SWAPS: GivenSwap[] = [
-  {
-    id: 'giv-1',
-    participant: {
-      name: 'Priya Singh',
-      location: 'Pune, India',
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-      swapsCompleted: 11,
-      bio: 'Full-stack enthusiast expanding skills in backend development and data structures.',
-    },
-    title: 'Python Basics For Beginners',
-    description: 'Learn core Python concepts, data types, loops, functions and build small real-world programs.',
-    creditsOffered: 15,
-    acceptedOn: 'May 22, 2025',
-    expectedBy: 'Jun 5, 2025',
-    submissionStatus: 'Not submitted yet',
-    statusBadge: 'Waiting for Submission',
-    aboutSwap: 'You are teaching Priya core Python programming, control flow, functions, file I/O, and basic script automation.',
-    whatHappensNext: 'Once Priya completes and submits the agreed assignments, you will review her code and mark the swap as completed to transfer SkillCredits.',
-    timeAgo: 'Yesterday',
-  },
-  {
-    id: 'giv-2',
-    participant: {
-      name: 'Arjun Mehta',
-      location: 'Hyderabad, India',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-      swapsCompleted: 7,
-      bio: 'Growth Marketer specializing in organic social media management and community building.',
-    },
-    title: 'Social Media Marketing',
-    description: 'Create content calendars, target audiences, and run conversion ad campaigns.',
-    creditsOffered: 20,
-    acceptedOn: 'May 24, 2025',
-    expectedBy: 'Jun 8, 2025',
-    submissionStatus: 'Not submitted yet',
-    statusBadge: 'Waiting for Submission',
-    aboutSwap: 'You are providing Arjun with social media strategy templates, content matrix guidelines, and distribution tactics.',
-    whatHappensNext: 'Arjun is currently reviewing your strategy workbook and preparing his practice campaign draft for your review.',
-    timeAgo: '3 days ago',
-  },
-];
 
 interface ChatMessage {
   id: string;
@@ -180,11 +72,11 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   const { user, refreshAccount } = useAuth();
   const [activeTab, setActiveTab] = useState<'accepted' | 'given'>('accepted');
 
-  const [acceptedSwaps, setAcceptedSwaps] = useState<AcceptedSwap[]>(INITIAL_ACCEPTED_SWAPS);
-  const [givenSwaps, setGivenSwaps] = useState<GivenSwap[]>(INITIAL_GIVEN_SWAPS);
+  const [acceptedSwaps, setAcceptedSwaps] = useState<AcceptedSwap[]>([]);
+  const [givenSwaps, setGivenSwaps] = useState<GivenSwap[]>([]);
 
-  const [selectedAcceptedId, setSelectedAcceptedId] = useState<string>(INITIAL_ACCEPTED_SWAPS[0].id);
-  const [selectedGivenId, setSelectedGivenId] = useState<string>(INITIAL_GIVEN_SWAPS[0].id);
+  const [selectedAcceptedId, setSelectedAcceptedId] = useState<string>('');
+  const [selectedGivenId, setSelectedGivenId] = useState<string>('');
 
   const [isMutating, setIsMutating] = useState(false);
 
@@ -222,7 +114,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
           const partnerProfile = isRequester ? swap.participantProfile : swap.requesterProfile;
           const partnerName = partnerProfile?.fullName || (partnerProfile?.username ? `@${partnerProfile.username}` : 'SkillSwap Member');
           const partnerAvatar = partnerProfile?.avatarUrl || DEFAULT_AVATAR;
-          const partnerLocation = partnerProfile?.username ? `@${partnerProfile.username}` : 'SkillSwap Member';
+          const partnerLocation = partnerProfile?.username ? `@${partnerProfile.username}` : 'SkillSwap Network';
 
           const createdDate = new Date(swap.createdAt).toLocaleDateString(undefined, {
             month: 'short',
@@ -237,7 +129,6 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
             accepted.push({
               id: swap.id,
-              isReal: true,
               participant: {
                 name: partnerName,
                 location: partnerLocation,
@@ -261,7 +152,6 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
             given.push({
               id: swap.id,
-              isReal: true,
               participant: {
                 name: partnerName,
                 location: partnerLocation,
@@ -282,18 +172,10 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         });
 
         setAcceptedSwaps(accepted);
-        if (accepted.length > 0) {
-          setSelectedAcceptedId(accepted[0].id);
-        } else {
-          setSelectedAcceptedId('');
-        }
+        setSelectedAcceptedId((prev) => (prev && accepted.some((a) => a.id === prev) ? prev : accepted[0]?.id || ''));
 
         setGivenSwaps(given);
-        if (given.length > 0) {
-          setSelectedGivenId(given[0].id);
-        } else {
-          setSelectedGivenId('');
-        }
+        setSelectedGivenId((prev) => (prev && given.some((g) => g.id === prev) ? prev : given[0]?.id || ''));
       }
     } catch (err) {
       console.error('Error loading real active swaps:', err);
@@ -392,42 +274,20 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     e.preventDefault();
     if (!currentAcceptedSwap || isMutating) return;
 
-    if (currentAcceptedSwap.isReal) {
-      setIsMutating(true);
-      const res = await submitCreditSwap(currentAcceptedSwap.id);
-      setIsMutating(false);
+    setIsMutating(true);
+    const res = await submitCreditSwap(currentAcceptedSwap.id);
+    setIsMutating(false);
 
-      if (!res.success) {
-        setSubmitSuccessToast(res.error || 'Failed to submit work.');
-        return;
-      }
-      await refreshAccount();
-      await loadRealActiveSwaps();
-      setIsSubmitWorkModalOpen(false);
-      setSubmitWorkNotes('');
-      setSubmitWorkFiles([]);
-      setSubmitSuccessToast(`Work submitted for "${currentAcceptedSwap.title}"! Waiting for reviewer approval.`);
-    } else {
-      const fileNames = submitWorkFiles.map((f) => f.name);
-      setAcceptedSwaps((prev) =>
-        prev.map((s) =>
-          s.id === currentAcceptedSwap.id
-            ? {
-                ...s,
-                progress: 90,
-                status: 'Review',
-                nextStep: 'Work submitted and currently under review by provider.',
-                submittedWorkNotes: submitWorkNotes,
-                submittedFiles: fileNames,
-              }
-            : s
-        )
-      );
-      setIsSubmitWorkModalOpen(false);
-      setSubmitWorkNotes('');
-      setSubmitWorkFiles([]);
-      setSubmitSuccessToast(`(Demo) Work submitted for "${currentAcceptedSwap.title}".`);
+    if (!res.success) {
+      setSubmitSuccessToast(res.error || 'Failed to submit work.');
+      return;
     }
+    await refreshAccount();
+    await loadRealActiveSwaps();
+    setIsSubmitWorkModalOpen(false);
+    setSubmitWorkNotes('');
+    setSubmitWorkFiles([]);
+    setSubmitSuccessToast(`Work submitted for "${currentAcceptedSwap.title}"! Waiting for reviewer approval.`);
 
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => {
@@ -438,21 +298,17 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   const handleApproveGivenSwap = async (swap: GivenSwap) => {
     if (isMutating) return;
 
-    if (swap.isReal) {
-      setIsMutating(true);
-      const res = await completeCreditSwap(swap.id);
-      setIsMutating(false);
+    setIsMutating(true);
+    const res = await completeCreditSwap(swap.id);
+    setIsMutating(false);
 
-      if (!res.success) {
-        setSubmitSuccessToast(res.error || 'Failed to complete swap and settle credits.');
-        return;
-      }
-      await refreshAccount();
-      await loadRealActiveSwaps();
-      setSubmitSuccessToast(`Swap completed! ${swap.creditsOffered} credits settled successfully.`);
-    } else {
-      setSubmitSuccessToast('Demo swaps cannot settle credits. Create a real swap to test settlement.');
+    if (!res.success) {
+      setSubmitSuccessToast(res.error || 'Failed to complete swap and settle credits.');
+      return;
     }
+    await refreshAccount();
+    await loadRealActiveSwaps();
+    setSubmitSuccessToast(`Swap completed! ${swap.creditsOffered} credits settled successfully.`);
 
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => {
@@ -611,231 +467,241 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
           {/* RIGHT PANEL: SELECTED SWAP DETAILS */}
           <section className="as-right-panel" aria-label="Selected swap details">
-            {activeTab === 'accepted' && currentAcceptedSwap && (
-              <div className="as-detail-card">
-                {/* PARTICIPANT HEADER */}
-                <div className="as-detail-participant-header">
-                  <div className="as-detail-user-group">
-                    <img
-                      src={currentAcceptedSwap.participant.avatar}
-                      alt={currentAcceptedSwap.participant.name}
-                      className="as-detail-avatar"
-                    />
-                    <div className="as-detail-user-info">
-                      <div className="as-detail-name-row">
-                        <h2 className="as-detail-user-name">{currentAcceptedSwap.participant.name}</h2>
-                        <button
-                          type="button"
-                          className="as-view-profile-link"
-                          onClick={() => setSelectedProfileModal(currentAcceptedSwap.participant)}
-                        >
-                          View Profile
-                        </button>
-                      </div>
-                      <p className="as-detail-user-location">{currentAcceptedSwap.participant.location}</p>
-                    </div>
-                  </div>
-
-                  <span className={`as-status-badge as-status-badge--large as-status-badge--${currentAcceptedSwap.status.toLowerCase().replace(' ', '-')}`}>
-                    ● {currentAcceptedSwap.status}
-                  </span>
-                </div>
-
-                {/* SWAP TITLE & DESCRIPTION */}
-                <div className="as-detail-title-section">
-                  <h3 className="as-detail-swap-title">{currentAcceptedSwap.title}</h3>
-                  <p className="as-detail-swap-desc">{currentAcceptedSwap.description}</p>
-                </div>
-
-                {/* HORIZONTAL STATS ROW */}
-                <div className="as-stats-row">
-                  <div className="as-stat-item">
-                    <span className="as-stat-label">Credits</span>
-                    <strong className="as-stat-value">{currentAcceptedSwap.credits} SkillCredits</strong>
-                  </div>
-                  <div className="as-stat-item">
-                    <span className="as-stat-label">Started On</span>
-                    <strong className="as-stat-value">{currentAcceptedSwap.startedOn}</strong>
-                  </div>
-                  <div className="as-stat-item">
-                    <span className="as-stat-label">Deadline</span>
-                    <strong className="as-stat-value">{currentAcceptedSwap.deadline}</strong>
-                  </div>
-                  <div className="as-stat-item as-stat-item--progress">
-                    <div className="as-progress-label-row">
-                      <span className="as-stat-label">Progress</span>
-                      <strong className="as-progress-percent">{currentAcceptedSwap.progress}%</strong>
-                    </div>
-                    <div className="as-progress-track">
-                      <div
-                        className="as-progress-fill"
-                        style={{ width: `${currentAcceptedSwap.progress}%` }}
+            {activeTab === 'accepted' ? (
+              currentAcceptedSwap ? (
+                <div className="as-detail-card">
+                  {/* PARTICIPANT HEADER */}
+                  <div className="as-detail-participant-header">
+                    <div className="as-detail-user-group">
+                      <img
+                        src={currentAcceptedSwap.participant.avatar}
+                        alt={currentAcceptedSwap.participant.name}
+                        className="as-detail-avatar"
                       />
-                    </div>
-                  </div>
-                </div>
-
-                {/* ABOUT THIS SWAP */}
-                <div className="as-detail-section">
-                  <h4 className="as-section-subheading">About this Swap</h4>
-                  <p className="as-section-body-text">{currentAcceptedSwap.aboutSwap}</p>
-                </div>
-
-                {/* YOUR NEXT STEP */}
-                <div className="as-detail-section">
-                  <h4 className="as-section-subheading">Your Next Step</h4>
-                  <p className="as-section-body-text">{currentAcceptedSwap.nextStep}</p>
-
-                  {currentAcceptedSwap.submittedWorkNotes && (
-                    <div className="as-submitted-summary-box">
-                      <strong>Submitted Notes:</strong>
-                      <p>“{currentAcceptedSwap.submittedWorkNotes}”</p>
-                      {currentAcceptedSwap.submittedFiles && currentAcceptedSwap.submittedFiles.length > 0 && (
-                        <div className="as-submitted-files-list">
-                          {currentAcceptedSwap.submittedFiles.map((file, idx) => (
-                            <span key={idx} className="as-file-chip">
-                              📎 {file}
-                            </span>
-                          ))}
+                      <div className="as-detail-user-info">
+                        <div className="as-detail-name-row">
+                          <h2 className="as-detail-user-name">{currentAcceptedSwap.participant.name}</h2>
+                          <button
+                            type="button"
+                            className="as-view-profile-link"
+                            onClick={() => setSelectedProfileModal(currentAcceptedSwap.participant)}
+                          >
+                            View Profile
+                          </button>
                         </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* MAJOR ACTION BUTTONS */}
-                <div className="as-detail-actions-row">
-                  <button
-                    type="button"
-                    className="as-btn as-btn--primary"
-                    onClick={() => setIsSubmitWorkModalOpen(true)}
-                  >
-                    Submit Work
-                  </button>
-
-                  <button
-                    type="button"
-                    className="as-btn as-btn--secondary"
-                    onClick={() => handleOpenChat(currentAcceptedSwap.participant, currentAcceptedSwap.title)}
-                  >
-                    Start Chat
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'given' && currentGivenSwap && (
-              <div className="as-detail-card">
-                {/* PARTICIPANT HEADER */}
-                <div className="as-detail-participant-header">
-                  <div className="as-detail-user-group">
-                    <img
-                      src={currentGivenSwap.participant.avatar}
-                      alt={currentGivenSwap.participant.name}
-                      className="as-detail-avatar"
-                    />
-                    <div className="as-detail-user-info">
-                      <div className="as-detail-name-row">
-                        <h2 className="as-detail-user-name">{currentGivenSwap.participant.name}</h2>
-                        <button
-                          type="button"
-                          className="as-view-profile-link"
-                          onClick={() => setSelectedProfileModal(currentGivenSwap.participant)}
-                        >
-                          View Profile
-                        </button>
+                        <p className="as-detail-user-location">{currentAcceptedSwap.participant.location}</p>
                       </div>
-                      <p className="as-detail-user-location">{currentGivenSwap.participant.location}</p>
+                    </div>
+
+                    <span className={`as-status-badge as-status-badge--large as-status-badge--${currentAcceptedSwap.status.toLowerCase().replace(' ', '-')}`}>
+                      ● {currentAcceptedSwap.status}
+                    </span>
+                  </div>
+
+                  {/* SWAP TITLE & DESCRIPTION */}
+                  <div className="as-detail-title-section">
+                    <h3 className="as-detail-swap-title">{currentAcceptedSwap.title}</h3>
+                    <p className="as-detail-swap-desc">{currentAcceptedSwap.description}</p>
+                  </div>
+
+                  {/* HORIZONTAL STATS ROW */}
+                  <div className="as-stats-row">
+                    <div className="as-stat-item">
+                      <span className="as-stat-label">Credits</span>
+                      <strong className="as-stat-value">{currentAcceptedSwap.credits} SkillCredits</strong>
+                    </div>
+                    <div className="as-stat-item">
+                      <span className="as-stat-label">Started On</span>
+                      <strong className="as-stat-value">{currentAcceptedSwap.startedOn}</strong>
+                    </div>
+                    <div className="as-stat-item">
+                      <span className="as-stat-label">Deadline</span>
+                      <strong className="as-stat-value">{currentAcceptedSwap.deadline}</strong>
+                    </div>
+                    <div className="as-stat-item as-stat-item--progress">
+                      <div className="as-progress-label-row">
+                        <span className="as-stat-label">Progress</span>
+                        <strong className="as-progress-percent">{currentAcceptedSwap.progress}%</strong>
+                      </div>
+                      <div className="as-progress-track">
+                        <div
+                          className="as-progress-fill"
+                          style={{ width: `${currentAcceptedSwap.progress}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <span className="as-status-badge as-status-badge--large as-status-badge--waiting">
-                    ● {currentGivenSwap.statusBadge}
-                  </span>
-                </div>
-
-                {/* SWAP TITLE & DESCRIPTION */}
-                <div className="as-detail-title-section">
-                  <h3 className="as-detail-swap-title">{currentGivenSwap.title}</h3>
-                  <p className="as-detail-swap-desc">{currentGivenSwap.description}</p>
-                </div>
-
-                {/* HORIZONTAL STATS ROW */}
-                <div className="as-stats-row">
-                  <div className="as-stat-item">
-                    <span className="as-stat-label">Credits Offered</span>
-                    <strong className="as-stat-value">{currentGivenSwap.creditsOffered} SkillCredits</strong>
+                  {/* ABOUT THIS SWAP */}
+                  <div className="as-detail-section">
+                    <h4 className="as-section-subheading">About this Swap</h4>
+                    <p className="as-section-body-text">{currentAcceptedSwap.aboutSwap}</p>
                   </div>
-                  <div className="as-stat-item">
-                    <span className="as-stat-label">Accepted On</span>
-                    <strong className="as-stat-value">{currentGivenSwap.acceptedOn}</strong>
+
+                  {/* YOUR NEXT STEP */}
+                  <div className="as-detail-section">
+                    <h4 className="as-section-subheading">Your Next Step</h4>
+                    <p className="as-section-body-text">{currentAcceptedSwap.nextStep}</p>
+
+                    {currentAcceptedSwap.submittedWorkNotes && (
+                      <div className="as-submitted-summary-box">
+                        <strong>Submitted Notes:</strong>
+                        <p>“{currentAcceptedSwap.submittedWorkNotes}”</p>
+                        {currentAcceptedSwap.submittedFiles && currentAcceptedSwap.submittedFiles.length > 0 && (
+                          <div className="as-submitted-files-list">
+                            {currentAcceptedSwap.submittedFiles.map((file, idx) => (
+                              <span key={idx} className="as-file-chip">
+                                📎 {file}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="as-stat-item">
-                    <span className="as-stat-label">Expected By</span>
-                    <strong className="as-stat-value">{currentGivenSwap.expectedBy}</strong>
-                  </div>
-                  <div className="as-stat-item">
-                    <span className="as-stat-label">Submission Status</span>
-                    <strong className="as-stat-value as-status-text--waiting">
-                      ● {currentGivenSwap.submissionStatus}
-                    </strong>
-                  </div>
-                </div>
 
-                {/* HIGHLIGHTED CALLOUT BOX */}
-                <div className="as-callout-box">
-                  <div className="as-callout-title">Waiting for submission</div>
-                  <p className="as-callout-text">
-                    “{currentGivenSwap.participant.name} has accepted your swap. You’re waiting for her to submit the agreed work.”
-                  </p>
-                </div>
-
-                {/* ABOUT THIS SWAP */}
-                <div className="as-detail-section">
-                  <h4 className="as-section-subheading">About This Swap</h4>
-                  <p className="as-section-body-text">{currentGivenSwap.aboutSwap}</p>
-                </div>
-
-                {/* WHAT HAPPENS NEXT */}
-                <div className="as-detail-section">
-                  <h4 className="as-section-subheading">What Happens Next?</h4>
-                  <p className="as-section-body-text">{currentGivenSwap.whatHappensNext}</p>
-                </div>
-
-                {/* MAJOR ACTION BUTTONS */}
-                <div className="as-detail-actions-row">
-                  {currentGivenSwap.submissionStatus === 'Completed' ? (
-                    <span className="as-status-badge as-status-badge--large as-status-badge--completed">
-                      ✓ Swap Completed & Credits Settled
-                    </span>
-                  ) : (
+                  {/* MAJOR ACTION BUTTONS */}
+                  <div className="as-detail-actions-row">
                     <button
                       type="button"
                       className="as-btn as-btn--primary"
-                      disabled={isMutating}
-                      onClick={() => handleApproveGivenSwap(currentGivenSwap)}
+                      onClick={() => setIsSubmitWorkModalOpen(true)}
                     >
-                      {isMutating ? 'Settling...' : 'Approve Work & Transfer Credits'}
+                      Submit Work
                     </button>
-                  )}
 
-                  <button
-                    type="button"
-                    className="as-btn as-btn--secondary"
-                    onClick={() => handleOpenChat(currentGivenSwap.participant, currentGivenSwap.title)}
-                  >
-                    Start Chat
-                  </button>
-
-                  <button
-                    type="button"
-                    className="as-btn as-btn--outline"
-                    onClick={() => setSelectedGivenDetailsModal(currentGivenSwap)}
-                  >
-                    View Details
-                  </button>
+                    <button
+                      type="button"
+                      className="as-btn as-btn--secondary"
+                      onClick={() => handleOpenChat(currentAcceptedSwap.participant, currentAcceptedSwap.title)}
+                    >
+                      Start Chat
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="as-detail-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
+                  <p style={{ color: 'var(--text-secondary)' }}>No accepted swaps available.</p>
+                </div>
+              )
+            ) : (
+              currentGivenSwap ? (
+                <div className="as-detail-card">
+                  {/* PARTICIPANT HEADER */}
+                  <div className="as-detail-participant-header">
+                    <div className="as-detail-user-group">
+                      <img
+                        src={currentGivenSwap.participant.avatar}
+                        alt={currentGivenSwap.participant.name}
+                        className="as-detail-avatar"
+                      />
+                      <div className="as-detail-user-info">
+                        <div className="as-detail-name-row">
+                          <h2 className="as-detail-user-name">{currentGivenSwap.participant.name}</h2>
+                          <button
+                            type="button"
+                            className="as-view-profile-link"
+                            onClick={() => setSelectedProfileModal(currentGivenSwap.participant)}
+                          >
+                            View Profile
+                          </button>
+                        </div>
+                        <p className="as-detail-user-location">{currentGivenSwap.participant.location}</p>
+                      </div>
+                    </div>
+
+                    <span className="as-status-badge as-status-badge--large as-status-badge--waiting">
+                      ● {currentGivenSwap.statusBadge}
+                    </span>
+                  </div>
+
+                  {/* SWAP TITLE & DESCRIPTION */}
+                  <div className="as-detail-title-section">
+                    <h3 className="as-detail-swap-title">{currentGivenSwap.title}</h3>
+                    <p className="as-detail-swap-desc">{currentGivenSwap.description}</p>
+                  </div>
+
+                  {/* HORIZONTAL STATS ROW */}
+                  <div className="as-stats-row">
+                    <div className="as-stat-item">
+                      <span className="as-stat-label">Credits Offered</span>
+                      <strong className="as-stat-value">{currentGivenSwap.creditsOffered} SkillCredits</strong>
+                    </div>
+                    <div className="as-stat-item">
+                      <span className="as-stat-label">Accepted On</span>
+                      <strong className="as-stat-value">{currentGivenSwap.acceptedOn}</strong>
+                    </div>
+                    <div className="as-stat-item">
+                      <span className="as-stat-label">Expected By</span>
+                      <strong className="as-stat-value">{currentGivenSwap.expectedBy}</strong>
+                    </div>
+                    <div className="as-stat-item">
+                      <span className="as-stat-label">Submission Status</span>
+                      <strong className="as-stat-value as-status-text--waiting">
+                        ● {currentGivenSwap.submissionStatus}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* HIGHLIGHTED CALLOUT BOX */}
+                  <div className="as-callout-box">
+                    <div className="as-callout-title">Waiting for submission</div>
+                    <p className="as-callout-text">
+                      “{currentGivenSwap.participant.name} has accepted your swap. You’re waiting for her to submit the agreed work.”
+                    </p>
+                  </div>
+
+                  {/* ABOUT THIS SWAP */}
+                  <div className="as-detail-section">
+                    <h4 className="as-section-subheading">About This Swap</h4>
+                    <p className="as-section-body-text">{currentGivenSwap.aboutSwap}</p>
+                  </div>
+
+                  {/* WHAT HAPPENS NEXT */}
+                  <div className="as-detail-section">
+                    <h4 className="as-section-subheading">What Happens Next?</h4>
+                    <p className="as-section-body-text">{currentGivenSwap.whatHappensNext}</p>
+                  </div>
+
+                  {/* MAJOR ACTION BUTTONS */}
+                  <div className="as-detail-actions-row">
+                    {currentGivenSwap.submissionStatus === 'Completed' ? (
+                      <span className="as-status-badge as-status-badge--large as-status-badge--completed">
+                        ✓ Swap Completed & Credits Settled
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="as-btn as-btn--primary"
+                        disabled={isMutating}
+                        onClick={() => handleApproveGivenSwap(currentGivenSwap)}
+                      >
+                        {isMutating ? 'Settling...' : 'Approve Work & Transfer Credits'}
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="as-btn as-btn--secondary"
+                      onClick={() => handleOpenChat(currentGivenSwap.participant, currentGivenSwap.title)}
+                    >
+                      Start Chat
+                    </button>
+
+                    <button
+                      type="button"
+                      className="as-btn as-btn--outline"
+                      onClick={() => setSelectedGivenDetailsModal(currentGivenSwap)}
+                    >
+                      View Details
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="as-detail-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
+                  <p style={{ color: 'var(--text-secondary)' }}>No given swaps available.</p>
+                </div>
+              )
             )}
           </section>
         </div>
