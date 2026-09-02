@@ -19,6 +19,18 @@
   user-select: none;
 }
 
+.mobile-credit-btn {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .mobile-credit-btn {
+    display: inline-flex;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.825rem;
+  }
+}
+
 [data-theme='dark'] .nav-credit-indicator-btn {
   background: linear-gradient(135deg, rgba(255, 184, 0, 0.15) 0%, rgba(255, 138, 0, 0.22) 100%);
   border-color: rgba(255, 184, 0, 0.45);
@@ -129,24 +141,72 @@
 
 .credit-tx-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 0.9rem;
+  flex-direction: column;
+  padding: 0.85rem 1rem;
   background: var(--card-bg, #f8fafc);
   border: 1px solid var(--shell-border, rgba(17, 22, 28, 0.08));
   border-radius: 10px;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
 }
 
 [data-theme='dark'] .credit-tx-item {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.credit-tx-item--interactive {
+  cursor: pointer;
+}
+
+.credit-tx-item--interactive:hover {
+  border-color: rgba(255, 184, 0, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.credit-tx-main-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
 .credit-tx-left {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.35rem;
   flex: 1;
+}
+
+.credit-tx-details {
+  margin-top: 0.25rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--shell-border, rgba(17, 22, 28, 0.12));
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.775rem;
+}
+
+.credit-tx-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.credit-tx-detail-label {
+  color: var(--text-muted, #64748b);
+  font-weight: 500;
+}
+
+.credit-tx-detail-value {
+  font-family: monospace;
+  color: var(--text-color, #11161c);
+  background: var(--shell-border, rgba(17, 22, 28, 0.05));
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  word-break: break-all;
 }
 
 .credit-tx-badge {
@@ -229,6 +289,29 @@
 
 @media (max-width: 540px) {
   .credit-summary-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .credit-history-modal {
+    padding: 1.15rem 1rem;
+  }
+
+  .credit-stat-card {
+    padding: 0.65rem 0.75rem;
+  }
+
+  .credit-stat-value {
+    font-size: 1.1rem;
+  }
+
+  .credit-tx-main-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+
+  .credit-tx-right {
+    align-items: flex-start;
   }
 }
