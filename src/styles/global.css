@@ -718,6 +718,7 @@ a:focus-visible { outline: 3px solid #d6a64a; outline-offset: 5px; }
 .site-header, .brand, .main-nav, .hero, .hero-actions, .action-button { display: flex; align-items: center; }
 .site-header { justify-content: space-between; gap: 1.5rem; position: relative; }
 .header-right-group { display: flex; align-items: center; gap: 0.75rem; }
+.auth-user-menu { display: flex; align-items: center; gap: 0.5rem; }
 
 .mobile-hamburger {
   display: none;
