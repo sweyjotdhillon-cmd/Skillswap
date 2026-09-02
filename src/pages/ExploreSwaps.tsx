@@ -3,22 +3,9 @@ import { Navbar } from '../components/navigation/Navbar';
 import { HeroVisual } from '../components/hero/HeroVisual';
 import { useAuth } from '../context/AuthContext';
 import { getOpenSwaps, acceptCreditSwap, type SwapRecord } from '../lib/supabase/credits';
+import { mapSwapRecordToSwap, type Swap } from '../types/swap';
 
-export interface Swap {
-  id: string;
-  personName: string;
-  avatar: string;
-  rating: number;
-  needSkill: string;
-  description: string;
-  offerSkill?: string;
-  skillCredits: number;
-  category: string;
-}
-
-export interface ExtendedSwap extends Swap {
-  isReal?: boolean;
-}
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 
 const CATEGORIES = [
   'All',
@@ -50,16 +37,16 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  const [swaps, setSwaps] = useState<ExtendedSwap[]>([]);
+  const [swaps, setSwaps] = useState<Swap[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAccepting, setIsAccepting] = useState(false);
 
   // Modal states
-  const [selectedSwapForAccept, setSelectedSwapForAccept] = useState<ExtendedSwap | null>(null);
+  const [selectedSwapForAccept, setSelectedSwapForAccept] = useState<Swap | null>(null);
   const [requestSent, setRequestSent] = useState(false);
   const [acceptError, setAcceptError] = useState<string | null>(null);
 
-  const [selectedSwapForChat, setSelectedSwapForChat] = useState<ExtendedSwap | null>(null);
+  const [selectedSwapForChat, setSelectedSwapForChat] = useState<Swap | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
 
@@ -71,22 +58,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
     try {
       const realRecords: SwapRecord[] = await getOpenSwaps();
       if (realRecords && realRecords.length > 0) {
-        const mappedReal: ExtendedSwap[] = realRecords.map((r) => {
-          const authorName = r.requester_profile?.full_name || 'SkillSwapper';
-          const authorAvatar = r.requester_profile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
-          return {
-            id: r.id,
-            isReal: true,
-            needSkill: r.topic,
-            offerSkill: 'Skill Exchange',
-            description: r.description,
-            personName: authorName,
-            avatar: authorAvatar,
-            rating: 5.0,
-            skillCredits: r.credit_amount,
-            category: 'Coding',
-          };
-        });
+        const mappedReal: Swap[] = realRecords.map(mapSwapRecordToSwap);
         setSwaps(mappedReal);
       } else {
         setSwaps([]);
@@ -122,16 +94,20 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   };
 
   const filteredSwaps = swaps.filter((swap) => {
+    const categoryLower = selectedCategory.toLowerCase();
     const matchesCategory =
-      selectedCategory === 'All' || swap.category.toLowerCase() === selectedCategory.toLowerCase();
+      selectedCategory === 'All' ||
+      swap.topic.toLowerCase().includes(categoryLower) ||
+      swap.description.toLowerCase().includes(categoryLower);
+
     const query = searchTerm.toLowerCase().trim();
+    const requesterName = (swap.requesterProfile?.fullName || swap.requesterProfile?.username || '').toLowerCase();
     const matchesSearch =
       !query ||
-      swap.needSkill.toLowerCase().includes(query) ||
+      swap.topic.toLowerCase().includes(query) ||
       swap.description.toLowerCase().includes(query) ||
-      (swap.offerSkill && swap.offerSkill.toLowerCase().includes(query)) ||
-      swap.personName.toLowerCase().includes(query) ||
-      swap.category.toLowerCase().includes(query);
+      requesterName.includes(query);
+
     return matchesCategory && matchesSearch;
   });
 
@@ -142,7 +118,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
       {
         id: '1',
         sender: 'other',
-        text: `Hi! I saw you're interested in my listing for ${swap.needSkill}. How can I help?`,
+        text: `Hi! I saw you're interested in my listing for ${swap.topic}. How can I help?`,
         time: 'Just now',
       },
     ]);
@@ -183,6 +159,16 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
         return current;
       });
     }, 1000);
+  };
+
+  const getRequesterName = (swap: Swap) => {
+    if (swap.requesterProfile?.fullName) return swap.requesterProfile.fullName;
+    if (swap.requesterProfile?.username) return `@${swap.requesterProfile.username}`;
+    return 'SkillSwap Member';
+  };
+
+  const getRequesterAvatar = (swap: Swap) => {
+    return swap.requesterProfile?.avatarUrl || DEFAULT_AVATAR;
   };
 
   return (
@@ -274,54 +260,59 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
             </div>
           ) : filteredSwaps.length > 0 ? (
             <div className="swaps-grid">
-              {filteredSwaps.map((swap) => (
-                <div key={swap.id} className="swap-card">
-                  <div className="swap-card-main">
-                    <div className="swap-card-need-section">
-                      <img src={swap.avatar} alt={swap.personName} className="swap-avatar" />
-                      <div className="swap-need-details">
-                        <h3 className="swap-need-title">{swap.needSkill}</h3>
-                        <p className="swap-description">{swap.description}</p>
+              {filteredSwaps.map((swap) => {
+                const requesterName = getRequesterName(swap);
+                const requesterAvatar = getRequesterAvatar(swap);
+
+                return (
+                  <div key={swap.id} className="swap-card">
+                    <div className="swap-card-main">
+                      <div className="swap-card-need-section">
+                        <img src={requesterAvatar} alt={requesterName} className="swap-avatar" />
+                        <div className="swap-need-details">
+                          <h3 className="swap-need-title">{swap.topic}</h3>
+                          <p className="swap-description">{swap.description}</p>
+                        </div>
+                      </div>
+
+                      <div className="swap-credits-badge">
+                        <div className="sc-icon-circle">
+                          <span className="sc-symbol">⚡</span>
+                          <span className="sc-amount">{swap.creditAmount}</span>
+                        </div>
+                        <span className="sc-text-label">SkillCredits</span>
                       </div>
                     </div>
 
-                    <div className="swap-credits-badge">
-                      <div className="sc-icon-circle">
-                        <span className="sc-symbol">⚡</span>
-                        <span className="sc-amount">{swap.skillCredits}</span>
+                    <div className="swap-card-footer">
+                      <div className="swap-user-info">
+                        <span className="swap-user-name">{requesterName}</span>
                       </div>
-                      <span className="sc-text-label">SkillCredits</span>
+
+                      <div className="swap-card-actions">
+                        <button
+                          type="button"
+                          className="swap-btn swap-btn--primary"
+                          onClick={() => {
+                            setSelectedSwapForAccept(swap);
+                            setRequestSent(false);
+                            setAcceptError(null);
+                          }}
+                        >
+                          Accept Swap
+                        </button>
+                        <button
+                          type="button"
+                          className="swap-btn swap-btn--secondary"
+                          onClick={() => handleOpenChat(swap)}
+                        >
+                          Chat
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="swap-card-footer">
-                    <div className="swap-user-info">
-                      <span className="swap-user-name">{swap.personName}</span>
-                      <span className="swap-rating">★ {swap.rating}</span>
-                    </div>
-
-                    <div className="swap-card-actions">
-                      <button
-                        type="button"
-                        className="swap-btn swap-btn--primary"
-                        onClick={() => {
-                          setSelectedSwapForAccept(swap);
-                          setRequestSent(false);
-                        }}
-                      >
-                        Accept Swap
-                      </button>
-                      <button
-                        type="button"
-                        className="swap-btn swap-btn--secondary"
-                        onClick={() => handleOpenChat(swap)}
-                      >
-                        Chat
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : swaps.length === 0 ? (
             <div className="swaps-empty-state">
@@ -341,7 +332,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                 <line x1="8" y1="11" x2="14" y2="11" />
               </svg>
               <h3>No swaps found.</h3>
-              <p>Try another skill or category.</p>
+              <p>Try another search query or category.</p>
               <button
                 type="button"
                 className="reset-filter-btn"
@@ -367,10 +358,10 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                 <div className="modal-swap-details">
                   <div className="modal-detail-row">
                     <span className="modal-label">You’re accepting:</span>
-                    <strong>{selectedSwapForAccept.needSkill}</strong>
+                    <strong>{selectedSwapForAccept.topic}</strong>
                   </div>
                   <div className="modal-detail-user">
-                    <span>Offered by:</span> {selectedSwapForAccept.personName} • {selectedSwapForAccept.skillCredits} SkillCredits
+                    <span>Offered by:</span> {getRequesterName(selectedSwapForAccept)} • {selectedSwapForAccept.creditAmount} SkillCredits
                   </div>
                 </div>
 
@@ -394,25 +385,21 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                     className="modal-btn modal-btn--confirm"
                     disabled={isAccepting}
                     onClick={async () => {
-                      if (selectedSwapForAccept.isReal) {
-                        if (!user) {
-                          setAcceptError('Please log in to accept swaps.');
-                          return;
-                        }
-                        setIsAccepting(true);
-                        setAcceptError(null);
-                        const res = await acceptCreditSwap(selectedSwapForAccept.id);
-                        setIsAccepting(false);
-                        if (!res.success) {
-                          setAcceptError(res.error || 'Failed to accept swap.');
-                          return;
-                        }
-                        await refreshAccount();
-                        await loadRealOpenSwaps();
-                        setRequestSent(true);
-                      } else {
-                        setRequestSent(true);
+                      if (!user) {
+                        setAcceptError('Please log in to accept swaps.');
+                        return;
                       }
+                      setIsAccepting(true);
+                      setAcceptError(null);
+                      const res = await acceptCreditSwap(selectedSwapForAccept.id);
+                      setIsAccepting(false);
+                      if (!res.success) {
+                        setAcceptError(res.error || 'Failed to accept swap.');
+                        return;
+                      }
+                      await refreshAccount();
+                      await loadRealOpenSwaps();
+                      setRequestSent(true);
                     }}
                   >
                     {isAccepting ? 'Accepting...' : 'Confirm Accept Swap'}
@@ -424,7 +411,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                 <div className="success-icon-badge">✓</div>
                 <h3 className="modal-title">Swap Accepted!</h3>
                 <p className="modal-subtext">
-                  You are now paired with <strong>{selectedSwapForAccept.personName}</strong> for this skill exchange.
+                  You are now paired with <strong>{getRequesterName(selectedSwapForAccept)}</strong> for this skill exchange.
                 </p>
                 <button
                   type="button"
@@ -448,11 +435,11 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
           <div className="modal-content chat-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="chat-modal-header">
               <div className="chat-user-header-info">
-                <img src={selectedSwapForChat.avatar} alt={selectedSwapForChat.personName} className="chat-avatar" />
+                <img src={getRequesterAvatar(selectedSwapForChat)} alt={getRequesterName(selectedSwapForChat)} className="chat-avatar" />
                 <div>
-                  <h3 className="chat-title">Chat with {selectedSwapForChat.personName}</h3>
+                  <h3 className="chat-title">Chat with {getRequesterName(selectedSwapForChat)}</h3>
                   <p className="chat-subtitle">
-                    {selectedSwapForChat.needSkill}
+                    {selectedSwapForChat.topic}
                   </p>
                 </div>
               </div>

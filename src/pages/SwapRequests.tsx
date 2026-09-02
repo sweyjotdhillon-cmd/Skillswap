@@ -7,6 +7,9 @@ import {
   cancelCreditSwap,
   type SwapRecord,
 } from '../lib/supabase/credits';
+import { mapSwapRecordToSwap, type Swap } from '../types/swap';
+
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 
 export interface UserInfo {
   name: string;
@@ -15,6 +18,7 @@ export interface UserInfo {
   avatar: string;
 }
 
+/** UI presentation view model for received requests tab */
 export interface ReceivedRequest {
   id: string;
   isReal?: boolean;
@@ -26,6 +30,7 @@ export interface ReceivedRequest {
   status: 'Pending' | 'Accepted' | 'Declined' | 'Cancelled';
 }
 
+/** UI presentation view model for sent requests tab */
 export interface SentRequest {
   id: string;
   isReal?: boolean;
@@ -166,17 +171,18 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
     try {
       const records: SwapRecord[] = await getUserSwaps(user.id);
       if (records) {
+        const canonicalSwaps: Swap[] = records.map(mapSwapRecordToSwap);
         const received: ReceivedRequest[] = [];
         const sent: SentRequest[] = [];
 
-        records.forEach((swap) => {
-          const isSent = swap.requester_id === user.id;
-          const partnerProfile = isSent ? swap.participant_profile : swap.requester_profile;
-          const partnerName = partnerProfile?.full_name || (isSent ? 'Open Swap Participant' : 'Community Member');
-          const partnerRole = partnerProfile?.username ? `@${partnerProfile.username}` : 'SkillSwapper';
-          const partnerAvatar = partnerProfile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
+        canonicalSwaps.forEach((swap) => {
+          const isSent = swap.requesterId === user.id;
+          const partnerProfile = isSent ? swap.participantProfile : swap.requesterProfile;
+          const partnerName = partnerProfile?.fullName || (isSent ? 'Open Swap Participant' : (partnerProfile?.username ? `@${partnerProfile.username}` : 'SkillSwap Member'));
+          const partnerRole = partnerProfile?.username ? `@${partnerProfile.username}` : 'SkillSwap Member';
+          const partnerAvatar = partnerProfile?.avatarUrl || DEFAULT_AVATAR;
 
-          const formattedDate = new Date(swap.created_at).toLocaleDateString(undefined, {
+          const formattedDate = new Date(swap.createdAt).toLocaleDateString(undefined, {
             month: 'short',
             day: 'numeric',
           });
@@ -203,7 +209,7 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
                 avatar: partnerAvatar,
               },
               skillWanted: swap.topic,
-              creditsOffered: swap.credit_amount,
+              creditsOffered: swap.creditAmount,
               message: swap.description,
               sentAt: `Created ${formattedDate}`,
               status: statusMap[swap.status] || 'Pending',
@@ -219,7 +225,7 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
                 avatar: partnerAvatar,
               },
               skillWanted: swap.topic,
-              creditsOffered: swap.credit_amount,
+              creditsOffered: swap.creditAmount,
               message: swap.description,
               receivedAt: `Received ${formattedDate}`,
               status: statusMap[swap.status] || 'Pending',
@@ -344,7 +350,7 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
             {/* User Avatar */}
             <div className="sr-avatar-wrapper" title="Your Profile">
               <img
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80"
+                src={DEFAULT_AVATAR}
                 alt="Your avatar"
                 className="sr-user-avatar"
               />
@@ -644,10 +650,6 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
                 Member of SkillSwap community. Passionate about sharing skills and growing through peer-to-peer exchanges.
               </p>
               <div className="sr-modal-stats">
-                <div>
-                  <strong>Rating</strong>
-                  <span>★ 4.9 (18 swaps)</span>
-                </div>
                 <div>
                   <strong>Response Time</strong>
                   <span>&lt; 2 hours</span>
