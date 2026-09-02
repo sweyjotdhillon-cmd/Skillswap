@@ -7,6 +7,9 @@ import {
   completeCreditSwap,
   type SwapRecord,
 } from '../lib/supabase/credits';
+import { mapSwapRecordToSwap, type Swap } from '../types/swap';
+
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 
 export interface SwapParticipant {
   name: string;
@@ -17,6 +20,7 @@ export interface SwapParticipant {
   bio?: string;
 }
 
+/** Presentation view model for an accepted swap where user delivers work */
 export interface AcceptedSwap {
   id: string;
   isReal?: boolean;
@@ -36,6 +40,7 @@ export interface AcceptedSwap {
   submittedFiles?: string[];
 }
 
+/** Presentation view model for a given swap where user created request and offers credits */
 export interface GivenSwap {
   id: string;
   isReal?: boolean;
@@ -61,7 +66,6 @@ const INITIAL_ACCEPTED_SWAPS: AcceptedSwap[] = [
       name: 'Alex Sharma',
       location: 'Mumbai, India',
       avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
-      rating: '4.9',
       swapsCompleted: 14,
       bio: 'Senior Video Producer & Editor with over 5 years of experience in Premiere Pro and After Effects.',
     },
@@ -82,7 +86,6 @@ const INITIAL_ACCEPTED_SWAPS: AcceptedSwap[] = [
       name: 'Neha Verma',
       location: 'Bengaluru, India',
       avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-      rating: '5.0',
       swapsCompleted: 22,
       bio: 'Lead Product Designer passionate about design systems, accessibility, and interactive Figma prototypes.',
     },
@@ -103,7 +106,6 @@ const INITIAL_ACCEPTED_SWAPS: AcceptedSwap[] = [
       name: 'Rohit Patel',
       location: 'Delhi, India',
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-      rating: '4.8',
       swapsCompleted: 9,
       bio: 'SEO Strategist & Organic Growth Consultant helping creators and SaaS platforms scale search traffic.',
     },
@@ -127,7 +129,6 @@ const INITIAL_GIVEN_SWAPS: GivenSwap[] = [
       name: 'Priya Singh',
       location: 'Pune, India',
       avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-      rating: '4.9',
       swapsCompleted: 11,
       bio: 'Full-stack enthusiast expanding skills in backend development and data structures.',
     },
@@ -148,7 +149,6 @@ const INITIAL_GIVEN_SWAPS: GivenSwap[] = [
       name: 'Arjun Mehta',
       location: 'Hyderabad, India',
       avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-      rating: '4.7',
       swapsCompleted: 7,
       bio: 'Growth Marketer specializing in organic social media management and community building.',
     },
@@ -211,18 +211,20 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     try {
       const records: SwapRecord[] = await getUserSwaps(user.id);
       if (records) {
+        const canonicalSwaps: Swap[] = records.map(mapSwapRecordToSwap);
         const accepted: AcceptedSwap[] = [];
         const given: GivenSwap[] = [];
 
-        records.forEach((swap) => {
+        canonicalSwaps.forEach((swap) => {
           if (['open', 'cancelled', 'declined', 'withdrawn', 'expired'].includes(swap.status)) return;
 
-          const isRequester = swap.requester_id === user.id;
-          const partnerProfile = isRequester ? swap.participant_profile : swap.requester_profile;
-          const partnerName = partnerProfile?.full_name || 'SkillSwapper';
-          const partnerAvatar = partnerProfile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
+          const isRequester = swap.requesterId === user.id;
+          const partnerProfile = isRequester ? swap.participantProfile : swap.requesterProfile;
+          const partnerName = partnerProfile?.fullName || (partnerProfile?.username ? `@${partnerProfile.username}` : 'SkillSwap Member');
+          const partnerAvatar = partnerProfile?.avatarUrl || DEFAULT_AVATAR;
+          const partnerLocation = partnerProfile?.username ? `@${partnerProfile.username}` : 'SkillSwap Member';
 
-          const createdDate = new Date(swap.created_at).toLocaleDateString(undefined, {
+          const createdDate = new Date(swap.createdAt).toLocaleDateString(undefined, {
             month: 'short',
             day: 'numeric',
             year: 'numeric',
@@ -238,13 +240,12 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
               isReal: true,
               participant: {
                 name: partnerName,
-                location: 'SkillSwap Community',
+                location: partnerLocation,
                 avatar: partnerAvatar,
-                rating: '4.9',
               },
               title: swap.topic,
               description: swap.description,
-              credits: swap.credit_amount,
+              credits: swap.creditAmount,
               startedOn: createdDate,
               deadline: 'Flexible',
               progress,
@@ -263,13 +264,12 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
               isReal: true,
               participant: {
                 name: partnerName,
-                location: 'SkillSwap Community',
+                location: partnerLocation,
                 avatar: partnerAvatar,
-                rating: '4.9',
               },
               title: swap.topic,
               description: swap.description,
-              creditsOffered: swap.credit_amount,
+              creditsOffered: swap.creditAmount,
               acceptedOn: createdDate,
               expectedBy: 'Flexible',
               submissionStatus,
@@ -999,13 +999,15 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
             <div className="sr-modal-body">
               <p className="sr-modal-bio">{selectedProfileModal.bio || 'Active SkillSwap participant.'}</p>
               <div className="sr-modal-stats">
-                <div>
-                  <strong>Rating</strong>
-                  <span>★ {selectedProfileModal.rating || '4.9'}</span>
-                </div>
+                {selectedProfileModal.rating && (
+                  <div>
+                    <strong>Rating</strong>
+                    <span>★ {selectedProfileModal.rating}</span>
+                  </div>
+                )}
                 <div>
                   <strong>Swaps Completed</strong>
-                  <span>{selectedProfileModal.swapsCompleted || 10}+ exchanges</span>
+                  <span>{selectedProfileModal.swapsCompleted || 0} exchanges</span>
                 </div>
               </div>
             </div>
