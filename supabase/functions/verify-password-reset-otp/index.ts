@@ -1,14 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('origin') || '*';
-  return {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-}
+import { handleCors } from '../_shared/cors.ts';
 
 async function hashString(data: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -19,10 +11,9 @@ async function hashString(data: string): Promise<string> {
 }
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
-
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  const { corsHeaders, errorResponse } = handleCors(req);
+  if (errorResponse) {
+    return errorResponse;
   }
 
   try {
@@ -56,87 +47,30 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch active unexpired, unused challenge
-    const { data: challenges, error: fetchErr } = await supabase
-      .from('password_reset_challenges')
-      .select('*')
-      .eq('email', cleanEmail)
-      .is('used_at', null)
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (fetchErr || !challenges || challenges.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'EXPIRED_OTP', message: 'Verification code has expired or is invalid. Please request a new code.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const challenge = challenges[0];
-
-    // Check expiration
-    if (new Date(challenge.expires_at).getTime() < Date.now()) {
-      return new Response(
-        JSON.stringify({ error: 'EXPIRED_OTP', message: 'That code has expired. Please request a new code.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Check attempts limit
-    if (challenge.attempt_count >= challenge.max_attempts) {
-      return new Response(
-        JSON.stringify({ error: 'TOO_MANY_ATTEMPTS', message: 'Maximum attempts exceeded. Please request a new verification code.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Hash supplied OTP and compare securely
     const suppliedOtpHash = await hashString(cleanOtp);
-
-    if (suppliedOtpHash !== challenge.otp_hash) {
-      const newAttemptCount = challenge.attempt_count + 1;
-      const isMaxedOut = newAttemptCount >= challenge.max_attempts;
-
-      await supabase
-        .from('password_reset_challenges')
-        .update({
-          attempt_count: newAttemptCount,
-          used_at: isMaxedOut ? new Date().toISOString() : null,
-        })
-        .eq('id', challenge.id);
-
-      if (isMaxedOut) {
-        return new Response(
-          JSON.stringify({ error: 'TOO_MANY_ATTEMPTS', message: 'Maximum attempts exceeded. Please request a new verification code.' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      return new Response(
-        JSON.stringify({ error: 'INCORRECT_OTP', message: 'That code is incorrect. Please try again.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Generate short-lived recovery token (10 min)
     const recoveryToken = crypto.randomUUID();
     const recoveryTokenHash = await hashString(recoveryToken);
     const tokenExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-    // Store token hash in challenge and mark OTP phase as verified
-    const { error: updateErr } = await supabase
-      .from('password_reset_challenges')
-      .update({
-        recovery_token_hash: recoveryTokenHash,
-        token_expires_at: tokenExpiresAt,
-      })
-      .eq('id', challenge.id);
+    const { data: rpcRes, error: rpcErr } = await supabase.rpc('verify_password_reset_otp_atomic', {
+      p_email: cleanEmail,
+      p_supplied_otp_hash: suppliedOtpHash,
+      p_recovery_token_hash: recoveryTokenHash,
+      p_token_expires_at: tokenExpiresAt,
+    });
 
-    if (updateErr) {
-      console.error('Error updating challenge recovery token:', updateErr);
+    if (rpcErr) {
+      console.error('RPC verify_password_reset_otp_atomic error:', rpcErr);
       return new Response(
         JSON.stringify({ error: 'SERVER_ERROR', message: 'Failed to complete verification step.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!rpcRes.success) {
+      return new Response(
+        JSON.stringify({ error: rpcRes.error_code || 'INVALID_OTP', message: rpcRes.message || 'Verification failed.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -150,9 +84,8 @@ serve(async (req) => {
     );
   } catch (err: unknown) {
     console.error('Unexpected error in verify-password-reset-otp:', err);
-    const msg = (err as Error)?.message || 'An unexpected error occurred.';
     return new Response(
-      JSON.stringify({ error: 'SERVER_ERROR', message: msg }),
+      JSON.stringify({ error: 'SERVER_ERROR', message: 'An unexpected error occurred.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

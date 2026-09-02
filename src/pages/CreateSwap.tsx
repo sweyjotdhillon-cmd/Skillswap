@@ -36,12 +36,12 @@ type CreateSwapPageProps = {
 };
 
 export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
-  const DRAFT_KEY = 'skillswap_create_swap_draft';
-  const { account, refreshAccount } = useAuth();
+  const { user, account, refreshAccount } = useAuth();
+  const draftKey = user ? `skillswap_create_swap_draft_${user.id}` : 'skillswap_create_swap_draft_guest';
 
   const [formState, setFormState] = useState<CreateSwapFormState>(() => {
     try {
-      const saved = localStorage.getItem(DRAFT_KEY);
+      const saved = localStorage.getItem(draftKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
@@ -72,7 +72,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'info'; text: string } | null>(() => {
     try {
-      const saved = localStorage.getItem(DRAFT_KEY);
+      const saved = localStorage.getItem(draftKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         const hasContent = Boolean(
@@ -147,7 +147,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         requirements: formState.requirements.trim(),
         additionalMessage: formState.additionalMessage.trim(),
       };
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+      localStorage.setItem(draftKey, JSON.stringify(draftData));
       setStatusMessage({ type: 'info', text: 'Draft saved locally to browser storage!' });
     } catch {
       setStatusMessage({ type: 'info', text: 'Failed to save draft locally.' });
@@ -184,7 +184,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       await refreshAccount();
 
       try {
-        localStorage.removeItem(DRAFT_KEY);
+        localStorage.removeItem(draftKey);
       } catch {
         // ignore
       }

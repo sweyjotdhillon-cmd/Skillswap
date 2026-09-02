@@ -1,14 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('origin') || '*';
-  return {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-}
+import { handleCors } from '../_shared/cors.ts';
 
 async function hashString(data: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -19,10 +11,9 @@ async function hashString(data: string): Promise<string> {
 }
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
-
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  const { corsHeaders, errorResponse } = handleCors(req);
+  if (errorResponse) {
+    return errorResponse;
   }
 
   try {
@@ -63,34 +54,28 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 1. Find matching challenge by recovery_token_hash
-    const { data: challenges, error: fetchErr } = await supabase
-      .from('password_reset_challenges')
-      .select('*')
-      .eq('email', cleanEmail)
-      .eq('recovery_token_hash', tokenHash)
-      .is('used_at', null)
-      .limit(1);
+    // Atomically claim and consume the single-use recovery token in PostgreSQL
+    const { data: claimRes, error: claimErr } = await supabase.rpc('claim_password_reset_recovery_token', {
+      p_email: cleanEmail,
+      p_token_hash: tokenHash,
+    });
 
-    if (fetchErr || !challenges || challenges.length === 0) {
+    if (claimErr) {
+      console.error('RPC claim_password_reset_recovery_token error:', claimErr);
       return new Response(
-        JSON.stringify({ error: 'INVALID_TOKEN', message: 'Recovery authorization is invalid or has already been used.' }),
+        JSON.stringify({ error: 'SERVER_ERROR', message: 'Failed to authorize recovery token.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!claimRes.success) {
+      return new Response(
+        JSON.stringify({ error: claimRes.error_code || 'INVALID_TOKEN', message: claimRes.message || 'Recovery authorization is invalid.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const challenge = challenges[0];
-
-    // Confirm recovery token is unexpired
-    if (!challenge.token_expires_at || new Date(challenge.token_expires_at).getTime() < Date.now()) {
-      return new Response(
-        JSON.stringify({ error: 'TOKEN_EXPIRED', message: 'Recovery authorization has expired. Please verify code again.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Identify user ID
-    let userId = challenge.user_id;
+    let userId = claimRes.user_id;
 
     if (!userId) {
       try {
@@ -121,7 +106,7 @@ serve(async (req) => {
       );
     }
 
-    // 3. Update password using server-side admin API
+    // Update password using server-side admin API
     const { error: updatePasswordErr } = await supabase.auth.admin.updateUserById(userId, {
       password: newPassword,
       email_confirm: true,
@@ -135,12 +120,6 @@ serve(async (req) => {
       );
     }
 
-    // 4. Mark challenge as consumed (used_at)
-    await supabase
-      .from('password_reset_challenges')
-      .update({ used_at: new Date().toISOString() })
-      .eq('id', challenge.id);
-
     return new Response(
       JSON.stringify({
         success: true,
@@ -150,9 +129,8 @@ serve(async (req) => {
     );
   } catch (err: unknown) {
     console.error('Unexpected error in complete-password-reset:', err);
-    const msg = (err as Error)?.message || 'An unexpected error occurred.';
     return new Response(
-      JSON.stringify({ error: 'SERVER_ERROR', message: msg }),
+      JSON.stringify({ error: 'SERVER_ERROR', message: 'An unexpected error occurred.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
