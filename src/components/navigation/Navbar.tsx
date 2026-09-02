@@ -67,6 +67,8 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
     }
   };
 
+  const displayedBalance = accountLoading ? '—' : account ? account.credits_balance : '0';
+
   return (
     <>
       <header className="site-header">
@@ -91,34 +93,34 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
         <div className="header-right-group">
           {user ? (
             <>
-              {/* Compact Credit Indicator for Mobile Header */}
+              {/* Compact SkillCredit Control for Mobile Header */}
               <button
                 type="button"
                 className="nav-credit-indicator-btn mobile-credit-btn"
                 onClick={() => setCreditModalOpen(true)}
-                title="Click to view Credit History & Account details"
-                aria-label={`Credit balance: ${accountLoading ? 'loading' : account ? account.credits_balance : 'unavailable'}`}
+                title="View Credit Account & History"
+                aria-label={`SkillCredit balance: ${displayedBalance}. Click to view history.`}
               >
-                <span className="nav-credit-icon">⚡</span>
-                <span className="nav-credit-amount">
-                  {accountLoading ? '...' : account ? account.credits_balance : '—'}
+                <span className="nav-credit-icon-badge" aria-hidden="true">⚡</span>
+                <span className="nav-credit-content-group">
+                  <span className="nav-credit-amount">{displayedBalance}</span>
                 </span>
               </button>
 
               <div className="auth-user-menu desktop-user-menu" style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                {/* Live Credit Indicator Pill */}
+                {/* Premium SkillCredit Control Pill for Desktop */}
                 <button
                   type="button"
                   className="nav-credit-indicator-btn"
                   onClick={() => setCreditModalOpen(true)}
-                  title="Click to view Credit History & Account details"
-                  aria-label={`Credit balance: ${accountLoading ? 'loading' : account ? account.credits_balance : 'unavailable'}`}
+                  title="View Credit Account & History"
+                  aria-label={`SkillCredit balance: ${displayedBalance}. Click to view history.`}
                 >
-                  <span className="nav-credit-icon">⚡</span>
-                  <span className="nav-credit-amount">
-                    {accountLoading ? '...' : account ? account.credits_balance : '—'}
+                  <span className="nav-credit-icon-badge" aria-hidden="true">⚡</span>
+                  <span className="nav-credit-content-group">
+                    <span className="nav-credit-amount">{displayedBalance}</span>
+                    <span className="nav-credit-label">SkillCredits</span>
                   </span>
-                  <span className="nav-credit-label">Credits</span>
                 </button>
 
                 <a
@@ -266,11 +268,11 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                           setCreditModalOpen(true);
                         }}
                       >
-                        <span className="nav-credit-icon">⚡</span>
-                        <span className="nav-credit-amount">
-                          {accountLoading ? '...' : account ? account.credits_balance : '—'}
+                        <span className="nav-credit-icon-badge" aria-hidden="true">⚡</span>
+                        <span className="nav-credit-content-group">
+                          <span className="nav-credit-amount">{displayedBalance}</span>
+                          <span className="nav-credit-label">SkillCredits</span>
                         </span>
-                        <span className="nav-credit-label">Credits</span>
                       </button>
                     </div>
                   </div>

@@ -27,7 +27,7 @@ export function SwapPreviewCard({ formState }: SwapPreviewCardProps) {
             <span className="credit-val">
               +{formState.credits ? formState.credits : '0'}
             </span>
-            <span className="credit-unit">SC</span>
+            <span className="credit-unit">SkillCredits</span>
           </div>
         </div>
 

@@ -101,7 +101,7 @@ export function HeroVisual() {
       {/* Center SC Core Badge */}
       <div className="credit-core" aria-label="SkillCredits: Value flows. Skills grow.">
         <div className="credit-initials-wrapper">
-          <span className="credit-initials">SC</span>
+          <span className="credit-initials">⚡</span>
         </div>
         <strong>SkillCredits</strong>
         <small>Value flows.<br />Skills grow.</small>
