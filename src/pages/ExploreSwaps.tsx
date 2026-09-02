@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { HeroVisual } from '../components/hero/HeroVisual';
 import { useAuth } from '../context/AuthContext';
-import { getOpenSwaps, acceptCreditSwap, type SwapRecord } from '../lib/supabase/credits';
+import { getOpenSwaps, acceptCreditSwap } from '../lib/supabase/credits';
 import { mapSwapRecordToSwap, type Swap } from '../types/swap';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
@@ -39,6 +39,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
   const [swaps, setSwaps] = useState<Swap[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
 
   // Modal states
@@ -55,16 +56,21 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
   const loadRealOpenSwaps = useCallback(async () => {
     setIsLoading(true);
+    setFetchError(null);
     try {
-      const realRecords: SwapRecord[] = await getOpenSwaps();
-      if (realRecords && realRecords.length > 0) {
-        const mappedReal: Swap[] = realRecords.map(mapSwapRecordToSwap);
+      const res = await getOpenSwaps();
+      if (res.error) {
+        setFetchError(res.error);
+        setSwaps([]);
+      } else if (res.data && res.data.length > 0) {
+        const mappedReal: Swap[] = res.data.map(mapSwapRecordToSwap);
         setSwaps(mappedReal);
       } else {
         setSwaps([]);
       }
     } catch (err) {
       console.error('Error loading real open swaps:', err);
+      setFetchError('Failed to load open swaps.');
       setSwaps([]);
     } finally {
       setIsLoading(false);
@@ -258,6 +264,23 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
             <div className="swaps-empty-state">
               <p>Loading available swaps...</p>
             </div>
+          ) : fetchError ? (
+            <div className="swaps-empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="empty-icon">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <h3>Unable to load open swaps</h3>
+              <p style={{ color: 'var(--error-color, #ef4444)', margin: '0.5rem 0 1rem' }}>{fetchError}</p>
+              <button
+                type="button"
+                className="reset-filter-btn"
+                onClick={loadRealOpenSwaps}
+              >
+                Retry
+              </button>
+            </div>
           ) : filteredSwaps.length > 0 ? (
             <div className="swaps-grid">
               {filteredSwaps.map((swap) => {
@@ -294,9 +317,15 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                           type="button"
                           className="swap-btn swap-btn--primary"
                           onClick={() => {
-                            setSelectedSwapForAccept(swap);
-                            setRequestSent(false);
-                            setAcceptError(null);
+                            if (user && user.id === swap.requesterId) {
+                              setSelectedSwapForAccept(swap);
+                              setRequestSent(false);
+                              setAcceptError('You cannot accept your own swap request.');
+                            } else {
+                              setSelectedSwapForAccept(swap);
+                              setRequestSent(false);
+                              setAcceptError(null);
+                            }
                           }}
                         >
                           Accept Swap
@@ -383,10 +412,14 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                   <button
                     type="button"
                     className="modal-btn modal-btn--confirm"
-                    disabled={isAccepting}
+                    disabled={isAccepting || Boolean(user && user.id === selectedSwapForAccept.requesterId)}
                     onClick={async () => {
                       if (!user) {
                         setAcceptError('Please log in to accept swaps.');
+                        return;
+                      }
+                      if (user.id === selectedSwapForAccept.requesterId) {
+                        setAcceptError('You cannot accept your own swap request.');
                         return;
                       }
                       setIsAccepting(true);
@@ -397,6 +430,8 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                         setAcceptError(res.error || 'Failed to accept swap.');
                         return;
                       }
+                      const acceptedSwapId = selectedSwapForAccept.id;
+                      setSwaps((prev) => prev.filter((s) => s.id !== acceptedSwapId));
                       await refreshAccount();
                       await loadRealOpenSwaps();
                       setRequestSent(true);

@@ -153,10 +153,15 @@ export async function cancelCreditSwap(swapId: string): Promise<CreditOperationR
   };
 }
 
+export interface GetOpenSwapsResult {
+  data: SwapRecord[];
+  error?: string;
+}
+
 /** Fetches open swaps for the explore catalog. */
-export async function getOpenSwaps(): Promise<SwapRecord[]> {
+export async function getOpenSwaps(): Promise<GetOpenSwapsResult> {
   const supabase = getSupabaseBrowserClient();
-  if (!supabase) return [];
+  if (!supabase) return { data: [], error: 'Supabase client is unavailable.' };
   try {
     const { data, error } = await supabase
       .from('swaps')
@@ -169,12 +174,12 @@ export async function getOpenSwaps(): Promise<SwapRecord[]> {
 
     if (error) {
       console.error('Error fetching open swaps:', error);
-      return [];
+      return { data: [], error: formatFriendlyErrorMessage(error) };
     }
-    return (data || []) as SwapRecord[];
+    return { data: (data || []) as SwapRecord[] };
   } catch (err) {
     console.error('Unexpected error fetching open swaps:', err);
-    return [];
+    return { data: [], error: formatFriendlyErrorMessage(err) };
   }
 }
 
