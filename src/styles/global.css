@@ -854,6 +854,31 @@ h1 span { color: #a8781d; }
 .ecosystem { position: relative; flex: 1 1 58%; min-height: 610px; }
 .exchange-loop { position: absolute; inset: 0; width: 100%; height: 100%; }
 
+/* --- Hero raster image (SkillCredits ecosystem artwork) ---
+   Renders the original PNG at 1:1 fidelity inside the same .ecosystem
+   slot the old inline-SVG used, so the desktop / tablet / mobile flex
+   sizing above still applies. */
+.ecosystem--image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+.ecosystem-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 640px;
+  max-height: 100%;
+  object-fit: contain;
+  -webkit-user-select: none;
+  user-select: none;
+  filter: drop-shadow(0 12px 28px rgba(120, 90, 30, 0.08));
+}
+[data-theme='dark'] .ecosystem-image {
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.35));
+}
+
 .credit-core { position: absolute; left: 53%; top: 50%; transform: translate(-50%,-50%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.45rem; color: #b2822a; z-index: 8; }
 .credit-initials-wrapper {
   width: 110px;
@@ -930,6 +955,8 @@ h1 span { color: #a8781d; }
   .hero-actions { flex-direction: column; align-items: stretch; }
   .action-button { width: 100%; }
   .ecosystem { min-height: 430px; transform: scale(.92); transform-origin: center top; margin-bottom: -2rem; }
+  .ecosystem--image { transform: none; min-height: 0; margin-bottom: 0; padding: 0 4%; }
+  .ecosystem-image { max-width: 460px; margin: 0 auto; }
   .person--two em { left: -84px; top: 72px; }
   .mvp-note { margin-top: 0; }
 }
@@ -939,6 +966,8 @@ h1 span { color: #a8781d; }
   .header-cta { font-size: .78rem; }
   .hero-copy { padding-top: 3rem; }
   .ecosystem { min-height: 360px; transform: scale(.78); width: 128%; margin-left: -14%; }
+  .ecosystem--image { transform: none; width: 100%; margin-left: 0; min-height: 0; padding: 0 6%; }
+  .ecosystem-image { max-width: 360px; }
 }
 
 /* Header User Actions */
