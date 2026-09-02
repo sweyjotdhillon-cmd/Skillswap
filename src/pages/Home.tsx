@@ -167,7 +167,7 @@ export function Home({ onNavigate }: HomeProps) {
                 </div>
                 <div className="swap-credit-badge">
                   <span className="credit-val">+{swap.credits}</span>
-                  <span className="credit-unit">SC</span>
+                  <span className="credit-unit">SkillCredits</span>
                 </div>
               </div>
 

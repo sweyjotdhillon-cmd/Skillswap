@@ -651,7 +651,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                 <div className="as-stats-row">
                   <div className="as-stat-item">
                     <span className="as-stat-label">Credits</span>
-                    <strong className="as-stat-value">{currentAcceptedSwap.credits} SC</strong>
+                    <strong className="as-stat-value">{currentAcceptedSwap.credits} SkillCredits</strong>
                   </div>
                   <div className="as-stat-item">
                     <span className="as-stat-label">Started On</span>
@@ -764,7 +764,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                 <div className="as-stats-row">
                   <div className="as-stat-item">
                     <span className="as-stat-label">Credits Offered</span>
-                    <strong className="as-stat-value">{currentGivenSwap.creditsOffered} SC</strong>
+                    <strong className="as-stat-value">{currentGivenSwap.creditsOffered} SkillCredits</strong>
                   </div>
                   <div className="as-stat-item">
                     <span className="as-stat-label">Accepted On</span>
@@ -1049,7 +1049,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
               </div>
               <div className="sr-detail-row">
                 <span>Credits Offered:</span>
-                <strong>{selectedGivenDetailsModal.creditsOffered} SC</strong>
+                <strong>{selectedGivenDetailsModal.creditsOffered} SkillCredits</strong>
               </div>
               <div className="sr-detail-row">
                 <span>Accepted Date:</span>

@@ -265,7 +265,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
                     <div className="swap-credits-badge">
                       <div className="sc-icon-circle">
-                        <span className="sc-symbol">SC</span>
+                        <span className="sc-symbol">⚡</span>
                         <span className="sc-amount">{swap.skillCredits}</span>
                       </div>
                       <span className="sc-text-label">SkillCredits</span>
