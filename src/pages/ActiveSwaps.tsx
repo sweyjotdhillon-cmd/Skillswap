@@ -914,12 +914,13 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                 <button
                   type="button"
                   className="modal-btn modal-btn--cancel"
+                  disabled={isMutating}
                   onClick={() => setIsSubmitWorkModalOpen(false)}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="modal-btn modal-btn--confirm">
-                  Confirm Submission
+                <button type="submit" className="modal-btn modal-btn--confirm" disabled={isMutating}>
+                  {isMutating ? 'Submitting...' : 'Confirm Submission'}
                 </button>
               </div>
             </form>

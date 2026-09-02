@@ -70,6 +70,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const activeIdempotencyKeyRef = useRef<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'info'; text: string } | null>(() => {
     try {
       const saved = localStorage.getItem(draftKey);
@@ -162,6 +163,9 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
     e.preventDefault();
     if (validate() && formState.chatPermission) {
       setIsSubmitting(true);
+      if (!activeIdempotencyKeyRef.current) {
+        activeIdempotencyKeyRef.current = `swap_create:${crypto.randomUUID()}`;
+      }
       const amount = parseInt(formState.credits, 10);
       const res = await createCreditSwap({
         topic: formState.topic.trim(),
@@ -170,6 +174,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         chatPermission: formState.chatPermission === 'permission' ? 'requester' : 'anyone',
         creditAmount: amount,
         additionalMessage: formState.additionalMessage.trim(),
+        idempotencyKey: activeIdempotencyKeyRef.current,
       });
 
       if (!res.success) {
@@ -188,6 +193,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       } catch {
         // ignore
       }
+      activeIdempotencyKeyRef.current = null;
       setStatusMessage({
         type: 'success',
         text: `Swap listing created and ${amount} credits reserved.`,

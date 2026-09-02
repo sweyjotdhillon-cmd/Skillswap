@@ -46,6 +46,7 @@ export interface SwapRecord {
   chat_permission: 'requester' | 'participant' | 'anyone';
   credit_amount: number;
   status: 'open' | 'accepted' | 'submitted' | 'completed' | 'cancelled' | 'declined' | 'withdrawn' | 'expired';
+  idempotency_key?: string | null;
   submitted_at: string | null;
   completed_at: string | null;
   cancelled_at: string | null;
