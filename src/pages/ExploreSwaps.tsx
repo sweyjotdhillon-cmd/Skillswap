@@ -1,9 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { HeroVisual } from '../components/hero/HeroVisual';
-import { MOCK_SWAPS, Swap } from '../data/mockSwaps';
 import { useAuth } from '../context/AuthContext';
 import { getOpenSwaps, acceptCreditSwap, type SwapRecord } from '../lib/supabase/credits';
+
+export interface Swap {
+  id: string;
+  personName: string;
+  avatar: string;
+  rating: number;
+  needSkill: string;
+  description: string;
+  offerSkill?: string;
+  skillCredits: number;
+  category: string;
+}
 
 export interface ExtendedSwap extends Swap {
   isReal?: boolean;
@@ -39,7 +50,8 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  const [swaps, setSwaps] = useState<ExtendedSwap[]>(MOCK_SWAPS);
+  const [swaps, setSwaps] = useState<ExtendedSwap[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isAccepting, setIsAccepting] = useState(false);
 
   // Modal states
@@ -55,6 +67,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   const isMountedRef = useRef(true);
 
   const loadRealOpenSwaps = useCallback(async () => {
+    setIsLoading(true);
     try {
       const realRecords: SwapRecord[] = await getOpenSwaps();
       if (realRecords && realRecords.length > 0) {
@@ -74,10 +87,15 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
             category: 'Coding',
           };
         });
-        setSwaps([...mappedReal, ...MOCK_SWAPS]);
+        setSwaps(mappedReal);
+      } else {
+        setSwaps([]);
       }
     } catch (err) {
       console.error('Error loading real open swaps:', err);
+      setSwaps([]);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -250,7 +268,11 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
           </div>
 
           {/* Swaps Grid */}
-          {filteredSwaps.length > 0 ? (
+          {isLoading ? (
+            <div className="swaps-empty-state">
+              <p>Loading available swaps...</p>
+            </div>
+          ) : filteredSwaps.length > 0 ? (
             <div className="swaps-grid">
               {filteredSwaps.map((swap) => (
                 <div key={swap.id} className="swap-card">
@@ -300,6 +322,16 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                   </div>
                 </div>
               ))}
+            </div>
+          ) : swaps.length === 0 ? (
+            <div className="swaps-empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="empty-icon">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                <line x1="8" y1="11" x2="14" y2="11" />
+              </svg>
+              <h3>No open swaps available.</h3>
+              <p>Be the first to create a swap request!</p>
             </div>
           ) : (
             <div className="swaps-empty-state">
