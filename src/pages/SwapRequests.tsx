@@ -21,7 +21,6 @@ export interface UserInfo {
 /** UI presentation view model for received requests tab */
 export interface ReceivedRequest {
   id: string;
-  isReal?: boolean;
   user: UserInfo;
   skillWanted: string;
   creditsOffered: number;
@@ -33,7 +32,6 @@ export interface ReceivedRequest {
 /** UI presentation view model for sent requests tab */
 export interface SentRequest {
   id: string;
-  isReal?: boolean;
   user: UserInfo;
   skillWanted: string;
   creditsOffered: number;
@@ -42,96 +40,6 @@ export interface SentRequest {
   status: 'Pending' | 'Accepted' | 'Declined' | 'Cancelled';
 }
 
-const INITIAL_RECEIVED_REQUESTS: ReceivedRequest[] = [
-  {
-    id: 'rec-1',
-    user: {
-      name: 'Aarav Sharma',
-      role: 'UI Designer',
-      location: 'Chandigarh',
-      avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
-    },
-    skillWanted: 'Video Editing',
-    creditsOffered: 20,
-    message: 'Hey! I’m trying to improve my video editing for my YouTube channel. I can help you learn Python basics in return.',
-    receivedAt: 'Received 2 hours ago',
-    status: 'Pending',
-  },
-  {
-    id: 'rec-2',
-    user: {
-      name: 'Mehak Kapoor',
-      role: 'Graphic Designer',
-      location: 'Mumbai',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    },
-    skillWanted: 'Content Writing',
-    creditsOffered: 15,
-    message: 'I’d love to improve my writing skills while helping you with graphic design.',
-    receivedAt: 'Received 5 hours ago',
-    status: 'Pending',
-  },
-  {
-    id: 'rec-3',
-    user: {
-      name: 'Rohan Verma',
-      role: 'Photographer',
-      location: 'Jaipur',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    },
-    skillWanted: 'Public Speaking',
-    creditsOffered: 25,
-    message: 'I can help you get started with photography while you help me become more confident speaking.',
-    receivedAt: 'Received 1 day ago',
-    status: 'Pending',
-  },
-];
-
-const INITIAL_SENT_REQUESTS: SentRequest[] = [
-  {
-    id: 'sent-1',
-    user: {
-      name: 'Priya Mehta',
-      role: 'Python Developer',
-      location: 'Delhi',
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-    },
-    skillWanted: 'Python',
-    creditsOffered: 15,
-    message: 'I’d love to learn the fundamentals of Python from you. I can help you improve your UI/UX design skills in return.',
-    sentAt: 'Sent yesterday',
-    status: 'Pending',
-  },
-  {
-    id: 'sent-2',
-    user: {
-      name: 'Kabir Singh',
-      role: 'Photographer',
-      location: 'Jaipur',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    },
-    skillWanted: 'Photography',
-    creditsOffered: 20,
-    message: 'I want to improve my photography skills. I can help you grow your social media presence and strategy.',
-    sentAt: 'Sent 2 days ago',
-    status: 'Accepted',
-  },
-  {
-    id: 'sent-3',
-    user: {
-      name: 'Ananya Gupta',
-      role: 'Musician',
-      location: 'Bangalore',
-      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
-    },
-    skillWanted: 'Guitar',
-    creditsOffered: 10,
-    message: 'I’m excited to learn guitar from you. I can help you with video editing for your projects.',
-    sentAt: 'Sent 3 days ago',
-    status: 'Declined',
-  },
-];
-
 type SwapRequestsPageProps = {
   onNavigate?: (path: string) => void;
 };
@@ -139,8 +47,8 @@ type SwapRequestsPageProps = {
 export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
   const { user, account, refreshAccount } = useAuth();
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received');
-  const [receivedRequests, setReceivedRequests] = useState<ReceivedRequest[]>(INITIAL_RECEIVED_REQUESTS);
-  const [sentRequests, setSentRequests] = useState<SentRequest[]>(INITIAL_SENT_REQUESTS);
+  const [receivedRequests, setReceivedRequests] = useState<ReceivedRequest[]>([]);
+  const [sentRequests, setSentRequests] = useState<SentRequest[]>([]);
 
   const [actionPendingId, setActionPendingId] = useState<string | null>(null);
 
@@ -177,8 +85,10 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
 
         canonicalSwaps.forEach((swap) => {
           const isSent = swap.requesterId === user.id;
+          const isReceived = swap.participantId === user.id;
+
           const partnerProfile = isSent ? swap.participantProfile : swap.requesterProfile;
-          const partnerName = partnerProfile?.fullName || (isSent ? 'Open Swap Participant' : (partnerProfile?.username ? `@${partnerProfile.username}` : 'SkillSwap Member'));
+          const partnerName = partnerProfile?.fullName || (partnerProfile?.username ? `@${partnerProfile.username}` : (isSent ? 'Open Swap Participant' : 'SkillSwap Member'));
           const partnerRole = partnerProfile?.username ? `@${partnerProfile.username}` : 'SkillSwap Member';
           const partnerAvatar = partnerProfile?.avatarUrl || DEFAULT_AVATAR;
 
@@ -201,7 +111,6 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
           if (isSent) {
             sent.push({
               id: swap.id,
-              isReal: true,
               user: {
                 name: partnerName,
                 role: partnerRole,
@@ -214,10 +123,9 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
               sentAt: `Created ${formattedDate}`,
               status: statusMap[swap.status] || 'Pending',
             });
-          } else {
+          } else if (isReceived) {
             received.push({
               id: swap.id,
-              isReal: true,
               user: {
                 name: partnerName,
                 role: partnerRole,
@@ -251,67 +159,51 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
     const target = receivedRequests.find((r) => r.id === id);
     if (!target || actionPendingId) return;
 
-    if (target.isReal) {
-      setActionPendingId(id);
-      const res = await acceptCreditSwap(id);
-      setActionPendingId(null);
-      if (!res.success) {
-        showToast(res.error || 'Failed to accept swap request.');
-        return;
-      }
-      await refreshAccount();
-      await loadRealSwaps();
-      showToast(`Accepted swap request from ${target.user.name}! Swap is now active.`);
-    } else {
-      setReceivedRequests((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, status: 'Accepted' } : r))
-      );
-      showToast(`(Demo) Accepted swap request from ${target.user.name}!`);
+    setActionPendingId(id);
+    const res = await acceptCreditSwap(id);
+    setActionPendingId(null);
+
+    if (!res.success) {
+      showToast(res.error || 'Failed to accept swap request.');
+      return;
     }
+    await refreshAccount();
+    await loadRealSwaps();
+    showToast(`Accepted swap request from ${target.user.name}! Swap is now active.`);
   };
 
   const handleDeclineReceived = async (id: string) => {
     const target = receivedRequests.find((r) => r.id === id);
     if (!target || actionPendingId) return;
 
-    if (target.isReal) {
-      setActionPendingId(id);
-      const res = await cancelCreditSwap(id);
-      setActionPendingId(null);
-      if (!res.success) {
-        showToast(res.error || 'Failed to decline request.');
-        return;
-      }
-      await refreshAccount();
-      await loadRealSwaps();
-      showToast(`Declined swap request from ${target.user.name}.`);
-    } else {
-      setReceivedRequests((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, status: 'Declined' } : r))
-      );
-      showToast(`(Demo) Declined swap request from ${target.user.name}.`);
+    setActionPendingId(id);
+    const res = await cancelCreditSwap(id);
+    setActionPendingId(null);
+
+    if (!res.success) {
+      showToast(res.error || 'Failed to decline request.');
+      return;
     }
+    await refreshAccount();
+    await loadRealSwaps();
+    showToast(`Declined swap request from ${target.user.name}.`);
   };
 
   const handleCancelSent = async (id: string) => {
     const target = sentRequests.find((r) => r.id === id);
     if (!target || actionPendingId) return;
 
-    if (target.isReal) {
-      setActionPendingId(id);
-      const res = await cancelCreditSwap(id);
-      setActionPendingId(null);
-      if (!res.success) {
-        showToast(res.error || 'Failed to cancel swap request.');
-        return;
-      }
-      await refreshAccount();
-      await loadRealSwaps();
-      showToast(`Cancelled swap request sent to ${target.user.name}. Reserved credits released.`);
-    } else {
-      setSentRequests((prev) => prev.filter((r) => r.id !== id));
-      showToast(`(Demo) Cancelled swap request sent to ${target.user.name}.`);
+    setActionPendingId(id);
+    const res = await cancelCreditSwap(id);
+    setActionPendingId(null);
+
+    if (!res.success) {
+      showToast(res.error || 'Failed to cancel swap request.');
+      return;
     }
+    await refreshAccount();
+    await loadRealSwaps();
+    showToast(`Cancelled swap request sent to ${target.user.name}. Reserved credits released.`);
   };
 
   const activeReceivedCount = receivedRequests.filter((r) => r.status === 'Pending').length;
@@ -333,18 +225,17 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
           </div>
 
           <div className="header-right">
-            {/* Notification Icon with Red Badge */}
+            {/* Notification Icon */}
             <button
               type="button"
               className="sr-icon-btn"
               aria-label="Notifications"
-              onClick={() => showToast('You have 2 unread notifications.')}
+              onClick={() => showToast('Notification center is active.')}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="sr-header-icon">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
-              <span className="sr-notif-badge" aria-hidden="true" />
             </button>
 
             {/* User Avatar */}
@@ -421,96 +312,96 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
                 </div>
               ) : (
                 receivedRequests.map((req) => (
-                <div key={req.id} className={`sr-card ${req.status !== 'Pending' ? 'sr-card--handled' : ''}`}>
-                  {/* CARD HEADER */}
-                  <div className="sr-card-header">
-                    <div className="sr-user-info">
-                      <img src={req.user.avatar} alt={req.user.name} className="sr-card-avatar" />
-                      <div className="sr-user-meta">
-                        <h3 className="sr-user-name">{req.user.name}</h3>
-                        <p className="sr-user-role">{req.user.role} • {req.user.location}</p>
+                  <div key={req.id} className={`sr-card ${req.status !== 'Pending' ? 'sr-card--handled' : ''}`}>
+                    {/* CARD HEADER */}
+                    <div className="sr-card-header">
+                      <div className="sr-user-info">
+                        <img src={req.user.avatar} alt={req.user.name} className="sr-card-avatar" />
+                        <div className="sr-user-meta">
+                          <h3 className="sr-user-name">{req.user.name}</h3>
+                          <p className="sr-user-role">{req.user.role} • {req.user.location}</p>
+                        </div>
+                      </div>
+
+                      <div className="sr-header-time-status">
+                        <span className="sr-timestamp">{req.receivedAt}</span>
                       </div>
                     </div>
 
-                    <div className="sr-header-time-status">
-                      <span className="sr-timestamp">{req.receivedAt}</span>
-                    </div>
-                  </div>
+                    {/* EXCHANGE SECTION */}
+                    <div className="sr-exchange-grid">
+                      <div className="sr-exchange-box">
+                        <span className="sr-exchange-label">They want to learn</span>
+                        <strong className="sr-exchange-skill">{req.skillWanted}</strong>
+                      </div>
 
-                  {/* EXCHANGE SECTION */}
-                  <div className="sr-exchange-grid">
-                    <div className="sr-exchange-box">
-                      <span className="sr-exchange-label">They want to learn</span>
-                      <strong className="sr-exchange-skill">{req.skillWanted}</strong>
+                      <div className="sr-exchange-arrow-box" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="sr-exchange-arrow-icon">
+                          <path d="M7 16V4M7 4L3 8M7 4l4 4" />
+                          <path d="M17 8v12M17 20l4-4M17 20l-4-4" />
+                        </svg>
+                      </div>
+
+                      <div className="sr-exchange-box">
+                        <span className="sr-exchange-label">They are offering</span>
+                        <strong className="sr-exchange-credits">{req.creditsOffered} Credits</strong>
+                      </div>
                     </div>
 
-                    <div className="sr-exchange-arrow-box" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="sr-exchange-arrow-icon">
-                        <path d="M7 16V4M7 4L3 8M7 4l4 4" />
-                        <path d="M17 8v12M17 20l4-4M17 20l-4-4" />
+                    {/* MESSAGE QUOTE CONTAINER */}
+                    <div className="sr-quote-container">
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="sr-quote-icon" aria-hidden="true">
+                        <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
                       </svg>
+                      <p className="sr-quote-text">“{req.message}”</p>
                     </div>
 
-                    <div className="sr-exchange-box">
-                      <span className="sr-exchange-label">They are offering</span>
-                      <strong className="sr-exchange-credits">{req.creditsOffered} Credits</strong>
+                    {/* ACTIONS BAR */}
+                    <div className="sr-card-footer">
+                      <div className="sr-left-actions">
+                        {req.status === 'Pending' ? (
+                          <>
+                            <button
+                              type="button"
+                              className="sr-btn sr-btn--accept"
+                              disabled={actionPendingId === req.id}
+                              onClick={() => handleAcceptReceived(req.id)}
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="sr-btn-icon">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                              {actionPendingId === req.id ? 'Processing...' : 'Accept'}
+                            </button>
+                            <button
+                              type="button"
+                              className="sr-btn sr-btn--decline"
+                              disabled={actionPendingId === req.id}
+                              onClick={() => handleDeclineReceived(req.id)}
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="sr-btn-icon">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                              </svg>
+                              {actionPendingId === req.id ? 'Processing...' : 'Decline'}
+                            </button>
+                          </>
+                        ) : (
+                          <span className={`sr-status-pill sr-status-pill--${req.status.toLowerCase()}`}>
+                            {req.status === 'Accepted' ? '✓ Accepted' : '× Declined'}
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        className="sr-btn sr-btn--link"
+                        onClick={() => setSelectedProfile(req.user)}
+                      >
+                        View Profile
+                      </button>
                     </div>
                   </div>
-
-                  {/* MESSAGE QUOTE CONTAINER */}
-                  <div className="sr-quote-container">
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="sr-quote-icon" aria-hidden="true">
-                      <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
-                    </svg>
-                    <p className="sr-quote-text">“{req.message}”</p>
-                  </div>
-
-                  {/* ACTIONS BAR */}
-                  <div className="sr-card-footer">
-                    <div className="sr-left-actions">
-                      {req.status === 'Pending' ? (
-                        <>
-                          <button
-                            type="button"
-                            className="sr-btn sr-btn--accept"
-                            disabled={actionPendingId === req.id}
-                            onClick={() => handleAcceptReceived(req.id)}
-                          >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="sr-btn-icon">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                            {actionPendingId === req.id ? 'Processing...' : 'Accept'}
-                          </button>
-                          <button
-                            type="button"
-                            className="sr-btn sr-btn--decline"
-                            disabled={actionPendingId === req.id}
-                            onClick={() => handleDeclineReceived(req.id)}
-                          >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="sr-btn-icon">
-                              <line x1="18" y1="6" x2="6" y2="18" />
-                              <line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                            {actionPendingId === req.id ? 'Processing...' : 'Decline'}
-                          </button>
-                        </>
-                      ) : (
-                        <span className={`sr-status-pill sr-status-pill--${req.status.toLowerCase()}`}>
-                          {req.status === 'Accepted' ? '✓ Accepted' : '× Declined'}
-                        </span>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      className="sr-btn sr-btn--link"
-                      onClick={() => setSelectedProfile(req.user)}
-                    >
-                      View Profile
-                    </button>
-                  </div>
-                </div>
-              ))
+                ))
               )}
             </div>
           </section>
