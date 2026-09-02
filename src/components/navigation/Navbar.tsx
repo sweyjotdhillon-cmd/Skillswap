@@ -110,8 +110,9 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                 aria-label={`SkillCredit balance: ${displayedBalance}. Click to view history.`}
               >
                 <span className="nav-credit-icon-badge" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
-                    <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="13" height="13">
+                    <circle cx="12" cy="12" r="9" />
+                    <circle cx="12" cy="12" r="4" />
                   </svg>
                 </span>
                 <span className="nav-credit-content-group">
@@ -133,8 +134,9 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                   aria-label={`SkillCredit balance: ${displayedBalance}. Click to view history.`}
                 >
                   <span className="nav-credit-icon-badge" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
-                      <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+                      <circle cx="12" cy="12" r="9" />
+                      <circle cx="12" cy="12" r="4" />
                     </svg>
                   </span>
                   <span className="nav-credit-content-group">
@@ -292,8 +294,9 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                         }}
                       >
                         <span className="nav-credit-icon-badge" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
-                            <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+                            <circle cx="12" cy="12" r="9" />
+                            <circle cx="12" cy="12" r="4" />
                           </svg>
                         </span>
                         <span className="nav-credit-content-group">
