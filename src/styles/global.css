@@ -873,9 +873,15 @@ h1 span { color: #a8781d; }
   object-fit: contain;
   -webkit-user-select: none;
   user-select: none;
+  mix-blend-mode: multiply;
+  -webkit-mask-image: radial-gradient(ellipse at center, black 55%, transparent 95%);
+  mask-image: radial-gradient(ellipse at center, black 55%, transparent 95%);
   filter: drop-shadow(0 12px 28px rgba(120, 90, 30, 0.08));
 }
 [data-theme='dark'] .ecosystem-image {
+  mix-blend-mode: lighten;
+  -webkit-mask-image: radial-gradient(ellipse at center, black 55%, transparent 95%);
+  mask-image: radial-gradient(ellipse at center, black 55%, transparent 95%);
   filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.35));
 }
 
