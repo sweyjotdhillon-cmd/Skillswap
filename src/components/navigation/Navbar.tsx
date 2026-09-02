@@ -25,10 +25,6 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
   const activePath = currentPath || window.location.pathname;
   const { user, account, accountLoading, signOut } = useAuth();
 
-  // Demo user fallback when window.__DEMO_USER__ is set for playwright/verification preview
-  const isDemoUser = Boolean((window as unknown as Record<string, unknown>).__DEMO_USER__);
-  const effectiveUser = user || (isDemoUser ? ({ id: 'demo-user', email: 'demo@skillswap.io' } as unknown as typeof user) : null);
-
   // Accessibility & UX: Handle Escape key to close mobile drawer & body scroll lock
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -71,11 +67,7 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
     }
   };
 
-  const displayedBalance = accountLoading
-    ? (isDemoUser ? '100' : '—')
-    : account
-    ? account.credits_balance
-    : (isDemoUser ? '100' : '0');
+  const displayedBalance = accountLoading ? '—' : account ? account.credits_balance : '0';
 
   return (
     <>
@@ -99,7 +91,7 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
         </nav>
 
         <div className="header-right-group">
-          {effectiveUser ? (
+          {user ? (
             <>
               {/* Compact SkillCredit Control for Mobile Header */}
               <button
@@ -109,12 +101,6 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                 title="View Credit Account & History"
                 aria-label={`SkillCredit balance: ${displayedBalance}. Click to view history.`}
               >
-                <span className="nav-credit-icon-badge" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="13" height="13">
-                    <circle cx="12" cy="12" r="9" />
-                    <circle cx="12" cy="12" r="4" />
-                  </svg>
-                </span>
                 <span className="nav-credit-content-group">
                   <span className="nav-credit-label">SkillCredits</span>
                   <span className="nav-credit-amount">{displayedBalance}</span>
@@ -133,12 +119,6 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                   title="View Credit Account & History"
                   aria-label={`SkillCredit balance: ${displayedBalance}. Click to view history.`}
                 >
-                  <span className="nav-credit-icon-badge" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
-                      <circle cx="12" cy="12" r="9" />
-                      <circle cx="12" cy="12" r="4" />
-                    </svg>
-                  </span>
                   <span className="nav-credit-content-group">
                     <span className="nav-credit-label">SkillCredits</span>
                     <span className="nav-credit-amount">{displayedBalance}</span>
@@ -278,11 +258,11 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                   {item.label}
                 </a>
               ))}
-              {effectiveUser ? (
+              {user ? (
                 <>
                   <div className="mobile-drawer-user-info">
                     <span className="mobile-user-label">Signed in as</span>
-                    <strong className="mobile-user-email">{effectiveUser.email}</strong>
+                    <strong className="mobile-user-email">{user.email}</strong>
                     <div style={{ marginTop: '0.6rem' }}>
                       <button
                         type="button"
@@ -293,12 +273,6 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                           setCreditModalOpen(true);
                         }}
                       >
-                        <span className="nav-credit-icon-badge" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
-                            <circle cx="12" cy="12" r="9" />
-                            <circle cx="12" cy="12" r="4" />
-                          </svg>
-                        </span>
                         <span className="nav-credit-content-group">
                           <span className="nav-credit-label">SkillCredits</span>
                           <span className="nav-credit-amount">{displayedBalance}</span>

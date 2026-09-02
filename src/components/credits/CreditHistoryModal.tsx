@@ -130,9 +130,6 @@ export function CreditHistoryModal({ isOpen, onClose }: CreditHistoryModalProps)
         {/* A. HEADER */}
         <div className="credit-modal-header">
           <div className="credit-modal-header-left">
-            <div className="credit-brand-icon" aria-hidden="true">
-              ⚡
-            </div>
             <div className="credit-modal-title-group">
               <h2 id="credit-modal-title" className="credit-modal-title">
                 Credit Account
@@ -157,7 +154,6 @@ export function CreditHistoryModal({ isOpen, onClose }: CreditHistoryModalProps)
           <div className="credit-primary-balance-card">
             <span className="credit-balance-eyebrow">Available Balance</span>
             <div className="credit-balance-main-val">
-              <span className="credit-balance-symbol">⚡</span>
               <span className="credit-balance-number">
                 {accountLoading ? '—' : account ? account.credits_balance : '0'}
               </span>
