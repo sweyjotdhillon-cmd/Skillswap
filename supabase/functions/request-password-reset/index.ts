@@ -1,14 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('origin') || '*';
-  return {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-}
+import { handleCors } from '../_shared/cors.ts';
 
 async function hashString(data: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -26,10 +18,9 @@ function generateOTP(): string {
 }
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
-
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  const { corsHeaders, errorResponse } = handleCors(req);
+  if (errorResponse) {
+    return errorResponse;
   }
 
   try {
@@ -87,14 +78,14 @@ serve(async (req) => {
       if (rpcUser && rpcUser.length > 0) {
         matchedUser = rpcUser[0];
       }
-      } catch {
+    } catch {
       // Fallback to admin.listUsers if RPC function is unavailable
       let page = 1;
       const perPage = 100;
       while (!matchedUser && page <= 5) {
         const { data: userData } = await supabase.auth.admin.listUsers({ page, perPage });
         const users = userData?.users || [];
-          const found = users.find((u: { email?: string; id: string }) => u.email?.toLowerCase() === cleanEmail);
+        const found = users.find((u: { email?: string; id: string }) => u.email?.toLowerCase() === cleanEmail);
         if (found) {
           matchedUser = { id: found.id, email: found.email || cleanEmail };
           break;
@@ -210,9 +201,8 @@ serve(async (req) => {
     );
   } catch (err: unknown) {
     console.error('Unexpected error in request-password-reset:', err);
-    const msg = (err as Error)?.message || 'An unexpected error occurred.';
     return new Response(
-      JSON.stringify({ error: 'SERVER_ERROR', message: msg }),
+      JSON.stringify({ error: 'SERVER_ERROR', message: 'An unexpected error occurred.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

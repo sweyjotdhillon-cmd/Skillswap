@@ -214,6 +214,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    if (user) {
+      try {
+        localStorage.removeItem(`skillswap_create_swap_draft_${user.id}`);
+      } catch {
+        // ignore
+      }
+    }
+
     currentFetchUserIdRef.current = null;
     setUser(null);
     setSession(null);

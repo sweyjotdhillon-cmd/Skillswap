@@ -57,6 +57,7 @@ export async function runCreditSystemTests() {
     '009_secure_swap_credit_lifecycle.sql',
     '010_credit_system_idempotency_and_reconciliation.sql',
     '011_has_user_password_rpc.sql',
+    '012_atomic_password_reset_security.sql',
   ];
 
   for (const file of migrationFiles) {
