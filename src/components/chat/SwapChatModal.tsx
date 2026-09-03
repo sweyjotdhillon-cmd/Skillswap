@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getSupabaseBrowserClient } from '../../lib/supabase/client';
 import type { Swap, SwapMessage } from '../../types/swap';
+import { generateUUID } from '../../lib/uuid';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
@@ -174,7 +175,7 @@ export function SwapChatModal({
     const expiresAtTimestamp = now + TWENTY_FOUR_HOURS_MS;
 
     const newMessage: ChatMessagePayload = {
-      id: `msg_${crypto.randomUUID()}`,
+      id: `msg_${generateUUID()}`,
       swapId: swap.id,
       senderId: user.id,
       recipientId: recipientId,
