@@ -307,31 +307,50 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     setSubmitError(null);
     setIsMutating(true);
 
-    const res = await submitSwapWorkWithFiles({
-      swapId: currentAcceptedItem.swap.id,
-      notes: trimmedNotes,
-      files: submitWorkFiles,
-    });
+    try {
+      console.log('[SUBMISSION] handleSubmitWork triggered', {
+        swapId: currentAcceptedItem.swap.id,
+        notesLength: trimmedNotes.length,
+        fileCount: submitWorkFiles.length,
+      });
 
-    setIsMutating(false);
+      const res = await submitSwapWorkWithFiles({
+        swapId: currentAcceptedItem.swap.id,
+        notes: trimmedNotes,
+        files: submitWorkFiles,
+      });
 
-    if (!res.success) {
-      setSubmitError(res.error || 'Failed to submit work.');
-      return;
+      if (!res.success) {
+        console.error('[SUBMISSION] handleSubmitWork failed', res.error);
+        setSubmitError(res.error || 'Failed to submit work.');
+        return;
+      }
+
+      console.log('[SUBMISSION] submission record verified', { submissionId: res.submissionId });
+
+      await refreshAccount();
+      await loadRealActiveSwaps();
+
+      console.log('[SUBMISSION] UI state updated');
+      setIsSubmitWorkModalOpen(false);
+      setSubmitWorkNotes('');
+      setSubmitWorkFiles([]);
+      setSubmitError(null);
+
+      setSubmitSuccessToast(`Work submitted for "${currentAcceptedItem.swap.topic}"! Waiting for requester review.`);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => {
+        if (isMountedRef.current) setSubmitSuccessToast(null);
+      }, 5000);
+
+      console.log('[SUBMISSION] submission completed');
+    } catch (err) {
+      console.error('[SUBMISSION] unexpected error in handleSubmitWork', err);
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred while submitting work.';
+      setSubmitError(errorMessage);
+    } finally {
+      setIsMutating(false);
     }
-
-    await refreshAccount();
-    await loadRealActiveSwaps();
-    setIsSubmitWorkModalOpen(false);
-    setSubmitWorkNotes('');
-    setSubmitWorkFiles([]);
-    setSubmitError(null);
-
-    setSubmitSuccessToast(`Work submitted for "${currentAcceptedItem.swap.topic}"! Waiting for requester review.`);
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => {
-      if (isMountedRef.current) setSubmitSuccessToast(null);
-    }, 5000);
   };
 
   const handleApproveGivenSwap = async (item: ActiveSwapItem) => {

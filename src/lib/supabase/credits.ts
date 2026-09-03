@@ -118,13 +118,22 @@ const ALLOWED_FILE_EXTENSIONS = new Set([
 
 /** Uploads attached files to Supabase Storage and executes the atomic submit_swap_work RPC with rollback cleanup on failure. */
 export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promise<{ success: boolean; submissionId?: string; error?: string }> {
+  console.log('[SUBMISSION] submit started', { swapId: input.swapId, fileCount: input.files?.length || 0 });
+
   const supabase = getSupabaseBrowserClient();
-  if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
+  if (!supabase) {
+    console.error('[SUBMISSION] failure: Supabase client unavailable');
+    return { success: false, error: 'Supabase client is unavailable.' };
+  }
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'You must be logged in to submit work.' };
+  if (!user) {
+    console.error('[SUBMISSION] failure: user not logged in');
+    return { success: false, error: 'You must be logged in to submit work.' };
+  }
 
   if (!input.swapId) {
+    console.error('[SUBMISSION] failure: missing swap ID');
     return { success: false, error: 'Swap ID is required.' };
   }
 
@@ -132,12 +141,16 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
   const fileCount = input.files ? input.files.length : 0;
 
   if (cleanNotes.length === 0 && fileCount === 0) {
+    console.warn('[SUBMISSION] validation failed: empty notes and no files');
     return { success: false, error: 'Submission must contain notes or at least one attachment.' };
   }
 
   if (input.files && input.files.length > 5) {
+    console.warn('[SUBMISSION] validation failed: exceeded max 5 files', { fileCount: input.files.length });
     return { success: false, error: 'Maximum 5 files allowed per submission.' };
   }
+
+  console.log('[SUBMISSION] validation passed', { cleanNotesLength: cleanNotes.length, fileCount });
 
   const uploadedPaths: string[] = [];
   const uploadedFileMetadata: Array<{ storage_path: string; file_name: string; mime_type: string; file_size: number }> = [];
@@ -145,42 +158,47 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
   if (input.files && input.files.length > 0) {
     for (const file of input.files) {
       if (file.size > 25 * 1024 * 1024) {
+        console.error('[SUBMISSION] file validation failed: size exceeds 25MB', { fileName: file.name, fileSize: file.size });
         return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
       }
 
       const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
       if (!ALLOWED_FILE_EXTENSIONS.has(fileExt)) {
+        console.error('[SUBMISSION] file validation failed: unsupported extension', { fileName: file.name, fileExt });
         return { success: false, error: `File "${file.name}" has unsupported extension .${fileExt}. Allowed extensions: PDF, ZIP, PNG, JPG, WEBP, TXT, DOC, DOCX, CSV, XLSX, MP4, JSON.` };
       }
 
       const safeFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
       const storagePath = `submissions/${input.swapId}/${user.id}/${crypto.randomUUID()}-${safeFileName}`;
 
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[Submission Upload Stage]', { swapId: input.swapId, userId: user.id, file: file.name, storagePath });
-      }
+      console.log(`[SUBMISSION] upload started: ${file.name}`, { storagePath, mimeType: file.type || 'application/octet-stream', size: file.size });
 
       const { error: uploadError } = await supabase.storage
         .from('swap-submissions')
         .upload(storagePath, file, { upsert: false });
 
       if (uploadError) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.error('[Submission Upload Stage Error]', { file: file.name, storagePath, error: uploadError.message });
-        }
+        console.error(`[SUBMISSION] upload failed: ${file.name}`, {
+          operationName: 'storage.upload',
+          errorMessage: uploadError.message,
+          errorDetails: uploadError,
+          swapId: input.swapId,
+          storagePath,
+        });
+
         // Clean up any files uploaded so far before returning error
         if (uploadedPaths.length > 0) {
           try {
             await supabase.storage.from('swap-submissions').remove(uploadedPaths);
+            console.log('[SUBMISSION] cleanup completed after upload failure', { uploadedPaths });
           } catch (cleanupErr) {
-            if (process.env.NODE_ENV !== 'production') {
-              console.error('[Submission Cleanup Stage Error]', { uploadedPaths, cleanupErr });
-            }
+            console.error('[SUBMISSION] cleanup failed after upload failure', { uploadedPaths, cleanupErr });
           }
         }
         return { success: false, error: `Failed to upload file "${file.name}": ${formatFriendlyErrorMessage(uploadError)}` };
       }
 
+      console.log(`[SUBMISSION] upload completed: ${storagePath}`);
       uploadedPaths.push(storagePath);
       uploadedFileMetadata.push({
         storage_path: storagePath,
@@ -191,6 +209,8 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
     }
   }
 
+  console.log('[SUBMISSION] submission RPC started', { swapId: input.swapId, cleanNotesLength: cleanNotes.length, filesCount: uploadedFileMetadata.length });
+
   const { data, error } = await supabase.rpc('submit_swap_work', {
     p_swap_id: input.swapId,
     p_notes: cleanNotes,
@@ -198,12 +218,22 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
   });
 
   if (error || !data) {
+    console.error('[SUBMISSION] submission RPC failed', {
+      operationName: 'rpc.submit_swap_work',
+      errorMessage: error?.message,
+      errorCode: error?.code,
+      errorDetails: error?.details,
+      errorHint: error?.hint,
+      swapId: input.swapId,
+    });
+
     // Rollback uploaded files on database transaction error
     if (uploadedPaths.length > 0) {
       try {
         await supabase.storage.from('swap-submissions').remove(uploadedPaths);
+        console.log('[SUBMISSION] cleanup completed after RPC error', { uploadedPaths });
       } catch (cleanupErr) {
-        console.error('Failed to clean up uploaded files on RPC error:', cleanupErr);
+        console.error('[SUBMISSION] cleanup failed after RPC error', { uploadedPaths, cleanupErr });
       }
     }
     return { success: false, error: formatFriendlyErrorMessage(error ?? new Error('Failed to submit swap work.')) };
@@ -211,16 +241,23 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
 
   const result = data as { success?: boolean; submission_id?: string; error?: string };
   if (!result.success) {
+    console.error('[SUBMISSION] submission RPC returned unsuccessful status', {
+      swapId: input.swapId,
+      resultError: result.error,
+    });
+
     if (uploadedPaths.length > 0) {
       try {
         await supabase.storage.from('swap-submissions').remove(uploadedPaths);
+        console.log('[SUBMISSION] cleanup completed after unsuccessful RPC result', { uploadedPaths });
       } catch (cleanupErr) {
-        console.error('Failed to clean up uploaded files on submission failure:', cleanupErr);
+        console.error('[SUBMISSION] cleanup failed after unsuccessful RPC result', { uploadedPaths, cleanupErr });
       }
     }
     return { success: false, error: result.error || 'Failed to record submission.' };
   }
 
+  console.log('[SUBMISSION] submission RPC completed', { submissionId: result.submission_id });
   return { success: true, submissionId: result.submission_id };
 }
 
