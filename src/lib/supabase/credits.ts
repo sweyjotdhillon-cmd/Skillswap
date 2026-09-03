@@ -154,20 +154,28 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
       }
 
       const safeFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
-      const storagePath = `${input.swapId}/${user.id}/${crypto.randomUUID()}-${safeFileName}`;
+      const storagePath = `submissions/${input.swapId}/${user.id}/${crypto.randomUUID()}-${safeFileName}`;
+
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[Submission Upload Stage]', { swapId: input.swapId, userId: user.id, file: file.name, storagePath });
+      }
 
       const { error: uploadError } = await supabase.storage
         .from('swap-submissions')
         .upload(storagePath, file, { upsert: false });
 
       if (uploadError) {
-        console.error('Storage upload error:', uploadError);
+        if (process.env.NODE_ENV !== 'production') {
+          console.error('[Submission Upload Stage Error]', { file: file.name, storagePath, error: uploadError.message });
+        }
         // Clean up any files uploaded so far before returning error
         if (uploadedPaths.length > 0) {
           try {
             await supabase.storage.from('swap-submissions').remove(uploadedPaths);
           } catch (cleanupErr) {
-            console.error('Failed to clean up uploaded files on error:', cleanupErr);
+            if (process.env.NODE_ENV !== 'production') {
+              console.error('[Submission Cleanup Stage Error]', { uploadedPaths, cleanupErr });
+            }
           }
         }
         return { success: false, error: `Failed to upload file "${file.name}": ${formatFriendlyErrorMessage(uploadError)}` };

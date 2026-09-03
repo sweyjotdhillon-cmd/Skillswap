@@ -107,6 +107,7 @@ export async function runCreditSystemTests() {
     '015_swap_expiry_and_submission_review_timeout.sql',
     '016_chat_rls_and_submission_fixes.sql',
     '018_submission_delivery_and_validation_fixes.sql',
+    '019_final_submission_flow_alignment.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -323,7 +324,7 @@ export async function runCreditSystemTests() {
     SELECT public.submit_swap_work(
       '${swap2Id}'::uuid,
       'Finished TS mentoring session and code sample repo.',
-      '[{"storage_path": "${swap2Id}/${userB}/code.zip", "file_name": "code.zip", "mime_type": "application/zip", "file_size": 10240}]'::jsonb
+      '[{"storage_path": "submissions/${swap2Id}/${userB}/code.zip", "file_name": "code.zip", "mime_type": "application/zip", "file_size": 10240}]'::jsonb
     );
   `);
   assert(submitRes.rows[0].submit_swap_work.success === true, 'Atomic submission succeeded');
@@ -897,7 +898,7 @@ export async function runCreditSystemTests() {
     SELECT public.submit_swap_work(
       '${swapSubZipId}'::uuid,
       '',
-      '[{"storage_path": "${swapSubZipId}/${userB}/test.zip", "file_name": "test.zip", "mime_type": "application/zip", "file_size": 2048}]'::jsonb
+      '[{"storage_path": "submissions/${swapSubZipId}/${userB}/test.zip", "file_name": "test.zip", "mime_type": "application/zip", "file_size": 2048}]'::jsonb
     );
   `);
   assert(zipSubRes.rows[0].submit_swap_work.success === true, 'Attachment-only zip submission succeeded');
@@ -926,6 +927,22 @@ export async function runCreditSystemTests() {
     assert((err as Error).message.includes('Submission must contain notes or at least one attachment'), 'Empty submission rejected with correct error message');
   }
   assert(errorCaught, 'Empty submission (no text, no files) was rejected by RPC');
+
+  // 14d: Invalid storage path (missing 'submissions/' prefix or wrong swap folder) -> MUST BE REJECTED
+  errorCaught = false;
+  try {
+    await db.query(`
+      SELECT public.submit_swap_work(
+        '${swapSubEmptyId}'::uuid,
+        'Notes with bad path',
+        '[{"storage_path": "invalid_folder/${swapSubEmptyId}/${userB}/bad.zip", "file_name": "bad.zip", "mime_type": "application/zip", "file_size": 1024}]'::jsonb
+      );
+    `);
+  } catch (err: unknown) {
+    errorCaught = true;
+    assert((err as Error).message.includes('Invalid storage path structure for submission'), 'Invalid path rejected with correct error message');
+  }
+  assert(errorCaught, 'Invalid storage path without submissions prefix rejected by RPC');
 
   console.log('  -> Submission delivery & validation rules verified cleanly!');
 
