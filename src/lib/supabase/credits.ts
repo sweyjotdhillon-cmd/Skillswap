@@ -108,7 +108,7 @@ export async function acceptCreditSwap(swapId: string): Promise<{ success: boole
 
 export interface SubmitSwapWorkInput {
   swapId: string;
-  notes: string;
+  notes?: string;
   files?: File[];
 }
 
@@ -124,9 +124,15 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: 'You must be logged in to submit work.' };
 
-  const cleanNotes = input.notes?.trim();
-  if (!cleanNotes) {
-    return { success: false, error: 'Submission notes are required.' };
+  if (!input.swapId) {
+    return { success: false, error: 'Swap ID is required.' };
+  }
+
+  const cleanNotes = input.notes?.trim() || '';
+  const fileCount = input.files ? input.files.length : 0;
+
+  if (cleanNotes.length === 0 && fileCount === 0) {
+    return { success: false, error: 'Submission must contain notes or at least one attachment.' };
   }
 
   if (input.files && input.files.length > 5) {
