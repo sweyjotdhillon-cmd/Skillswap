@@ -4,15 +4,14 @@ import { useAuth } from '../context/AuthContext';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import {
   getUserSwaps,
-  getSwapMessages,
-  sendSwapMessage,
   getSwapSubmission,
   submitSwapWorkWithFiles,
   completeCreditSwap,
   getSubmissionFileSignedUrl,
   type SwapRecord,
 } from '../lib/supabase/credits';
-import { mapSwapRecordToSwap, type Swap, type SwapMessage, type SwapSubmission } from '../types/swap';
+import { mapSwapRecordToSwap, type Swap, type SwapSubmission } from '../types/swap';
+import { SwapChatModal } from '../components/chat/SwapChatModal';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 
@@ -69,14 +68,8 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
   // Chat Modal state
   const [activeChatSwap, setActiveChatSwap] = useState<ActiveSwapItem | null>(null);
-  const [chatMessages, setChatMessages] = useState<SwapMessage[]>([]);
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatError, setChatError] = useState<string | null>(null);
-  const [chatInput, setChatInput] = useState('');
-  const [isSendingMessage, setIsSendingMessage] = useState(false);
 
   const isMountedRef = useRef(true);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadRealActiveSwaps = useCallback(async () => {
@@ -230,116 +223,8 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     };
   }, [currentSelectedItem]);
 
-  // ==========================================
-  // CHAT LOGIC (REAL P2P SUPABASE BACKED)
-  // ==========================================
-
-  const handleOpenChat = async (item: ActiveSwapItem) => {
+  const handleOpenChat = (item: ActiveSwapItem) => {
     setActiveChatSwap(item);
-    setChatError(null);
-    setChatLoading(true);
-    setChatInput('');
-
-    const res = await getSwapMessages(item.swap.id);
-    if (res.error) {
-      setChatError(res.error);
-    } else {
-      setChatMessages(res.data);
-    }
-    setChatLoading(false);
-  };
-
-  const handleCloseChatModal = () => {
-    setActiveChatSwap(null);
-    setChatMessages([]);
-    setChatError(null);
-  };
-
-  // Realtime subscription for active chat messages
-  useEffect(() => {
-    if (!activeChatSwap) return;
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
-
-    const swapId = activeChatSwap.swap.id;
-    const channel = supabase
-      .channel(`chat_messages_${swapId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'swap_messages',
-          filter: `swap_id=eq.${swapId}`,
-        },
-        (payload) => {
-          const raw = payload.new as {
-            id: string;
-            swap_id: string;
-            sender_id: string;
-            recipient_id: string;
-            body: string;
-            read_at?: string | null;
-            created_at: string;
-          };
-
-          const newMsg: SwapMessage = {
-            id: raw.id,
-            swapId: raw.swap_id,
-            senderId: raw.sender_id,
-            recipientId: raw.recipient_id,
-            body: raw.body,
-            readAt: raw.read_at,
-            createdAt: raw.created_at,
-          };
-
-          setChatMessages((prev) => {
-            if (prev.some((m) => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [activeChatSwap]);
-
-  // Scroll to bottom of chat when messages update
-  useEffect(() => {
-    if (activeChatSwap && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [chatMessages, activeChatSwap]);
-
-  const handleSendChatMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeChatSwap || !user || isSendingMessage) return;
-
-    const cleanText = chatInput.trim();
-    if (!cleanText) return;
-
-    setIsSendingMessage(true);
-    setChatError(null);
-
-    const recipientId = activeChatSwap.partner.userId;
-    const res = await sendSwapMessage(activeChatSwap.swap.id, recipientId, cleanText);
-    setIsSendingMessage(false);
-
-    if (!res.success) {
-      setChatError(res.error || 'Failed to send message.');
-      return;
-    }
-
-    setChatInput('');
-    if (res.message) {
-      const sentMsg = res.message;
-      setChatMessages((prev) => {
-        if (prev.some((m) => m.id === sentMsg.id)) return prev;
-        return [...prev, sentMsg];
-      });
-    }
   };
 
   // ==========================================
@@ -483,8 +368,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                 ) : (
                   acceptedSwaps.map((item) => {
                     const isSelected = item.swap.id === selectedAcceptedId;
-                    const statusLabel = item.swap.status === 'submitted' ? 'Submitted' : item.swap.status === 'completed' ? 'Completed' : 'In Progress';
-                    const progress = item.swap.status === 'completed' ? 100 : item.swap.status === 'submitted' ? 90 : 50;
+                    const statusLabel = item.swap.status === 'submitted' ? 'Submitted' : item.swap.status === 'completed' ? 'Completed' : 'Accepted';
 
                     return (
                       <div
@@ -509,7 +393,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                               <span className="as-card-time">{item.formattedDate}</span>
                             </div>
                           </div>
-                          <span className={`as-status-badge as-status-badge--${statusLabel.toLowerCase().replace(' ', '-')}`}>
+                          <span className={`as-status-badge as-status-badge--${item.swap.status}`}>
                             ● {statusLabel}
                           </span>
                         </div>
@@ -517,8 +401,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                         <div className="as-card-body">
                           <h3 className="as-card-title">{item.swap.topic}</h3>
                           <div className="as-card-meta-row">
-                            <span className="as-card-credits">{item.swap.creditAmount} Credits</span>
-                            <span className="as-card-progress">{progress}%</span>
+                            <span className="as-card-credits">{item.swap.creditAmount} SkillCredits</span>
                           </div>
                         </div>
                       </div>
@@ -622,28 +505,18 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                       <strong className="as-stat-value">{currentAcceptedItem.swap.creditAmount} SkillCredits</strong>
                     </div>
                     <div className="as-stat-item">
-                      <span className="as-stat-label">Started On</span>
+                      <span className="as-stat-label">Accepted On</span>
                       <strong className="as-stat-value">{currentAcceptedItem.formattedDate}</strong>
                     </div>
                     <div className="as-stat-item">
-                      <span className="as-stat-label">Deadline</span>
-                      <strong className="as-stat-value">Flexible</strong>
-                    </div>
-                    <div className="as-stat-item as-stat-item--progress">
-                      <div className="as-progress-label-row">
-                        <span className="as-stat-label">Progress</span>
-                        <strong className="as-progress-percent">
-                          {currentAcceptedItem.swap.status === 'completed' ? 100 : currentAcceptedItem.swap.status === 'submitted' ? 90 : 50}%
-                        </strong>
-                      </div>
-                      <div className="as-progress-track">
-                        <div
-                          className="as-progress-fill"
-                          style={{
-                            width: `${currentAcceptedItem.swap.status === 'completed' ? 100 : currentAcceptedItem.swap.status === 'submitted' ? 90 : 50}%`,
-                          }}
-                        />
-                      </div>
+                      <span className="as-stat-label">Submission Status</span>
+                      <strong className="as-stat-value">
+                        {currentAcceptedItem.swap.status === 'submitted'
+                          ? 'Submitted for Review'
+                          : currentAcceptedItem.swap.status === 'completed'
+                          ? 'Approved & Completed'
+                          : 'Waiting for Submission'}
+                      </strong>
                     </div>
                   </div>
 
@@ -734,7 +607,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                       className="as-btn as-btn--secondary"
                       onClick={() => handleOpenChat(currentAcceptedItem)}
                     >
-                      Start Chat
+                      Chat
                     </button>
                   </div>
                 </div>
@@ -887,7 +760,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                       className="as-btn as-btn--secondary"
                       onClick={() => handleOpenChat(currentGivenItem)}
                     >
-                      Start Chat
+                      Chat
                     </button>
 
                     <button
@@ -1005,66 +878,13 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
       )}
 
       {/* CHAT MODAL */}
-      {activeChatSwap && user && (
-        <div className="modal-overlay" onClick={handleCloseChatModal}>
-          <div className="modal-content chat-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="chat-modal-header">
-              <div className="chat-user-header-info">
-                <img src={activeChatSwap.partner.avatar} alt={activeChatSwap.partner.name} className="chat-avatar" />
-                <div>
-                  <h3 className="chat-title">Chat with {activeChatSwap.partner.name}</h3>
-                  <p className="chat-subtitle">{activeChatSwap.swap.topic}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="chat-close-btn"
-                onClick={handleCloseChatModal}
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="chat-messages-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', overflowY: 'auto', maxHeight: '400px', padding: '1rem' }}>
-              {chatLoading ? (
-                <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Loading messages...</p>
-              ) : chatError ? (
-                <p style={{ textAlign: 'center', color: 'var(--error-color, #ef4444)' }}>{chatError}</p>
-              ) : chatMessages.length === 0 ? (
-                <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>No messages yet. Send a message to start conversing!</p>
-              ) : (
-                chatMessages.map((msg) => {
-                  const isUser = msg.senderId === user.id;
-                  const timeFormatted = new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`chat-message-bubble ${isUser ? 'chat-message--user' : 'chat-message--other'}`}
-                    >
-                      <p className="chat-message-text">{msg.body}</p>
-                      <span className="chat-message-time">{timeFormatted}</span>
-                    </div>
-                  );
-                })
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            <form onSubmit={handleSendChatMessage} className="chat-input-form">
-              <input
-                type="text"
-                className="chat-input"
-                placeholder="Write a message..."
-                value={chatInput}
-                disabled={isSendingMessage}
-                onChange={(e) => setChatInput(e.target.value)}
-              />
-              <button type="submit" className="chat-send-btn" disabled={isSendingMessage || !chatInput.trim()}>
-                {isSendingMessage ? 'Sending...' : 'Send'}
-              </button>
-            </form>
-          </div>
-        </div>
+      {activeChatSwap && (
+        <SwapChatModal
+          swap={activeChatSwap.swap}
+          partnerName={activeChatSwap.partner.name}
+          partnerAvatar={activeChatSwap.partner.avatar}
+          onClose={() => setActiveChatSwap(null)}
+        />
       )}
 
       {/* VIEW PROFILE MODAL */}
