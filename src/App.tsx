@@ -99,7 +99,7 @@ function AppContent() {
     path === '/reset-password';
 
   // Smooth loading state on initial boot or profile fetch to prevent opening lag & layout shifts
-  if (loading || (user && (isVerified || isGoogleUser) && !isAuthPage && profileLoading)) {
+  if (loading || (user && (isVerified || isGoogleUser) && !isAuthPage && profileLoading && !profile)) {
     return (
       <div className="page-shell" style={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', padding: '3rem 1rem' }}>

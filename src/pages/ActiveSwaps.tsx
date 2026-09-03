@@ -265,6 +265,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
   const handleFileSelectChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
       processSelectedFiles(filesArray);
@@ -887,6 +888,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                   multiple
                   style={{ display: 'none' }}
                   onChange={handleFileSelectChange}
+                  onClick={(e) => e.stopPropagation()}
                 />
 
                 {/* Dropzone with Isolated Browse Button */}
@@ -925,7 +927,11 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                           type="button"
                           className="attachment-remove-btn"
                           disabled={isMutating}
-                          onClick={() => handleRemoveFile(i)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleRemoveFile(i);
+                          }}
                           aria-label="Remove file"
                         >
                           ×
