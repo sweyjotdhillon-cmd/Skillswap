@@ -17,6 +17,8 @@ import { OnboardingPage } from './pages/Onboarding';
 import { ProfilePage } from './pages/Profile';
 import { ThemeToggle } from './components/ui/ThemeToggle';
 
+const PROTECTED_ROUTES = ['/profile', '/create-swap', '/swap-requests', '/active-swaps', '/change-password'];
+
 function AppContent() {
   const [path, setPath] = useState(window.location.pathname);
   const { user, profile, loading, profileLoading, isVerified, isGoogleUser } = useAuth();
@@ -69,15 +71,12 @@ function AppContent() {
     }
   }, [path]);
 
-  // Protected route list
-  const protectedRoutes = ['/profile', '/create-swap', '/swap-requests', '/active-swaps', '/change-password'];
-
   // Parse query params for login/signup redirection
   const urlParams = new URLSearchParams(window.location.search);
   const redirectToParam = urlParams.get('redirectTo') || undefined;
 
   useEffect(() => {
-    if (!loading && protectedRoutes.some((route) => path.startsWith(route))) {
+    if (!loading && PROTECTED_ROUTES.some((route) => path.startsWith(route))) {
       if (!user) {
         const loginUrl = `/login?redirectTo=${encodeURIComponent(path)}`;
         window.history.replaceState({}, '', loginUrl);
@@ -131,7 +130,7 @@ function AppContent() {
   }
 
   // Protected route enforcement
-  if (!loading && protectedRoutes.some((route) => path.startsWith(route))) {
+  if (!loading && PROTECTED_ROUTES.some((route) => path.startsWith(route))) {
     if (!user) {
       return <LoginPage onNavigate={navigate} redirectTo={path} />;
     }

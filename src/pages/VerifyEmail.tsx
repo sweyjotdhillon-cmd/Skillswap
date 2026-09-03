@@ -28,7 +28,7 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
     if (!email && user?.email) {
       setEmail(user.email);
     }
-  }, [user]);
+  }, [user, email]);
 
   // Handle countdown timer for resend code
   useEffect(() => {

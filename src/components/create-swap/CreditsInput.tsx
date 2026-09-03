@@ -43,12 +43,12 @@ export function CreditsInput({ value, onChange, error }: CreditsInputProps) {
     <div className="form-group">
       <div className="form-label-row">
         <label htmlFor="credits-input" className="form-label">
-          Credits you're offering
+          SkillCredits you're offering
         </label>
         <span className="badge-required">Required</span>
       </div>
       <p className="form-helper-text">
-        Credits are awarded after the swap requirements are completed.
+        SkillCredits are awarded after the swap requirements are completed.
       </p>
 
       <div className="credits-stepper-row">
@@ -82,7 +82,7 @@ export function CreditsInput({ value, onChange, error }: CreditsInputProps) {
             +
           </button>
         </div>
-        <span className="credits-label">Credits</span>
+        <span className="credits-label">SkillCredits</span>
       </div>
       {error && <p id="credits-error" className="error-message" role="alert">{error}</p>}
     </div>

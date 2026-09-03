@@ -124,6 +124,8 @@ export function SwapChatModal({
     return () => clearInterval(interval);
   }, [cleanupAndSetMessages]);
 
+  const channelRef = useRef<ReturnType<NonNullable<ReturnType<typeof getSupabaseBrowserClient>>['channel']> | null>(null);
+
   // Supabase Realtime Broadcast Subscription
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -135,6 +137,8 @@ export function SwapChatModal({
         broadcast: { self: true }, // allow client to receive own broadcasts cleanly
       },
     });
+
+    channelRef.current = channel;
 
     channel
       .on('broadcast', { event: 'chat_message' }, (payload) => {
@@ -152,6 +156,7 @@ export function SwapChatModal({
       .subscribe();
 
     return () => {
+      channelRef.current = null;
       void supabase.removeChannel(channel);
     };
   }, [swap.id, cleanupAndSetMessages]);
@@ -192,12 +197,9 @@ export function SwapChatModal({
 
     setInput('');
 
-    // Broadcast via Supabase Realtime Channel
-    const supabase = getSupabaseBrowserClient();
-    if (supabase) {
-      const channelName = `skillswap-chat:${swap.id}`;
-      const channel = supabase.channel(channelName);
-      await channel.send({
+    // Broadcast via Supabase Realtime Channel using the existing subscribed channel
+    if (channelRef.current) {
+      await channelRef.current.send({
         type: 'broadcast',
         event: 'chat_message',
         payload: newMessage,

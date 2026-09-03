@@ -38,6 +38,7 @@ const AuthContext = createContext<AuthContextType>({
   refreshAccount: async () => null,
 });
 
+/* eslint-disable react-refresh/only-export-components */
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -162,8 +163,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, currentSession: Session | null) => {
       if (!mounted) return;
 
-      // Skip redundant initial session event if getSession already resolved
-      if (event === 'INITIAL_SESSION' && session !== null) {
+      if (event === 'INITIAL_SESSION') {
+        // Handled by getSession above to prevent redundant fetch
         return;
       }
 

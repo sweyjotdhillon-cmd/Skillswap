@@ -45,7 +45,7 @@ type SwapRequestsPageProps = {
 };
 
 export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
-  const { user, account, refreshAccount } = useAuth();
+  const { user, profile, account, refreshAccount } = useAuth();
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received');
   const [receivedRequests, setReceivedRequests] = useState<ReceivedRequest[]>([]);
   const [sentRequests, setSentRequests] = useState<SentRequest[]>([]);
@@ -256,11 +256,17 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
 
             {/* User Avatar */}
             <div className="sr-avatar-wrapper" title="Your Profile">
-              <img
-                src={DEFAULT_AVATAR}
-                alt="Your avatar"
-                className="sr-user-avatar"
-              />
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.full_name || 'Your avatar'}
+                  className="sr-user-avatar"
+                />
+              ) : (
+                <div className="sr-user-avatar" style={{ display: 'grid', placeItems: 'center', background: 'var(--color-primary, #d6a64a)', color: '#fff', fontWeight: 600, fontSize: '0.85rem' }}>
+                  {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : 'SS'}
+                </div>
+              )}
             </div>
 
             {/* Credits Card */}
@@ -369,7 +375,7 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
 
                       <div className="sr-exchange-box">
                         <span className="sr-exchange-label">They are offering</span>
-                        <strong className="sr-exchange-credits">{req.creditsOffered} Credits</strong>
+                        <strong className="sr-exchange-credits">{req.creditsOffered} SkillCredits</strong>
                       </div>
                     </div>
 
@@ -493,7 +499,7 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
 
                     <div className="sr-exchange-box">
                       <span className="sr-exchange-label">I am offering</span>
-                      <strong className="sr-exchange-credits">{req.creditsOffered} Credits</strong>
+                      <strong className="sr-exchange-credits">{req.creditsOffered} SkillCredits</strong>
                     </div>
                   </div>
 
@@ -621,7 +627,7 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
               </div>
               <div className="sr-detail-row">
                 <span>Offered Credits:</span>
-                <strong>{selectedDetails.credits} Credits</strong>
+                <strong>{selectedDetails.credits} SkillCredits</strong>
               </div>
               <div className="sr-detail-row">
                 <span>Current Status:</span>
