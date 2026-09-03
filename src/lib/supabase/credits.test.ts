@@ -106,6 +106,7 @@ export async function runCreditSystemTests() {
     '014_chat_and_submission_security_hardening.sql',
     '015_swap_expiry_and_submission_review_timeout.sql',
     '016_chat_rls_and_submission_fixes.sql',
+    '018_submission_delivery_and_validation_fixes.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -856,6 +857,77 @@ export async function runCreditSystemTests() {
   assert(rejectedClaim?.rows[0].result.error_code === 'INVALID_TOKEN', 'Rejected claim returned INVALID_TOKEN');
 
   console.log('  -> Password reset atomic RPCs & security verified cleanly!');
+
+  // =========================================================================
+  // TEST 14: Submission Delivery & Validation Rules (Text, Zip File, Both, Empty)
+  // =========================================================================
+  console.log('Test 14: Submission delivery & validation rules...');
+
+  // Create Swap 5 for User A, accepted by User B
+  await setAuthUser(userA);
+  swapRes = await db.query<{ swap_id: string }>(`
+    SELECT public.create_credit_swap('Text Only Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_sub_text') AS swap_id;
+  `);
+  const swapSubTextId = swapRes.rows[0].swap_id;
+
+  await setAuthUser(userB);
+  await db.query(`SELECT public.accept_credit_swap('${swapSubTextId}'::uuid);`);
+
+  // 14a: Text-only submission (empty files array) -> MUST SUCCEED
+  const textSubRes = await db.query<{ submit_swap_work: { success: boolean; submission_id: string } }>(`
+    SELECT public.submit_swap_work('${swapSubTextId}'::uuid, 'Completed with text explanation only.', '[]'::jsonb);
+  `);
+  assert(textSubRes.rows[0].submit_swap_work.success === true, 'Text-only submission succeeded');
+
+  const textSubNotes = (await db.query<{ notes: string }>(`SELECT notes FROM public.swap_submissions WHERE swap_id = '${swapSubTextId}';`)).rows[0].notes;
+  assert(textSubNotes === 'Completed with text explanation only.', 'Text-only submission notes persisted correctly');
+
+  // Create Swap 6 for User A, accepted by User B
+  await setAuthUser(userA);
+  swapRes = await db.query<{ swap_id: string }>(`
+    SELECT public.create_credit_swap('Zip File Only Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_sub_zip') AS swap_id;
+  `);
+  const swapSubZipId = swapRes.rows[0].swap_id;
+
+  await setAuthUser(userB);
+  await db.query(`SELECT public.accept_credit_swap('${swapSubZipId}'::uuid);`);
+
+  // 14b: Attachment-only submission (e.g., test.zip with empty text) -> MUST SUCCEED
+  const zipSubRes = await db.query<{ submit_swap_work: { success: boolean; submission_id: string } }>(`
+    SELECT public.submit_swap_work(
+      '${swapSubZipId}'::uuid,
+      '',
+      '[{"storage_path": "${swapSubZipId}/${userB}/test.zip", "file_name": "test.zip", "mime_type": "application/zip", "file_size": 2048}]'::jsonb
+    );
+  `);
+  assert(zipSubRes.rows[0].submit_swap_work.success === true, 'Attachment-only zip submission succeeded');
+
+  const zipFileRecord = await db.query<{ file_name: string }>(`
+    SELECT file_name FROM public.swap_submission_files WHERE submission_id = '${zipSubRes.rows[0].submit_swap_work.submission_id}';
+  `);
+  assert(zipFileRecord.rows[0].file_name === 'test.zip', 'Attachment-only file record persisted');
+
+  // Create Swap 7 for User A, accepted by User B
+  await setAuthUser(userA);
+  swapRes = await db.query<{ swap_id: string }>(`
+    SELECT public.create_credit_swap('Empty Sub Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_sub_empty') AS swap_id;
+  `);
+  const swapSubEmptyId = swapRes.rows[0].swap_id;
+
+  await setAuthUser(userB);
+  await db.query(`SELECT public.accept_credit_swap('${swapSubEmptyId}'::uuid);`);
+
+  // 14c: Invalid submission (empty text + zero files) -> MUST BE REJECTED
+  errorCaught = false;
+  try {
+    await db.query(`SELECT public.submit_swap_work('${swapSubEmptyId}'::uuid, '', '[]'::jsonb);`);
+  } catch (err: unknown) {
+    errorCaught = true;
+    assert((err as Error).message.includes('Submission must contain notes or at least one attachment'), 'Empty submission rejected with correct error message');
+  }
+  assert(errorCaught, 'Empty submission (no text, no files) was rejected by RPC');
+
+  console.log('  -> Submission delivery & validation rules verified cleanly!');
 
   console.log('--- ALL SKILLSWAP CREDIT INTEGRATION & SECURITY TESTS PASSED PERFECTLY! ---');
 }

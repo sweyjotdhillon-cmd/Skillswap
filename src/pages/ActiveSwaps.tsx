@@ -190,10 +190,10 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   const currentGivenItem = givenSwaps.find((s) => s.swap.id === selectedGivenId) || givenSwaps[0] || null;
   const currentSelectedItem = activeTab === 'accepted' ? currentAcceptedItem : currentGivenItem;
 
-  // Load submission data whenever the selected swap changes (clearing stale state immediately)
+  // Load submission data whenever the selected swap ID or status changes (clearing stale state immediately)
   useEffect(() => {
     let active = true;
-    // Clear previous submission state immediately on selection change
+    // Clear previous submission state immediately on selection or status change
     setCurrentSubmission(null);
     setSignedFileUrls({});
 
@@ -226,7 +226,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     return () => {
       active = false;
     };
-  }, [currentSelectedItem?.swap.id]);
+  }, [currentSelectedItem?.swap.id, currentSelectedItem?.swap.status]);
 
   const handleOpenChat = (item: ActiveSwapItem) => {
     setActiveChatSwap(item);
@@ -297,12 +297,18 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     e.preventDefault();
     if (!currentAcceptedItem || isMutating) return;
 
+    const trimmedNotes = submitWorkNotes.trim();
+    if (trimmedNotes.length === 0 && submitWorkFiles.length === 0) {
+      setSubmitError('Add an explanation or attach at least one file.');
+      return;
+    }
+
     setSubmitError(null);
     setIsMutating(true);
 
     const res = await submitSwapWorkWithFiles({
       swapId: currentAcceptedItem.swap.id,
-      notes: submitWorkNotes,
+      notes: trimmedNotes,
       files: submitWorkFiles,
     });
 
@@ -858,7 +864,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="submit-notes">
-                  Submission Notes & Deliverable Links *
+                  Submission Notes & Deliverable Links
                 </label>
                 <textarea
                   id="submit-notes"
@@ -867,12 +873,11 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                   value={submitWorkNotes}
                   onChange={(e) => setSubmitWorkNotes(e.target.value)}
                   rows={4}
-                  required
                 />
               </div>
 
               <div className="form-group">
-                <span className="form-label">Attach Files (Optional, up to 25MB each)</span>
+                <span className="form-label">Attach Files (Optional if notes provided, up to 25MB each)</span>
 
                 {/* Hidden File Input */}
                 <input
@@ -884,19 +889,18 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                   onChange={handleFileSelectChange}
                 />
 
-                {/* Separate Button for Triggering Attachment Selection */}
+                {/* Dropzone with Isolated Browse Button */}
                 <div
                   className="dropzone"
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => fileInputRef.current?.click()}
                 >
                   <div className="dropzone-content">
                     <button
                       type="button"
                       className="as-btn as-btn--secondary"
                       onClick={(e) => {
+                        e.preventDefault();
                         e.stopPropagation();
                         fileInputRef.current?.click();
                       }}
@@ -904,7 +908,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     >
                       📁 Browse / Select Files
                     </button>
-                    <span className="dropzone-add-text">Drag & drop files or click browse</span>
+                    <span className="dropzone-add-text">Drag & drop files here or click browse</span>
                     <span className="dropzone-subtext">PDF, ZIP, PNG, JPG, DOCX, etc. up to 25MB</span>
                   </div>
                 </div>
