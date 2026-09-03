@@ -49,6 +49,8 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received');
   const [receivedRequests, setReceivedRequests] = useState<ReceivedRequest[]>([]);
   const [sentRequests, setSentRequests] = useState<SentRequest[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [actionPendingId, setActionPendingId] = useState<string | null>(null);
 
@@ -76,8 +78,17 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
 
   const loadRealSwaps = useCallback(async () => {
     if (!user) return;
+    setIsLoading(true);
+    setFetchError(null);
     try {
-      const records: SwapRecord[] = await getUserSwaps(user.id);
+      const res = await getUserSwaps(user.id);
+      if (res.error) {
+        setFetchError(res.error);
+        setReceivedRequests([]);
+        setSentRequests([]);
+        return;
+      }
+      const records: SwapRecord[] = res.data;
       if (records) {
         const canonicalSwaps: Swap[] = records.map(mapSwapRecordToSwap);
         const received: ReceivedRequest[] = [];
@@ -146,6 +157,11 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
       }
     } catch (err) {
       console.error('Error loading real swaps:', err);
+      setFetchError('Failed to load swap requests.');
+      setReceivedRequests([]);
+      setSentRequests([]);
+    } finally {
+      setIsLoading(false);
     }
   }, [user]);
 
@@ -306,7 +322,16 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
             </div>
 
             <div className="sr-cards-list">
-              {receivedRequests.length === 0 ? (
+              {isLoading ? (
+                <div className="sr-empty-state"><p>Loading received requests...</p></div>
+              ) : fetchError ? (
+                <div className="sr-empty-state">
+                  <p style={{ color: 'var(--error-color, #ef4444)' }}>{fetchError}</p>
+                  <button type="button" className="sr-btn sr-btn--secondary" onClick={loadRealSwaps} style={{ marginTop: '0.5rem' }}>
+                    Retry
+                  </button>
+                </div>
+              ) : receivedRequests.length === 0 ? (
                 <div className="sr-empty-state">
                   <p>You haven’t received any swap requests yet.</p>
                 </div>
@@ -417,10 +442,24 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
             </div>
 
             <div className="sr-cards-list">
-              {sentRequests.map((req) => (
-                <div key={req.id} className="sr-card">
-                  {/* CARD HEADER */}
-                  <div className="sr-card-header">
+              {isLoading ? (
+                <div className="sr-empty-state"><p>Loading sent requests...</p></div>
+              ) : fetchError ? (
+                <div className="sr-empty-state">
+                  <p style={{ color: 'var(--error-color, #ef4444)' }}>{fetchError}</p>
+                  <button type="button" className="sr-btn sr-btn--secondary" onClick={loadRealSwaps} style={{ marginTop: '0.5rem' }}>
+                    Retry
+                  </button>
+                </div>
+              ) : sentRequests.length === 0 ? (
+                <div className="sr-empty-state">
+                  <p>You haven’t sent any swap requests yet.</p>
+                </div>
+              ) : (
+                sentRequests.map((req) => (
+                  <div key={req.id} className="sr-card">
+                    {/* CARD HEADER */}
+                    <div className="sr-card-header">
                     <div className="sr-user-info">
                       <img src={req.user.avatar} alt={req.user.name} className="sr-card-avatar" />
                       <div className="sr-user-meta">
@@ -505,13 +544,8 @@ export function SwapRequestsPage({ onNavigate }: SwapRequestsPageProps) {
                     </div>
                   </div>
                 </div>
-              ))}
-
-              {sentRequests.length === 0 && (
-                <div className="sr-empty-state">
-                  <p>You haven’t sent any swap requests yet.</p>
-                </div>
-              )}
+              ))
+            )}
             </div>
           </section>
         )}
