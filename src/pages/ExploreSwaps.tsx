@@ -1,15 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { HeroVisual } from '../components/hero/HeroVisual';
 import { useAuth } from '../context/AuthContext';
-import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import {
   getOpenSwaps,
   acceptCreditSwap,
-  getSwapMessages,
-  sendSwapMessage,
 } from '../lib/supabase/credits';
-import { mapSwapRecordToSwap, type Swap, type SwapMessage } from '../types/swap';
+import { mapSwapRecordToSwap, type Swap } from '../types/swap';
+import { SwapChatModal } from '../components/chat/SwapChatModal';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 
@@ -47,13 +45,6 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   const [acceptError, setAcceptError] = useState<string | null>(null);
 
   const [selectedSwapForChat, setSelectedSwapForChat] = useState<Swap | null>(null);
-  const [chatMessages, setChatMessages] = useState<SwapMessage[]>([]);
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatError, setChatError] = useState<string | null>(null);
-  const [chatInput, setChatInput] = useState('');
-  const [isSendingMessage, setIsSendingMessage] = useState(false);
-
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const loadRealOpenSwaps = useCallback(async () => {
     setIsLoading(true);
@@ -82,12 +73,6 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
     loadRealOpenSwaps();
   }, [loadRealOpenSwaps]);
 
-  const handleCloseChat = () => {
-    setSelectedSwapForChat(null);
-    setChatMessages([]);
-    setChatError(null);
-  };
-
   const filteredSwaps = swaps.filter((swap) => {
     const categoryLower = selectedCategory.toLowerCase();
     const matchesCategory =
@@ -106,111 +91,8 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
     return matchesCategory && matchesSearch;
   });
 
-  const handleOpenChat = async (swap: Swap) => {
+  const handleOpenChat = (swap: Swap) => {
     setSelectedSwapForChat(swap);
-    setChatError(null);
-    setChatLoading(true);
-    setChatInput('');
-
-    const res = await getSwapMessages(swap.id);
-    if (res.error) {
-      setChatError(res.error);
-    } else {
-      setChatMessages(res.data);
-    }
-    setChatLoading(false);
-  };
-
-  // Realtime chat subscription for Explore page chat modal
-  useEffect(() => {
-    if (!selectedSwapForChat) return;
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
-
-    const swapId = selectedSwapForChat.id;
-    const channel = supabase
-      .channel(`explore_chat_${swapId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'swap_messages',
-          filter: `swap_id=eq.${swapId}`,
-        },
-        (payload) => {
-          const raw = payload.new as {
-            id: string;
-            swap_id: string;
-            sender_id: string;
-            recipient_id: string;
-            body: string;
-            read_at?: string | null;
-            created_at: string;
-          };
-
-          const newMsg: SwapMessage = {
-            id: raw.id,
-            swapId: raw.swap_id,
-            senderId: raw.sender_id,
-            recipientId: raw.recipient_id,
-            body: raw.body,
-            readAt: raw.read_at,
-            createdAt: raw.created_at,
-          };
-
-          setChatMessages((prev) => {
-            if (prev.some((m) => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [selectedSwapForChat]);
-
-  // Scroll to bottom on message updates
-  useEffect(() => {
-    if (selectedSwapForChat && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [chatMessages, selectedSwapForChat]);
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedSwapForChat || !user || isSendingMessage) return;
-
-    const cleanText = chatInput.trim();
-    if (!cleanText) return;
-
-    if (user.id === selectedSwapForChat.requesterId) {
-      setChatError("You are the author of this swap. Use Active Swaps to chat with applicants.");
-      return;
-    }
-
-    setIsSendingMessage(true);
-    setChatError(null);
-
-    const recipientId = selectedSwapForChat.requesterId;
-    const res = await sendSwapMessage(selectedSwapForChat.id, recipientId, cleanText);
-    setIsSendingMessage(false);
-
-    if (!res.success) {
-      setChatError(res.error || 'Failed to send message.');
-      return;
-    }
-
-    setChatInput('');
-    if (res.message) {
-      const sentMsg = res.message;
-      setChatMessages((prev) => {
-        if (prev.some((m) => m.id === sentMsg.id)) return prev;
-        return [...prev, sentMsg];
-      });
-    }
   };
 
   const getRequesterName = (swap: Swap) => {
@@ -512,67 +394,12 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
       {/* CHAT MODAL */}
       {selectedSwapForChat && (
-        <div className="modal-overlay" onClick={handleCloseChat}>
-          <div className="modal-content chat-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="chat-modal-header">
-              <div className="chat-user-header-info">
-                <img src={getRequesterAvatar(selectedSwapForChat)} alt={getRequesterName(selectedSwapForChat)} className="chat-avatar" />
-                <div>
-                  <h3 className="chat-title">Chat with {getRequesterName(selectedSwapForChat)}</h3>
-                  <p className="chat-subtitle">
-                    {selectedSwapForChat.topic}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="chat-close-btn"
-                onClick={handleCloseChat}
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="chat-messages-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', overflowY: 'auto', maxHeight: '400px', padding: '1rem' }}>
-              {chatLoading ? (
-                <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Loading messages...</p>
-              ) : chatError ? (
-                <p style={{ textAlign: 'center', color: 'var(--error-color, #ef4444)' }}>{chatError}</p>
-              ) : chatMessages.length === 0 ? (
-                <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>No messages yet. Send a message to start conversing!</p>
-              ) : (
-                chatMessages.map((msg) => {
-                  const isUser = user && msg.senderId === user.id;
-                  const timeFormatted = new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`chat-message-bubble ${isUser ? 'chat-message--user' : 'chat-message--other'}`}
-                    >
-                      <p className="chat-message-text">{msg.body}</p>
-                      <span className="chat-message-time">{timeFormatted}</span>
-                    </div>
-                  );
-                })
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            <form onSubmit={handleSendMessage} className="chat-input-form">
-              <input
-                type="text"
-                className="chat-input"
-                placeholder="Write a message..."
-                value={chatInput}
-                disabled={isSendingMessage}
-                onChange={(e) => setChatInput(e.target.value)}
-              />
-              <button type="submit" className="chat-send-btn" disabled={isSendingMessage || !chatInput.trim()}>
-                {isSendingMessage ? 'Sending...' : 'Send'}
-              </button>
-            </form>
-          </div>
-        </div>
+        <SwapChatModal
+          swap={selectedSwapForChat}
+          partnerName={getRequesterName(selectedSwapForChat)}
+          partnerAvatar={getRequesterAvatar(selectedSwapForChat)}
+          onClose={() => setSelectedSwapForChat(null)}
+        />
       )}
     </div>
   );

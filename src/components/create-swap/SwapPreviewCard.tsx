@@ -24,10 +24,14 @@ export function SwapPreviewCard({ formState }: SwapPreviewCardProps) {
             </div>
           </div>
           <div className="swap-credit-badge">
-            <span className="credit-val">
-              +{formState.credits ? formState.credits : '0'}
-            </span>
-            <span className="credit-unit">SkillCredits</span>
+            {formState.credits && Number(formState.credits) > 0 ? (
+              <>
+                <span className="credit-val">+{formState.credits}</span>
+                <span className="credit-unit">SkillCredits</span>
+              </>
+            ) : (
+              <span className="credit-unit">SkillCredits</span>
+            )}
           </div>
         </div>
 

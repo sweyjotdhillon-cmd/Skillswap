@@ -105,6 +105,7 @@ export async function runCreditSystemTests() {
     '013_chat_and_submissions.sql',
     '014_chat_and_submission_security_hardening.sql',
     '015_swap_expiry_and_submission_review_timeout.sql',
+    '016_chat_rls_and_submission_fixes.sql',
   ];
 
   for (const file of migrationFiles) {

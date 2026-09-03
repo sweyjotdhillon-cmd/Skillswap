@@ -687,10 +687,12 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                 </label>
                 <input
                   id="fullNameInput"
+                  name="skillswap_full_name"
                   type="text"
                   required
+                  autoComplete="off"
                   className="form-input"
-                  placeholder="e.g. Sweyjot Dhillon"
+                  placeholder="e.g. Alex Smith"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                 />
@@ -770,8 +772,10 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                   <span className="username-prefix">@</span>
                   <input
                     id="usernameInput"
+                    name="skillswap_new_username"
                     type="text"
                     required
+                    autoComplete="off"
                     autoCapitalize="off"
                     autoCorrect="off"
                     spellCheck="false"
@@ -780,7 +784,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                     className={`form-input username-input ${
                       usernameStatus === 'invalid' || usernameStatus === 'unavailable' || usernameStatus === 'error' ? 'input-error' : ''
                     }`}
-                    placeholder="sweyjot"
+                    placeholder="choose_username"
                     value={username}
                     onChange={(e) => handleUsernameChange(e.target.value)}
                   />
