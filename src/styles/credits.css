@@ -206,6 +206,11 @@
   background: rgba(17, 22, 28, 0.06);
   color: var(--text-color, #11161c);
   border-color: rgba(17, 22, 28, 0.25);
+  transform: scale(1.05);
+}
+
+.credit-modal-close-btn:active {
+  transform: scale(0.92);
 }
 
 [data-theme='dark'] .credit-modal-close-btn:hover {
@@ -400,6 +405,10 @@
 
 .credit-filter-btn:hover {
   color: var(--text-color, #11161c);
+}
+
+.credit-filter-btn:active {
+  transform: scale(0.96);
 }
 
 .credit-filter-btn--active {
@@ -798,6 +807,10 @@
 .credit-retry-btn:hover {
   background: #202832;
   transform: translateY(-1px);
+}
+
+.credit-close-action-btn:active {
+  transform: translateY(0) scale(0.98);
 }
 
 [data-theme='dark'] .credit-retry-btn {
