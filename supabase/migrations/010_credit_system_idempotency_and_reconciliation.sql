@@ -201,6 +201,8 @@ $$;
 
 -- 4. Permissions & Security
 GRANT EXECUTE ON FUNCTION public.create_credit_swap(text,text,text,text,integer,text,text) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.reconcile_credit_balances() TO authenticated, service_role;
+
+REVOKE EXECUTE ON FUNCTION public.reconcile_credit_balances() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.reconcile_credit_balances() TO service_role;
 
 NOTIFY pgrst, 'reload schema';

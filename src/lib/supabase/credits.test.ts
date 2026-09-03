@@ -551,7 +551,40 @@ export async function runCreditSystemTests() {
   // TEST 12: Swap Expiry & Submission Review Timeout Verification
   // =========================================================================
   console.log('Test 12: Swap expiry & submission review timeout verification...');
+
+  // 12.0: Permissions Audit — Authenticated users MUST NOT be able to invoke maintenance RPCs!
   await setAuthUser(userA);
+  let permErrorCaught = false;
+  try {
+    await db.query(`SELECT public.expire_abandoned_swaps(30);`);
+  } catch (err: unknown) {
+    permErrorCaught = (err as Error).message.includes('permission denied');
+  }
+  assert(permErrorCaught, 'expire_abandoned_swaps permission denied for authenticated user');
+
+  permErrorCaught = false;
+  try {
+    await db.query(`SELECT public.process_submitted_swap_timeouts(7);`);
+  } catch (err: unknown) {
+    permErrorCaught = (err as Error).message.includes('permission denied');
+  }
+  assert(permErrorCaught, 'process_submitted_swap_timeouts permission denied for authenticated user');
+
+  permErrorCaught = false;
+  try {
+    await db.query(`SELECT public.reconcile_credit_balances();`);
+  } catch (err: unknown) {
+    permErrorCaught = (err as Error).message.includes('permission denied');
+  }
+  assert(permErrorCaught, 'reconcile_credit_balances permission denied for authenticated user');
+
+  permErrorCaught = false;
+  try {
+    await db.query(`SELECT public.request_password_reset_challenge_atomic('${userA}'::uuid, 'usera@example.com', 'hash', NOW(), 5);`);
+  } catch (err: unknown) {
+    permErrorCaught = (err as Error).message.includes('permission denied');
+  }
+  assert(permErrorCaught, 'request_password_reset_challenge_atomic permission denied for authenticated user');
 
   // 12a: Test expire_abandoned_swaps
   await setSuperuser();
@@ -572,6 +605,20 @@ export async function runCreditSystemTests() {
   // Backdate created_at to 35 days ago
   await setSuperuser();
   await db.query(`UPDATE public.swaps SET created_at = NOW() - INTERVAL '35 days' WHERE id = '${expireSwapId}';`);
+
+  // 12a-1: Verify that supplying p_swap_id on a FRESH swap (created 1 day ago) DOES NOT bypass the 30-day cutoff
+  await setAuthUser(userA);
+  const freshSwapRes = await db.query<{ swap_id: string }>(`
+    SELECT public.create_credit_swap('Fresh Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_fresh_expire') AS swap_id;
+  `);
+  const freshSwapId = freshSwapRes.rows[0].swap_id;
+  await setSuperuser();
+  await db.query(`UPDATE public.swaps SET created_at = NOW() - INTERVAL '1 day' WHERE id = '${freshSwapId}';`);
+
+  const freshExpireAttempt = await db.query<{ result: { success: boolean; expired_count: number } }>(`
+    SELECT public.expire_abandoned_swaps(30, '${freshSwapId}'::uuid) AS result;
+  `);
+  assert(freshExpireAttempt.rows[0].result.expired_count === 0, 'Fresh swap (1 day old) NOT expired despite passing p_swap_id');
 
   const userABalBeforeExpiry = (await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`)).rows[0].credits_balance;
 
@@ -612,8 +659,16 @@ export async function runCreditSystemTests() {
     );
   `);
 
-  // Backdate submitted_at to 8 days ago
+  // 12b-1: Verify that supplying p_swap_id on a FRESH submitted swap (submitted 1 day ago) DOES NOT bypass 7-day timeout
   await setSuperuser();
+  await db.query(`UPDATE public.swaps SET submitted_at = NOW() - INTERVAL '1 day' WHERE id = '${timeoutSwapId}';`);
+
+  const freshTimeoutAttempt = await db.query<{ result: { success: boolean; completed_count: number } }>(`
+    SELECT public.process_submitted_swap_timeouts(7, '${timeoutSwapId}'::uuid) AS result;
+  `);
+  assert(freshTimeoutAttempt.rows[0].result.completed_count === 0, 'Fresh submitted swap (1 day old) NOT settled despite passing p_swap_id');
+
+  // Backdate submitted_at to 8 days ago for genuine timeout
   await db.query(`UPDATE public.swaps SET submitted_at = NOW() - INTERVAL '8 days' WHERE id = '${timeoutSwapId}';`);
 
   const userBBalBeforeTimeout = (await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userB}';`)).rows[0].credits_balance;
@@ -655,7 +710,35 @@ export async function runCreditSystemTests() {
   const otpHash = hashStr(otpRaw);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-  // 13a: Atomic Challenge Creation & Rate Limiting
+  // 13a: Atomic Challenge Creation & Rate Limiting (Concurrent Race Condition Check)
+  const resetEmailC = 'userc@example.com';
+  const otpHashC = hashStr('999999');
+
+  // Launch 5 simultaneous reset requests to test advisory lock race condition protection
+  const concurrentResetReqs = await Promise.all([
+    db.query<{ result: { success: boolean; error_code?: string } }>(`
+      SELECT public.request_password_reset_challenge_atomic('${userC}'::uuid, '${resetEmailC}', '${otpHashC}', '${expiresAt}'::timestamptz, 5) AS result;
+    `),
+    db.query<{ result: { success: boolean; error_code?: string } }>(`
+      SELECT public.request_password_reset_challenge_atomic('${userC}'::uuid, '${resetEmailC}', '${otpHashC}', '${expiresAt}'::timestamptz, 5) AS result;
+    `),
+    db.query<{ result: { success: boolean; error_code?: string } }>(`
+      SELECT public.request_password_reset_challenge_atomic('${userC}'::uuid, '${resetEmailC}', '${otpHashC}', '${expiresAt}'::timestamptz, 5) AS result;
+    `),
+    db.query<{ result: { success: boolean; error_code?: string } }>(`
+      SELECT public.request_password_reset_challenge_atomic('${userC}'::uuid, '${resetEmailC}', '${otpHashC}', '${expiresAt}'::timestamptz, 5) AS result;
+    `),
+    db.query<{ result: { success: boolean; error_code?: string } }>(`
+      SELECT public.request_password_reset_challenge_atomic('${userC}'::uuid, '${resetEmailC}', '${otpHashC}', '${expiresAt}'::timestamptz, 5) AS result;
+    `),
+  ]);
+
+  const succCountC = concurrentResetReqs.filter((r) => r.rows[0].result.success === true).length;
+  const rateLimitCountC = concurrentResetReqs.filter((r) => r.rows[0].result.error_code === 'RATE_LIMIT_EXCEEDED').length;
+
+  assert(succCountC === 3, `Exactly 3 reset requests succeeded under concurrent load (got ${succCountC})`);
+  assert(rateLimitCountC === 2, `Exactly 2 reset requests were rate limited under concurrent load (got ${rateLimitCountC})`);
+
   const create1 = await db.query<{ result: { success: boolean; challenge_id: string } }>(`
     SELECT public.request_password_reset_challenge_atomic(
       '${userA}'::uuid, '${resetEmail}', '${otpHash}', '${expiresAt}'::timestamptz, 5

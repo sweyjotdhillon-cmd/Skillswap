@@ -18,6 +18,9 @@ DECLARE
   v_fifteen_mins_ago timestamptz := NOW() - INTERVAL '15 minutes';
   v_challenge_id uuid;
 BEGIN
+  -- Acquire transaction-level advisory lock per email to prevent rate-limit bypass race conditions
+  PERFORM pg_advisory_xact_lock(hashtext(lower(p_email)));
+
   -- Rate limiting check: max 3 reset requests per email per 15 minutes
   SELECT count(*) INTO v_recent_count
   FROM public.password_reset_challenges
