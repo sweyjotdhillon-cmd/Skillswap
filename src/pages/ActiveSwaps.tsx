@@ -858,7 +858,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                       <button
                         type="button"
                         className="as-btn as-btn--primary"
-                        disabled={isMutating}
+                        disabled={isMutating || submissionLoading || !currentSubmission}
                         onClick={() => handleApproveGivenSwap(currentGivenItem)}
                       >
                         {isMutating ? 'Settling...' : 'Approve Work & Transfer Credits'}

@@ -14,7 +14,7 @@ export async function runCreditSystemTests() {
   // 1. Initialize embedded PostgreSQL engine (PGlite)
   const db = new PGlite();
 
-  // Create auth schema & auth.uid() function helper
+  // Create auth and storage schemas & auth.uid() function helper
   await db.exec(`
     DO $$ BEGIN
       IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon; END IF;
@@ -32,6 +32,37 @@ export async function runCreditSystemTests() {
     );
     CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
       SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid;
+    $$;
+
+    CREATE SCHEMA IF NOT EXISTS storage;
+    CREATE TABLE IF NOT EXISTS storage.buckets (
+      id text PRIMARY KEY,
+      name text NOT NULL,
+      owner uuid REFERENCES auth.users,
+      created_at timestamptz DEFAULT now(),
+      updated_at timestamptz DEFAULT now(),
+      public boolean DEFAULT false,
+      avif_autodetection boolean DEFAULT false,
+      file_size_limit bigint,
+      allowed_mime_types text[]
+    );
+    CREATE TABLE IF NOT EXISTS storage.objects (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      bucket_id text REFERENCES storage.buckets(id),
+      name text,
+      owner uuid REFERENCES auth.users,
+      created_at timestamptz DEFAULT now(),
+      updated_at timestamptz DEFAULT now(),
+      last_accessed_at timestamptz DEFAULT now(),
+      metadata jsonb,
+      path_tokens text[] GENERATED ALWAYS AS (string_to_array(name, '/')) STORED
+    );
+    CREATE OR REPLACE FUNCTION storage.foldername(name text)
+    RETURNS text[]
+    LANGUAGE sql
+    IMMUTABLE
+    AS $$
+      SELECT string_to_array(name, '/');
     $$;
   `);
 
@@ -72,6 +103,7 @@ export async function runCreditSystemTests() {
     '011_has_user_password_rpc.sql',
     '012_atomic_password_reset_security.sql',
     '013_chat_and_submissions.sql',
+    '014_chat_and_submission_security_hardening.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -237,6 +269,40 @@ export async function runCreditSystemTests() {
   // User B accepts Swap 2
   await db.query(`SELECT public.accept_credit_swap('${swap2Id}'::uuid);`);
 
+  // User A (requester) attempts to submit work on Swap 2 -> Must be rejected!
+  await setAuthUser(userA);
+  errorCaught = false;
+  try {
+    await db.query(`
+      SELECT public.submit_swap_work(
+        '${swap2Id}'::uuid,
+        'Requester trying to submit work',
+        '[]'::jsonb
+      );
+    `);
+  } catch (err: unknown) {
+    errorCaught = true;
+    assert((err as Error).message.includes('Only the designated participant can submit work'), 'Requester cannot submit work');
+  }
+  assert(errorCaught, 'Requester submission attempt rejected');
+
+  // User C (unrelated) attempts to submit work on Swap 2 -> Must be rejected!
+  await setAuthUser(userC);
+  errorCaught = false;
+  try {
+    await db.query(`
+      SELECT public.submit_swap_work(
+        '${swap2Id}'::uuid,
+        'Unrelated user trying to submit work',
+        '[]'::jsonb
+      );
+    `);
+  } catch (err: unknown) {
+    errorCaught = true;
+    assert((err as Error).message.includes('Only the designated participant can submit work'), 'Unrelated user cannot submit work');
+  }
+  assert(errorCaught, 'Unrelated user submission attempt rejected');
+
   // User A attempts to complete Swap 2 BEFORE submission -> Must be rejected!
   await setAuthUser(userA);
   errorCaught = false;
@@ -254,7 +320,7 @@ export async function runCreditSystemTests() {
     SELECT public.submit_swap_work(
       '${swap2Id}'::uuid,
       'Finished TS mentoring session and code sample repo.',
-      '[{"storage_path": "swap-submissions/${swap2Id}/${userB}/code.zip", "file_name": "code.zip", "mime_type": "application/zip", "file_size": 10240}]'::jsonb
+      '[{"storage_path": "${swap2Id}/${userB}/code.zip", "file_name": "code.zip", "mime_type": "application/zip", "file_size": 10240}]'::jsonb
     );
   `);
   assert(submitRes.rows[0].submit_swap_work.success === true, 'Atomic submission succeeded');
@@ -264,6 +330,22 @@ export async function runCreditSystemTests() {
 
   const fileRecord = await db.query<{ file_name: string }>(`SELECT file_name FROM public.swap_submission_files WHERE submission_id = '${submitRes.rows[0].submit_swap_work.submission_id}';`);
   assert(fileRecord.rows[0].file_name === 'code.zip', 'File metadata persisted');
+
+  // Attempt duplicate submission on same swap -> Must be rejected!
+  errorCaught = false;
+  try {
+    await db.query(`
+      SELECT public.submit_swap_work(
+        '${swap2Id}'::uuid,
+        'Duplicate submission attempt',
+        '[]'::jsonb
+      );
+    `);
+  } catch (err: unknown) {
+    errorCaught = true;
+    assert((err as Error).message.includes('not eligible for submission'), 'Duplicate submission attempt rejected');
+  }
+  assert(errorCaught, 'Duplicate submission on submitted swap rejected');
 
   // User A completes Swap 2 now that submission exists
   await setAuthUser(userA);
