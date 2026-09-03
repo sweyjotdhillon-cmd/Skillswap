@@ -24,8 +24,9 @@ BEGIN
   FOR v_swap IN
     SELECT *
     FROM public.swaps
-    WHERE (p_swap_id IS NULL AND status IN ('open', 'accepted') AND created_at <= v_cutoff)
-       OR (p_swap_id IS NOT NULL AND id = p_swap_id AND status IN ('open', 'accepted'))
+    WHERE status IN ('open', 'accepted')
+      AND created_at <= v_cutoff
+      AND (p_swap_id IS NULL OR id = p_swap_id)
     FOR UPDATE
   LOOP
     -- Double-check eligibility inside locked row loop
@@ -116,8 +117,10 @@ BEGIN
   FOR v_swap IN
     SELECT *
     FROM public.swaps
-    WHERE (p_swap_id IS NULL AND status = 'submitted' AND submitted_at IS NOT NULL AND submitted_at <= v_cutoff)
-       OR (p_swap_id IS NOT NULL AND id = p_swap_id AND status = 'submitted')
+    WHERE status = 'submitted'
+      AND submitted_at IS NOT NULL
+      AND submitted_at <= v_cutoff
+      AND (p_swap_id IS NULL OR id = p_swap_id)
     FOR UPDATE
   LOOP
     IF v_swap.status = 'submitted' AND v_swap.participant_id IS NOT NULL THEN
@@ -207,10 +210,10 @@ BEGIN
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION public.expire_abandoned_swaps(integer, uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.expire_abandoned_swaps(integer, uuid) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.expire_abandoned_swaps(integer, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.expire_abandoned_swaps(integer, uuid) TO service_role;
 
-REVOKE EXECUTE ON FUNCTION public.process_submitted_swap_timeouts(integer, uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.process_submitted_swap_timeouts(integer, uuid) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.process_submitted_swap_timeouts(integer, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.process_submitted_swap_timeouts(integer, uuid) TO service_role;
 
 NOTIFY pgrst, 'reload schema';
