@@ -1,36 +1,14 @@
 -- Migration 013: Production Chat and Submission Workflows with RLS and Storage Security
 
--- Ensure storage schema and tables exist for testing and production environments
-CREATE SCHEMA IF NOT EXISTS storage;
-
-CREATE TABLE IF NOT EXISTS storage.buckets (
-  id text PRIMARY KEY,
-  name text NOT NULL,
-  owner uuid REFERENCES auth.users,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now(),
-  public boolean DEFAULT false,
-  avif_autodetection boolean DEFAULT false,
-  file_size_limit bigint,
-  allowed_mime_types text[]
-);
-
-CREATE TABLE IF NOT EXISTS storage.objects (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  bucket_id text REFERENCES storage.buckets(id),
-  name text,
-  owner uuid REFERENCES auth.users,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now(),
-  last_accessed_at timestamptz DEFAULT now(),
-  metadata jsonb,
-  path_tokens text[] GENERATED ALWAYS AS (string_to_array(name, '/')) STORED
-);
-
--- Register swap-submissions bucket
-INSERT INTO storage.buckets (id, name, public, file_size_limit)
-VALUES ('swap-submissions', 'swap-submissions', false, 26214400)
-ON CONFLICT (id) DO NOTHING;
+-- Register swap-submissions bucket in Supabase storage.buckets if present
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'buckets') THEN
+    INSERT INTO storage.buckets (id, name, public, file_size_limit)
+    VALUES ('swap-submissions', 'swap-submissions', false, 26214400)
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+END $$;
 
 -- 1. SWAP MESSAGES TABLE
 CREATE TABLE IF NOT EXISTS public.swap_messages (
