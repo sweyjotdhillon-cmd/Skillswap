@@ -15,6 +15,10 @@ import { SwapChatModal } from '../components/chat/SwapChatModal';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 
+const ALLOWED_EXTENSIONS = new Set([
+  'pdf', 'zip', 'png', 'jpg', 'jpeg', 'webp', 'txt', 'doc', 'docx', 'csv', 'xlsx', 'mp4', 'json', 'fig', 'psd'
+]);
+
 export interface SwapParticipant {
   userId: string;
   name: string;
@@ -71,6 +75,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
   const isMountedRef = useRef(true);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadRealActiveSwaps = useCallback(async () => {
     if (!user) return;
@@ -185,15 +190,15 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   const currentGivenItem = givenSwaps.find((s) => s.swap.id === selectedGivenId) || givenSwaps[0] || null;
   const currentSelectedItem = activeTab === 'accepted' ? currentAcceptedItem : currentGivenItem;
 
-  // Load submission data whenever the selected swap changes
+  // Load submission data whenever the selected swap changes (clearing stale state immediately)
   useEffect(() => {
     let active = true;
+    // Clear previous submission state immediately on selection change
+    setCurrentSubmission(null);
+    setSignedFileUrls({});
+
     const fetchSubmissionData = async () => {
-      if (!currentSelectedItem) {
-        setCurrentSubmission(null);
-        setSignedFileUrls({});
-        return;
-      }
+      if (!currentSelectedItem) return;
 
       setSubmissionLoading(true);
       const res = await getSwapSubmission(currentSelectedItem.swap.id);
@@ -221,20 +226,66 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     return () => {
       active = false;
     };
-  }, [currentSelectedItem]);
+  }, [currentSelectedItem?.swap.id]);
 
   const handleOpenChat = (item: ActiveSwapItem) => {
     setActiveChatSwap(item);
   };
 
   // ==========================================
-  // SUBMISSION LOGIC
+  // SUBMISSION LOGIC & FILE INPUT ISOLATION
   // ==========================================
 
-  const handleFileDrop = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const processSelectedFiles = (newFiles: File[]) => {
+    setSubmitError(null);
+    const validToAdd: File[] = [];
+
+    for (const file of newFiles) {
+      if (file.size > 25 * 1024 * 1024) {
+        setSubmitError(`File "${file.name}" exceeds 25MB size limit.`);
+        continue;
+      }
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      if (!ALLOWED_EXTENSIONS.has(ext)) {
+        setSubmitError(`File "${file.name}" has unaccepted extension .${ext}`);
+        continue;
+      }
+      validToAdd.push(file);
+    }
+
+    if (submitWorkFiles.length + validToAdd.length > 5) {
+      setSubmitError('Maximum 5 files allowed per submission.');
+      return;
+    }
+
+    if (validToAdd.length > 0) {
+      setSubmitWorkFiles((prev) => [...prev, ...validToAdd]);
+    }
+  };
+
+  const handleFileSelectChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
-      setSubmitWorkFiles((prev) => [...prev, ...filesArray]);
+      processSelectedFiles(filesArray);
+    }
+    // Clear input value so same file can be selected again
+    if (e.target) {
+      e.target.value = '';
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.files) {
+      const filesArray = Array.from(e.dataTransfer.files);
+      processSelectedFiles(filesArray);
     }
   };
 
@@ -822,22 +873,44 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
               <div className="form-group">
                 <span className="form-label">Attach Files (Optional, up to 25MB each)</span>
-                <label className="dropzone" htmlFor="submit-file-input">
-                  <input
-                    id="submit-file-input"
-                    type="file"
-                    multiple
-                    className="hidden-file-input"
-                    onChange={handleFileDrop}
-                  />
+
+                {/* Hidden File Input */}
+                <input
+                  ref={fileInputRef}
+                  id="submit-file-input"
+                  type="file"
+                  multiple
+                  style={{ display: 'none' }}
+                  onChange={handleFileSelectChange}
+                />
+
+                {/* Separate Button for Triggering Attachment Selection */}
+                <div
+                  className="dropzone"
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   <div className="dropzone-content">
-                    <span className="dropzone-add-text">Drag & drop files or browse</span>
-                    <span className="dropzone-subtext">PDF, ZIP, PNG, JPG up to 25MB</span>
+                    <button
+                      type="button"
+                      className="as-btn as-btn--secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        fileInputRef.current?.click();
+                      }}
+                      style={{ marginBottom: '0.5rem' }}
+                    >
+                      📁 Browse / Select Files
+                    </button>
+                    <span className="dropzone-add-text">Drag & drop files or click browse</span>
+                    <span className="dropzone-subtext">PDF, ZIP, PNG, JPG, DOCX, etc. up to 25MB</span>
                   </div>
-                </label>
+                </div>
 
                 {submitWorkFiles.length > 0 && (
-                  <div className="as-modal-file-list">
+                  <div className="as-modal-file-list" style={{ marginTop: '0.75rem' }}>
                     {submitWorkFiles.map((file, i) => (
                       <div key={i} className="attachment-card">
                         <div className="attachment-info">

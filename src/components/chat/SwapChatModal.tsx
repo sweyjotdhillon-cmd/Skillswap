@@ -1,16 +1,59 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getSupabaseBrowserClient } from '../../lib/supabase/client';
-import { getSwapMessages, sendSwapMessage } from '../../lib/supabase/credits';
 import type { Swap, SwapMessage } from '../../types/swap';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+export interface ChatMessagePayload extends SwapMessage {
+  expiresAt: number;
+}
 
 export interface SwapChatModalProps {
   swap: Swap;
   partnerName?: string;
   partnerAvatar?: string;
   onClose: () => void;
+}
+
+/** Helper to get storage key for a swap */
+function getStorageKey(swapId: string): string {
+  return `skillswap_chat_${swapId}`;
+}
+
+/** Helper to read unexpired chat messages from localStorage */
+function loadLocalMessages(swapId: string): ChatMessagePayload[] {
+  try {
+    const raw = localStorage.getItem(getStorageKey(swapId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as ChatMessagePayload[];
+    if (!Array.isArray(parsed)) return [];
+
+    const now = Date.now();
+    const valid = parsed.filter((m) => typeof m.expiresAt === 'number' && m.expiresAt > now);
+
+    // Save back if any expired messages were dropped
+    if (valid.length !== parsed.length) {
+      localStorage.setItem(getStorageKey(swapId), JSON.stringify(valid));
+    }
+
+    return valid;
+  } catch (err) {
+    console.error('Error reading local chat messages:', err);
+    return [];
+  }
+}
+
+/** Helper to save messages to localStorage */
+function saveLocalMessages(swapId: string, messages: ChatMessagePayload[]): void {
+  try {
+    const now = Date.now();
+    const valid = messages.filter((m) => typeof m.expiresAt === 'number' && m.expiresAt > now);
+    localStorage.setItem(getStorageKey(swapId), JSON.stringify(valid));
+  } catch (err) {
+    console.error('Error saving local chat messages:', err);
+  }
 }
 
 export function SwapChatModal({
@@ -20,9 +63,7 @@ export function SwapChatModal({
   onClose,
 }: SwapChatModalProps) {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<SwapMessage[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessagePayload[]>([]);
   const [input, setInput] = useState<string>('');
   const [sending, setSending] = useState<boolean>(false);
 
@@ -38,7 +79,7 @@ export function SwapChatModal({
   } else if (isParticipant) {
     recipientId = swap.requesterId;
   } else {
-    // Open swap chat where current user is applicant/visitor
+    // Open swap chat where current user is applicant/visitor chatting with requester
     recipientId = swap.requesterId;
   }
 
@@ -56,76 +97,63 @@ export function SwapChatModal({
       : swap.requesterProfile?.avatarUrl) ||
     DEFAULT_AVATAR;
 
-  // Initial load of messages
-  useEffect(() => {
-    let active = true;
-    async function loadMessages() {
-      setLoading(true);
-      setError(null);
-      const res = await getSwapMessages(swap.id);
-      if (!active) return;
-      if (res.error) {
-        setError(res.error);
-      } else {
-        setMessages(res.data);
-      }
-      setLoading(false);
-    }
-
-    void loadMessages();
-    return () => {
-      active = false;
-    };
+  // Cleanup expired messages and update state
+  const cleanupAndSetMessages = useCallback((updater?: (prev: ChatMessagePayload[]) => ChatMessagePayload[]) => {
+    setMessages((prev) => {
+      const next = updater ? updater(prev) : prev;
+      const now = Date.now();
+      const valid = next.filter((m) => typeof m.expiresAt === 'number' && m.expiresAt > now);
+      saveLocalMessages(swap.id, valid);
+      return valid;
+    });
   }, [swap.id]);
 
-  // Realtime subscription for INSERT events
+  // Initial load from localStorage (No Postgres database fetch)
+  useEffect(() => {
+    const initial = loadLocalMessages(swap.id);
+    setMessages(initial);
+  }, [swap.id]);
+
+  // Periodic expiration cleanup while modal is open (every 30 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      cleanupAndSetMessages();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [cleanupAndSetMessages]);
+
+  // Supabase Realtime Broadcast Subscription
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
 
-    const channel = supabase
-      .channel(`chat_modal_${swap.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'swap_messages',
-          filter: `swap_id=eq.${swap.id}`,
-        },
-        (payload) => {
-          const raw = payload.new as {
-            id: string;
-            swap_id: string;
-            sender_id: string;
-            recipient_id: string;
-            body: string;
-            read_at?: string | null;
-            created_at: string;
-          };
+    const channelName = `skillswap-chat:${swap.id}`;
+    const channel = supabase.channel(channelName, {
+      config: {
+        broadcast: { self: true }, // allow client to receive own broadcasts cleanly
+      },
+    });
 
-          const newMsg: SwapMessage = {
-            id: raw.id,
-            swapId: raw.swap_id,
-            senderId: raw.sender_id,
-            recipientId: raw.recipient_id,
-            body: raw.body,
-            readAt: raw.read_at,
-            createdAt: raw.created_at,
-          };
+    channel
+      .on('broadcast', { event: 'chat_message' }, (payload) => {
+        const msg = payload.payload as ChatMessagePayload;
+        if (!msg || msg.swapId !== swap.id) return;
 
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
-          });
-        }
-      )
+        // Verify message relevance to user or swap partner
+        if (msg.expiresAt <= Date.now()) return;
+
+        cleanupAndSetMessages((prev) => {
+          if (prev.some((m) => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+      })
       .subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [swap.id]);
+  }, [swap.id, cleanupAndSetMessages]);
 
   // Auto-scroll to bottom on message change
   useEffect(() => {
@@ -140,24 +168,42 @@ export function SwapChatModal({
     if (!cleanText || sending || !user || !recipientId) return;
 
     setSending(true);
-    setError(null);
 
-    const res = await sendSwapMessage(swap.id, recipientId, cleanText);
-    setSending(false);
+    const now = Date.now();
+    const createdAtIso = new Date(now).toISOString();
+    const expiresAtTimestamp = now + TWENTY_FOUR_HOURS_MS;
 
-    if (!res.success) {
-      setError(res.error || 'Failed to send message.');
-      return;
-    }
+    const newMessage: ChatMessagePayload = {
+      id: `msg_${crypto.randomUUID()}`,
+      swapId: swap.id,
+      senderId: user.id,
+      recipientId: recipientId,
+      body: cleanText,
+      createdAt: createdAtIso,
+      expiresAt: expiresAtTimestamp,
+    };
+
+    // Store locally and update UI state immediately
+    cleanupAndSetMessages((prev) => {
+      if (prev.some((m) => m.id === newMessage.id)) return prev;
+      return [...prev, newMessage];
+    });
 
     setInput('');
-    if (res.message) {
-      const sentMsg = res.message;
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === sentMsg.id)) return prev;
-        return [...prev, sentMsg];
+
+    // Broadcast via Supabase Realtime Channel
+    const supabase = getSupabaseBrowserClient();
+    if (supabase) {
+      const channelName = `skillswap-chat:${swap.id}`;
+      const channel = supabase.channel(channelName);
+      await channel.send({
+        type: 'broadcast',
+        event: 'chat_message',
+        payload: newMessage,
       });
     }
+
+    setSending(false);
   };
 
   return (
@@ -187,13 +233,9 @@ export function SwapChatModal({
             padding: '1rem',
           }}
         >
-          {loading ? (
-            <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Loading messages...</p>
-          ) : error ? (
-            <p style={{ textAlign: 'center', color: 'var(--error-color, #ef4444)' }}>{error}</p>
-          ) : messages.length === 0 ? (
+          {messages.length === 0 ? (
             <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-              No messages yet. Send a message to start conversing!
+              No active messages. Send a message to start conversing! (Messages auto-expire after 24 hours)
             </p>
           ) : (
             messages.map((msg) => {
