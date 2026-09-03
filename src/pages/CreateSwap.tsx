@@ -71,6 +71,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const activeIdempotencyKeyRef = useRef<string | null>(null);
+  const [createdSwapResult, setCreatedSwapResult] = useState<{ swapId: string; topic: string; creditAmount: number } | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'info'; text: string } | null>(() => {
     try {
       const saved = localStorage.getItem(draftKey);
@@ -161,14 +162,25 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
+    if (!user) {
+      setErrors((prev) => ({
+        ...prev,
+        credits: 'You must be logged in to create a swap.',
+      }));
+      return;
+    }
+
     if (validate() && formState.chatPermission) {
       setIsSubmitting(true);
       if (!activeIdempotencyKeyRef.current) {
         activeIdempotencyKeyRef.current = `swap_create:${crypto.randomUUID()}`;
       }
       const amount = parseInt(formState.credits, 10);
+      const topicTitle = formState.topic.trim();
       const res = await createCreditSwap({
-        topic: formState.topic.trim(),
+        topic: topicTitle,
         description: formState.description.trim(),
         requirements: formState.requirements.trim(),
         chatPermission: formState.chatPermission === 'permission' ? 'requester' : 'anyone',
@@ -177,7 +189,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         idempotencyKey: activeIdempotencyKeyRef.current,
       });
 
-      if (!res.success) {
+      if (!res.success || !res.swapId) {
         setErrors((prev) => ({
           ...prev,
           credits: res.error || 'Failed to reserve credits. Please try again.',
@@ -186,6 +198,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         return;
       }
 
+      const createdId = res.swapId;
       await refreshAccount();
 
       try {
@@ -194,14 +207,27 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         // ignore
       }
       activeIdempotencyKeyRef.current = null;
+
+      // Reset form state to clear draft
+      setFormState({
+        topic: '',
+        description: '',
+        attachments: [],
+        chatPermission: null,
+        credits: '',
+        requirements: '',
+        additionalMessage: '',
+      });
+
+      setCreatedSwapResult({
+        swapId: createdId,
+        topic: topicTitle,
+        creditAmount: amount,
+      });
       setStatusMessage({
         type: 'success',
-        text: `Swap listing created and ${amount} credits reserved.`,
+        text: `Swap listing created! (ID: ${createdId}) and ${amount} SkillCredits reserved.`,
       });
-      if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
-      statusTimerRef.current = setTimeout(() => {
-        setStatusMessage(null);
-      }, 5000);
       setIsSubmitting(false);
     } else {
       // Scroll to first error
@@ -247,7 +273,50 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} noValidate className="create-swap-form">
+            {createdSwapResult ? (
+              <div className="status-banner status-banner--success" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.25rem', marginTop: '1rem' }}>
+                <div style={{ fontWeight: 600, fontSize: '1.05rem' }}>
+                  ✓ Swap Successfully Created!
+                </div>
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                  Your swap <strong>"{createdSwapResult.topic}"</strong> is now live on the Explore marketplace with <strong>{createdSwapResult.creditAmount} SkillCredits</strong> reserved.
+                  <br />
+                  <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>ID: {createdSwapResult.swapId}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="modal-btn modal-btn--confirm"
+                    onClick={() => {
+                      if (onNavigate) onNavigate('/explore');
+                    }}
+                  >
+                    View in Explore Marketplace
+                  </button>
+                  <button
+                    type="button"
+                    className="modal-btn modal-btn--cancel"
+                    onClick={() => {
+                      if (onNavigate) onNavigate('/active-swaps');
+                    }}
+                  >
+                    View Active Swaps
+                  </button>
+                  <button
+                    type="button"
+                    className="modal-btn modal-btn--cancel"
+                    style={{ background: 'none', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
+                    onClick={() => {
+                      setCreatedSwapResult(null);
+                      setStatusMessage(null);
+                    }}
+                  >
+                    Create Another Swap
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} noValidate className="create-swap-form">
               <TopicField
                 value={formState.topic}
                 onChange={(val) => {
@@ -309,6 +378,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
                 isSubmitting={isSubmitting}
               />
             </form>
+            )}
           </div>
 
           <SwapPreviewCard formState={formState} />

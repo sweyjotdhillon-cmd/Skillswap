@@ -74,6 +74,8 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
   const [acceptedSwaps, setAcceptedSwaps] = useState<AcceptedSwap[]>([]);
   const [givenSwaps, setGivenSwaps] = useState<GivenSwap[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [selectedAcceptedId, setSelectedAcceptedId] = useState<string>('');
   const [selectedGivenId, setSelectedGivenId] = useState<string>('');
@@ -100,85 +102,95 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
   const loadRealActiveSwaps = useCallback(async () => {
     if (!user) return;
+    setIsLoading(true);
+    setFetchError(null);
     try {
       const records: SwapRecord[] = await getUserSwaps(user.id);
-      if (records) {
-        const canonicalSwaps: Swap[] = records.map(mapSwapRecordToSwap);
-        const accepted: AcceptedSwap[] = [];
-        const given: GivenSwap[] = [];
+      const canonicalSwaps: Swap[] = (records || []).map(mapSwapRecordToSwap);
+      const accepted: AcceptedSwap[] = [];
+      const given: GivenSwap[] = [];
 
-        canonicalSwaps.forEach((swap) => {
-          if (['open', 'cancelled', 'declined', 'withdrawn', 'expired'].includes(swap.status)) return;
+      canonicalSwaps.forEach((swap) => {
+        if (['open', 'cancelled', 'declined', 'withdrawn', 'expired'].includes(swap.status)) return;
 
-          const isRequester = swap.requesterId === user.id;
-          const partnerProfile = isRequester ? swap.participantProfile : swap.requesterProfile;
-          const partnerName = partnerProfile?.fullName || (partnerProfile?.username ? `@${partnerProfile.username}` : 'SkillSwap Member');
-          const partnerAvatar = partnerProfile?.avatarUrl || DEFAULT_AVATAR;
-          const partnerLocation = partnerProfile?.username ? `@${partnerProfile.username}` : 'SkillSwap Network';
+        const isRequester = swap.requesterId === user.id;
+        const isParticipant = swap.participantId === user.id;
 
-          const createdDate = new Date(swap.createdAt).toLocaleDateString(undefined, {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          });
+        // Skip records where user is neither requester nor participant
+        if (!isRequester && !isParticipant) return;
 
-          if (!isRequester) {
-            // User is participant (accepted to deliver skill)
-            const statusLabel = swap.status === 'submitted' ? 'Review' : swap.status === 'completed' ? 'Completed' : 'In Progress';
-            const progress = swap.status === 'completed' ? 100 : swap.status === 'submitted' ? 90 : 50;
+        const partnerProfile = isRequester ? swap.participantProfile : swap.requesterProfile;
+        const partnerName = partnerProfile?.fullName || (partnerProfile?.username ? `@${partnerProfile.username}` : 'SkillSwap Member');
+        const partnerAvatar = partnerProfile?.avatarUrl || DEFAULT_AVATAR;
+        const partnerLocation = partnerProfile?.username ? `@${partnerProfile.username}` : 'SkillSwap Network';
 
-            accepted.push({
-              id: swap.id,
-              participant: {
-                name: partnerName,
-                location: partnerLocation,
-                avatar: partnerAvatar,
-              },
-              title: swap.topic,
-              description: swap.description,
-              credits: swap.creditAmount,
-              startedOn: createdDate,
-              deadline: 'Flexible',
-              progress,
-              status: statusLabel,
-              aboutSwap: swap.requirements || swap.description,
-              nextStep: swap.status === 'submitted' ? 'Waiting for requester to review and approve.' : swap.status === 'completed' ? 'Swap completed and credits received!' : 'Complete deliverable and click Submit Work.',
-              timeAgo: createdDate,
-            });
-          } else {
-            // User is requester (created swap, waiting for work or reviewing)
-            const submissionStatus = swap.status === 'submitted' ? 'Submitted for Review' : swap.status === 'completed' ? 'Completed' : 'Not submitted yet';
-            const statusBadge = swap.status === 'submitted' ? 'In Review' : swap.status === 'completed' ? 'Completed' : 'Waiting for Submission';
-
-            given.push({
-              id: swap.id,
-              participant: {
-                name: partnerName,
-                location: partnerLocation,
-                avatar: partnerAvatar,
-              },
-              title: swap.topic,
-              description: swap.description,
-              creditsOffered: swap.creditAmount,
-              acceptedOn: createdDate,
-              expectedBy: 'Flexible',
-              submissionStatus,
-              statusBadge,
-              aboutSwap: swap.requirements || swap.description,
-              whatHappensNext: swap.status === 'submitted' ? 'Review the submitted work and click Approve Work & Transfer Credits to settle.' : swap.status === 'completed' ? 'Credits settled and swap closed.' : 'Participant is working on deliverables.',
-              timeAgo: createdDate,
-            });
-          }
+        const createdDate = new Date(swap.createdAt).toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
         });
 
-        setAcceptedSwaps(accepted);
-        setSelectedAcceptedId((prev) => (prev && accepted.some((a) => a.id === prev) ? prev : accepted[0]?.id || ''));
+        if (isParticipant) {
+          // User is participant (accepted to deliver skill)
+          const statusLabel = swap.status === 'submitted' ? 'Review' : swap.status === 'completed' ? 'Completed' : 'In Progress';
+          const progress = swap.status === 'completed' ? 100 : swap.status === 'submitted' ? 90 : 50;
 
-        setGivenSwaps(given);
-        setSelectedGivenId((prev) => (prev && given.some((g) => g.id === prev) ? prev : given[0]?.id || ''));
-      }
+          accepted.push({
+            id: swap.id,
+            participant: {
+              name: partnerName,
+              location: partnerLocation,
+              avatar: partnerAvatar,
+            },
+            title: swap.topic,
+            description: swap.description,
+            credits: swap.creditAmount,
+            startedOn: createdDate,
+            deadline: 'Flexible',
+            progress,
+            status: statusLabel,
+            aboutSwap: swap.requirements || swap.description,
+            nextStep: swap.status === 'submitted' ? 'Waiting for requester to review and approve.' : swap.status === 'completed' ? 'Swap completed and credits received!' : 'Complete deliverable and click Submit Work.',
+            timeAgo: createdDate,
+          });
+        }
+
+        if (isRequester) {
+          // User is requester (created swap, waiting for work or reviewing)
+          const submissionStatus = swap.status === 'submitted' ? 'Submitted for Review' : swap.status === 'completed' ? 'Completed' : 'Not submitted yet';
+          const statusBadge = swap.status === 'submitted' ? 'In Review' : swap.status === 'completed' ? 'Completed' : 'Waiting for Submission';
+
+          given.push({
+            id: swap.id,
+            participant: {
+              name: partnerName,
+              location: partnerLocation,
+              avatar: partnerAvatar,
+            },
+            title: swap.topic,
+            description: swap.description,
+            creditsOffered: swap.creditAmount,
+            acceptedOn: createdDate,
+            expectedBy: 'Flexible',
+            submissionStatus,
+            statusBadge,
+            aboutSwap: swap.requirements || swap.description,
+            whatHappensNext: swap.status === 'submitted' ? 'Review the submitted work and click Approve Work & Transfer Credits to settle.' : swap.status === 'completed' ? 'Credits settled and swap closed.' : 'Participant is working on deliverables.',
+            timeAgo: createdDate,
+          });
+        }
+      });
+
+      setAcceptedSwaps(accepted);
+      setSelectedAcceptedId((prev) => (prev && accepted.some((a) => a.id === prev) ? prev : accepted[0]?.id || ''));
+
+      setGivenSwaps(given);
+      setSelectedGivenId((prev) => (prev && given.some((g) => g.id === prev) ? prev : given[0]?.id || ''));
     } catch (err) {
       console.error('Error loading real active swaps:', err);
+      setFetchError('Failed to load active swaps.');
+    } finally {
+      setIsLoading(false);
     }
   }, [user]);
 
@@ -371,7 +383,16 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
             {/* SWAP CARDS LIST */}
             <div className="as-list-container">
-              {activeTab === 'accepted' ? (
+              {isLoading ? (
+                <div className="sr-empty-state"><p>Loading active swaps...</p></div>
+              ) : fetchError ? (
+                <div className="sr-empty-state">
+                  <p style={{ color: 'var(--error-color, #ef4444)' }}>{fetchError}</p>
+                  <button type="button" className="as-btn as-btn--secondary" onClick={loadRealActiveSwaps} style={{ marginTop: '0.5rem' }}>
+                    Retry
+                  </button>
+                </div>
+              ) : activeTab === 'accepted' ? (
                 acceptedSwaps.length === 0 ? (
                   <div className="sr-empty-state"><p>No accepted swaps found.</p></div>
                 ) : (
