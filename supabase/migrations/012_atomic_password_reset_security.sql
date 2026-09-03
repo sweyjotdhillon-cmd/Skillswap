@@ -1,5 +1,71 @@
 -- 012_atomic_password_reset_security.sql
--- Concurrency-safe, atomic OTP verification and single-use recovery token consumption.
+-- Concurrency-safe, atomic OTP verification, rate-limited challenge creation, and single-use recovery token consumption.
+
+CREATE OR REPLACE FUNCTION public.request_password_reset_challenge_atomic(
+  p_user_id uuid,
+  p_email text,
+  p_otp_hash text,
+  p_expires_at timestamptz,
+  p_max_attempts int DEFAULT 5
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_recent_count int;
+  v_fifteen_mins_ago timestamptz := NOW() - INTERVAL '15 minutes';
+  v_challenge_id uuid;
+BEGIN
+  -- Rate limiting check: max 3 reset requests per email per 15 minutes
+  SELECT count(*) INTO v_recent_count
+  FROM public.password_reset_challenges
+  WHERE lower(email) = lower(p_email)
+    AND created_at >= v_fifteen_mins_ago;
+
+  IF v_recent_count >= 3 THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error_code', 'RATE_LIMIT_EXCEEDED',
+      'message', 'Too many password reset requests for this email. Please wait 15 minutes before trying again.'
+    );
+  END IF;
+
+  -- Invalidate previous active OTP challenges for this email
+  UPDATE public.password_reset_challenges
+  SET used_at = NOW()
+  WHERE lower(email) = lower(p_email)
+    AND used_at IS NULL;
+
+  -- Create new challenge
+  INSERT INTO public.password_reset_challenges (
+    user_id,
+    email,
+    otp_hash,
+    expires_at,
+    attempt_count,
+    max_attempts
+  )
+  VALUES (
+    p_user_id,
+    lower(p_email),
+    p_otp_hash,
+    p_expires_at,
+    0,
+    COALESCE(p_max_attempts, 5)
+  )
+  RETURNING id INTO v_challenge_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'challenge_id', v_challenge_id
+  );
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.request_password_reset_challenge_atomic(uuid, text, text, timestamptz, int) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.request_password_reset_challenge_atomic(uuid, text, text, timestamptz, int) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.verify_password_reset_otp_atomic(
   p_email text,

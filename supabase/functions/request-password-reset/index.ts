@@ -46,24 +46,6 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Rate Limiting Check: Max 3 reset requests per email per 15 minutes
-    const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-    const { data: recentRequests, error: rateLimitErr } = await supabase
-      .from('password_reset_challenges')
-      .select('id')
-      .eq('email', cleanEmail)
-      .gte('created_at', fifteenMinsAgo);
-
-    if (!rateLimitErr && recentRequests && recentRequests.length >= 3) {
-      return new Response(
-        JSON.stringify({
-          error: 'RATE_LIMIT_EXCEEDED',
-          message: 'Too many password reset requests for this email. Please wait 15 minutes before trying again.',
-        }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     // Server-side cleanup of expired challenges older than 1 hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     await supabase
@@ -99,29 +81,37 @@ serve(async (req) => {
     if (matchedUser) {
       const otp = generateOTP();
       const otpHash = await hashString(otp);
-
-      // Invalidate previous active OTP challenges for this email
-      await supabase
-        .from('password_reset_challenges')
-        .update({ used_at: new Date().toISOString() })
-        .eq('email', cleanEmail)
-        .is('used_at', null);
-
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
-      const { error: insertError } = await supabase.from('password_reset_challenges').insert({
-        user_id: matchedUser.id,
-        email: cleanEmail,
-        otp_hash: otpHash,
-        expires_at: expiresAt,
-        attempt_count: 0,
-        max_attempts: 5,
+      // Call atomic RPC for rate-limiting, invalidating old challenges, and creating new challenge
+      const { data: atomicRes, error: atomicErr } = await supabase.rpc('request_password_reset_challenge_atomic', {
+        p_user_id: matchedUser.id,
+        p_email: cleanEmail,
+        p_otp_hash: otpHash,
+        p_expires_at: expiresAt,
+        p_max_attempts: 5,
       });
 
-      if (insertError) {
-        console.error('Error inserting OTP challenge:', insertError);
+      if (atomicErr) {
+        console.error('RPC request_password_reset_challenge_atomic error:', atomicErr);
         return new Response(
           JSON.stringify({ error: 'SERVER_ERROR', message: 'Failed to generate verification code.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!atomicRes?.success) {
+        if (atomicRes?.error_code === 'RATE_LIMIT_EXCEEDED') {
+          return new Response(
+            JSON.stringify({
+              error: 'RATE_LIMIT_EXCEEDED',
+              message: atomicRes.message || 'Too many password reset requests for this email. Please wait 15 minutes before trying again.',
+            }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        return new Response(
+          JSON.stringify({ error: atomicRes?.error_code || 'SERVER_ERROR', message: atomicRes?.message || 'Failed to generate verification code.' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
