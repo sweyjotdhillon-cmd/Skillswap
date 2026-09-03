@@ -104,6 +104,7 @@ export async function runCreditSystemTests() {
     '012_atomic_password_reset_security.sql',
     '013_chat_and_submissions.sql',
     '014_chat_and_submission_security_hardening.sql',
+    '015_swap_expiry_and_submission_review_timeout.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -410,13 +411,367 @@ export async function runCreditSystemTests() {
       discrepancies_count: number;
     };
   };
-  const reconRes = await db.query<ReconRow>(`SELECT public.reconcile_credit_balances() AS recon;`);
-  const recon = reconRes.rows[0].recon;
+  let reconRes = await db.query<ReconRow>(`SELECT public.reconcile_credit_balances() AS recon;`);
+  let recon = reconRes.rows[0].recon;
 
   assert(recon.total_accounts === 3, 'Reconciled 3 test accounts');
   assert(recon.matching_accounts === 3, 'All 3 accounts match accounting model exactly');
   assert(recon.discrepancies_count === 0, 'Zero accounting discrepancies detected');
   console.log('  -> Account reconciliation check passed cleanly!');
+
+  // =========================================================================
+  // TEST 11: Concurrency & Race-Condition Safety Verification
+  // =========================================================================
+  console.log('Test 11: Concurrency & race-condition safety verification...');
+  await setAuthUser(userA);
+
+  // 11a: Concurrent swap creation with identical idempotency key
+  const concKey1 = 'swap_create:op_concurrency_1';
+  const [cRes1, cRes2] = await Promise.all([
+    db.query<{ swap_id: string }>(`
+      SELECT public.create_credit_swap(
+        'Concurrent Topic 1', 'Desc', 'Reqs', 'anyone', 15, NULL, '${concKey1}'
+      ) AS swap_id;
+    `),
+    db.query<{ swap_id: string }>(`
+      SELECT public.create_credit_swap(
+        'Concurrent Topic 1', 'Desc', 'Reqs', 'anyone', 15, NULL, '${concKey1}'
+      ) AS swap_id;
+    `),
+  ]);
+
+  assert(Boolean(cRes1.rows[0].swap_id), 'First concurrent swap creation succeeded');
+  assert(cRes1.rows[0].swap_id === cRes2.rows[0].swap_id, 'Both concurrent calls returned the identical swap_id');
+
+  res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
+  // Available balance was 80; reserving 15 once leaves 65
+  assert(res.rows[0].credits_balance === 65, 'Account balance deducted exactly once (65 available)');
+  assert(res.rows[0].credits_reserved === 15, 'Reserved credits increased exactly once (15 reserved)');
+
+  // 11b: Concurrent reservation attempts exceeding available balance
+  // User A currently has 65 available. Attempting two simultaneous creations of 50 credits each.
+  const concResults = await Promise.allSettled([
+    db.query<{ swap_id: string }>(`
+      SELECT public.create_credit_swap('Concurrent A', 'Desc', 'Reqs', 'anyone', 50, NULL, 'swap_create:op_conc_a') AS swap_id;
+    `),
+    db.query<{ swap_id: string }>(`
+      SELECT public.create_credit_swap('Concurrent B', 'Desc', 'Reqs', 'anyone', 50, NULL, 'swap_create:op_conc_b') AS swap_id;
+    `),
+  ]);
+
+  const fulfilled = concResults.filter((r) => r.status === 'fulfilled');
+  const rejected = concResults.filter((r) => r.status === 'rejected');
+  assert(fulfilled.length === 1, 'Exactly one concurrent reservation request succeeded');
+  assert(rejected.length === 1, 'Exactly one concurrent reservation request was rejected');
+
+  res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
+  assert(res.rows[0].credits_balance === 15, 'Balance non-negative and reduced by exactly 50 to 15');
+  assert(res.rows[0].credits_reserved === 65, 'Reserved credits increased by 50 to 65');
+
+  // 11c: Concurrent settlement attempts against the same swap
+  // Create Swap 3 (10 credits), User B accepts and submits, User A completes concurrently
+  swapRes = await db.query<{ swap_id: string }>(`
+    SELECT public.create_credit_swap(
+      'Concurrent Settlement Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_conc_settle'
+    ) AS swap_id;
+  `);
+  const swap3Id = swapRes.rows[0].swap_id;
+
+  await setAuthUser(userB);
+  await db.query(`SELECT public.accept_credit_swap('${swap3Id}'::uuid);`);
+  await db.query(`
+    SELECT public.submit_swap_work(
+      '${swap3Id}'::uuid,
+      'Concurrent work submission',
+      '[]'::jsonb
+    );
+  `);
+
+  await setSuperuser();
+  const userBBalBefore = (await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userB}';`)).rows[0].credits_balance;
+
+  await setAuthUser(userA);
+  const settleResults = await Promise.all([
+    db.query<{ result: { success?: boolean; idempotent_retry?: boolean } }>(`
+      SELECT public.complete_credit_swap('${swap3Id}'::uuid) AS result;
+    `),
+    db.query<{ result: { success?: boolean; idempotent_retry?: boolean } }>(`
+      SELECT public.complete_credit_swap('${swap3Id}'::uuid) AS result;
+    `),
+  ]);
+
+  const primarySettle = settleResults.find((s) => s.rows[0].result.idempotent_retry !== true);
+  const duplicateSettle = settleResults.find((s) => s.rows[0].result.idempotent_retry === true);
+
+  assert(Boolean(primarySettle), 'One settlement call executed the primary transfer');
+  assert(Boolean(duplicateSettle), 'The concurrent settlement call returned an idempotent retry');
+
+  await setSuperuser();
+  const userBBalAfter = (await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userB}';`)).rows[0].credits_balance;
+  assert(userBBalAfter === userBBalBefore + 10, 'Recipient awarded credits exactly once (no double payout)');
+
+  // 11d: Concurrent cancellation/release attempts against the same swap
+  // Create Swap 4 (5 credits) and cancel concurrently
+  await setAuthUser(userA);
+  swapRes = await db.query<{ swap_id: string }>(`
+    SELECT public.create_credit_swap(
+      'Concurrent Cancel Swap', 'Desc', 'Reqs', 'anyone', 5, NULL, 'swap_create:op_conc_cancel'
+    ) AS swap_id;
+  `);
+  const swap4Id = swapRes.rows[0].swap_id;
+
+  const userABalBeforeCancel = (await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`)).rows[0].credits_balance;
+
+  const cancelResults = await Promise.all([
+    db.query<{ result: { success?: boolean; idempotent_retry?: boolean } }>(`
+      SELECT public.cancel_credit_swap('${swap4Id}'::uuid) AS result;
+    `),
+    db.query<{ result: { success?: boolean; idempotent_retry?: boolean } }>(`
+      SELECT public.cancel_credit_swap('${swap4Id}'::uuid) AS result;
+    `),
+  ]);
+
+  const primaryCancel = cancelResults.find((c) => c.rows[0].result.idempotent_retry !== true);
+  const duplicateCancel = cancelResults.find((c) => c.rows[0].result.idempotent_retry === true);
+
+  assert(Boolean(primaryCancel), 'One cancellation call executed the primary release');
+  assert(Boolean(duplicateCancel), 'The concurrent cancellation call returned an idempotent retry');
+
+  const userABalAfterCancel = (await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`)).rows[0].credits_balance;
+  assert(userABalAfterCancel === userABalBeforeCancel + 5, 'Reserved credits refunded exactly once (no double refund)');
+
+  // Final reconciliation check after concurrency tests
+  await setSuperuser();
+  reconRes = await db.query<ReconRow>(`SELECT public.reconcile_credit_balances() AS recon;`);
+  recon = reconRes.rows[0].recon;
+  assert(recon.discrepancies_count === 0, 'Zero accounting discrepancies detected after concurrency tests');
+  console.log('  -> Concurrency & race-condition safety verified cleanly!');
+
+  // =========================================================================
+  // TEST 12: Swap Expiry & Submission Review Timeout Verification
+  // =========================================================================
+  console.log('Test 12: Swap expiry & submission review timeout verification...');
+  await setAuthUser(userA);
+
+  // 12a: Test expire_abandoned_swaps
+  await setSuperuser();
+  await db.exec(`
+    INSERT INTO public.credit_transactions (user_id, amount, balance_after, transaction_type, reason)
+    VALUES ('${userA}', 100, (SELECT credits_balance + 100 FROM public.accounts WHERE user_id = '${userA}'), 'transfer_received', 'Test topup');
+    UPDATE public.accounts SET credits_balance = credits_balance + 100, credits_earned = credits_earned + 100 WHERE user_id = '${userA}';
+  `);
+
+  await setAuthUser(userA);
+  swapRes = await db.query<{ swap_id: string }>(`
+    SELECT public.create_credit_swap(
+      'Abandoned Swap', 'Desc', 'Reqs', 'anyone', 15, NULL, 'swap_create:op_test_expire'
+    ) AS swap_id;
+  `);
+  const expireSwapId = swapRes.rows[0].swap_id;
+
+  // Backdate created_at to 35 days ago
+  await setSuperuser();
+  await db.query(`UPDATE public.swaps SET created_at = NOW() - INTERVAL '35 days' WHERE id = '${expireSwapId}';`);
+
+  const userABalBeforeExpiry = (await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`)).rows[0].credits_balance;
+
+  const expireRun1 = await db.query<{ result: { success: boolean; expired_count: number } }>(`
+    SELECT public.expire_abandoned_swaps(30, '${expireSwapId}'::uuid) AS result;
+  `);
+  assert(expireRun1.rows[0].result.success === true, 'expire_abandoned_swaps executed successfully');
+  assert(expireRun1.rows[0].result.expired_count === 1, 'Expired 1 abandoned swap');
+
+  const expireSwapStatus = (await db.query<{ status: string }>(`SELECT status FROM public.swaps WHERE id = '${expireSwapId}';`)).rows[0].status;
+  assert(expireSwapStatus === 'expired', 'Swap status updated to expired');
+
+  const userABalAfterExpiry = (await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`)).rows[0].credits_balance;
+  assert(userABalAfterExpiry === userABalBeforeExpiry + 15, 'Reserved credits refunded back to requester balance');
+
+  // Second call must be idempotent
+  const expireRun2 = await db.query<{ result: { expired_count: number } }>(`
+    SELECT public.expire_abandoned_swaps(30, '${expireSwapId}'::uuid) AS result;
+  `);
+  assert(expireRun2.rows[0].result.expired_count === 0, 'Subsequent expiry call on expired swap is idempotent (0 modified)');
+
+  // 12b: Test process_submitted_swap_timeouts
+  await setAuthUser(userA);
+  swapRes = await db.query<{ swap_id: string }>(`
+    SELECT public.create_credit_swap(
+      'Review Timeout Swap', 'Desc', 'Reqs', 'anyone', 20, NULL, 'swap_create:op_test_timeout'
+    ) AS swap_id;
+  `);
+  const timeoutSwapId = swapRes.rows[0].swap_id;
+
+  await setAuthUser(userB);
+  await db.query(`SELECT public.accept_credit_swap('${timeoutSwapId}'::uuid);`);
+  await db.query(`
+    SELECT public.submit_swap_work(
+      '${timeoutSwapId}'::uuid,
+      'Work submitted for timeout test',
+      '[]'::jsonb
+    );
+  `);
+
+  // Backdate submitted_at to 8 days ago
+  await setSuperuser();
+  await db.query(`UPDATE public.swaps SET submitted_at = NOW() - INTERVAL '8 days' WHERE id = '${timeoutSwapId}';`);
+
+  const userBBalBeforeTimeout = (await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userB}';`)).rows[0].credits_balance;
+
+  const timeoutRun1 = await db.query<{ result: { success: boolean; completed_count: number } }>(`
+    SELECT public.process_submitted_swap_timeouts(7, '${timeoutSwapId}'::uuid) AS result;
+  `);
+  assert(timeoutRun1.rows[0].result.success === true, 'process_submitted_swap_timeouts executed successfully');
+  assert(timeoutRun1.rows[0].result.completed_count === 1, 'Completed 1 timed-out submitted swap');
+
+  const timeoutSwapStatus = (await db.query<{ status: string }>(`SELECT status FROM public.swaps WHERE id = '${timeoutSwapId}';`)).rows[0].status;
+  assert(timeoutSwapStatus === 'completed', 'Swap status updated to completed');
+
+  const userBBalAfterTimeout = (await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userB}';`)).rows[0].credits_balance;
+  assert(userBBalAfterTimeout === userBBalBeforeTimeout + 20, 'Recipient awarded credits automatically upon review timeout');
+
+  // Second call must be idempotent
+  const timeoutRun2 = await db.query<{ result: { completed_count: number } }>(`
+    SELECT public.process_submitted_swap_timeouts(7, '${timeoutSwapId}'::uuid) AS result;
+  `);
+  assert(timeoutRun2.rows[0].result.completed_count === 0, 'Subsequent timeout call on completed swap is idempotent (0 modified)');
+
+  // Final account reconciliation check after expiry and timeout tests
+  reconRes = await db.query<ReconRow>(`SELECT public.reconcile_credit_balances() AS recon;`);
+  recon = reconRes.rows[0].recon;
+  assert(recon.discrepancies_count === 0, 'Zero accounting discrepancies detected after expiry and timeout tests');
+  console.log('  -> Swap expiry & submission review timeout verified cleanly!');
+
+  // =========================================================================
+  // TEST 13: Password Reset Atomic RPCs & Security Verification
+  // =========================================================================
+  console.log('Test 13: Password reset atomic RPCs & security verification...');
+  await setSuperuser();
+
+  const resetEmail = 'usera@example.com';
+  const otpRaw = '123456';
+  const crypto = await import('crypto');
+  const hashStr = (s: string) => crypto.createHash('sha256').update(s).digest('hex');
+  const otpHash = hashStr(otpRaw);
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+  // 13a: Atomic Challenge Creation & Rate Limiting
+  const create1 = await db.query<{ result: { success: boolean; challenge_id: string } }>(`
+    SELECT public.request_password_reset_challenge_atomic(
+      '${userA}'::uuid, '${resetEmail}', '${otpHash}', '${expiresAt}'::timestamptz, 5
+    ) AS result;
+  `);
+  assert(create1.rows[0].result.success === true, 'First reset request created challenge successfully');
+
+  const create2 = await db.query<{ result: { success: boolean } }>(`
+    SELECT public.request_password_reset_challenge_atomic(
+      '${userA}'::uuid, '${resetEmail}', '${otpHash}', '${expiresAt}'::timestamptz, 5
+    ) AS result;
+  `);
+  assert(create2.rows[0].result.success === true, 'Second reset request created challenge successfully');
+
+  const create3 = await db.query<{ result: { success: boolean } }>(`
+    SELECT public.request_password_reset_challenge_atomic(
+      '${userA}'::uuid, '${resetEmail}', '${otpHash}', '${expiresAt}'::timestamptz, 5
+    ) AS result;
+  `);
+  assert(create3.rows[0].result.success === true, 'Third reset request created challenge successfully');
+
+  // Fourth request within 15 minutes MUST be rate limited
+  const create4 = await db.query<{ result: { success: boolean; error_code: string } }>(`
+    SELECT public.request_password_reset_challenge_atomic(
+      '${userA}'::uuid, '${resetEmail}', '${otpHash}', '${expiresAt}'::timestamptz, 5
+    ) AS result;
+  `);
+  assert(create4.rows[0].result.success === false, 'Fourth reset request within 15 minutes rejected');
+  assert(create4.rows[0].result.error_code === 'RATE_LIMIT_EXCEEDED', 'Correct RATE_LIMIT_EXCEEDED error code');
+
+  // 13b: Wrong OTP Attempt Counting & Attempt Limits
+  const wrongOtpHash = hashStr('000000');
+  const recTokenRaw = 'token_test_abc_123';
+  const recTokenHash = hashStr(recTokenRaw);
+  const tokenExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+  // 4 wrong attempts
+  for (let i = 1; i <= 4; i++) {
+    const wrongRes = await db.query<{ result: { success: boolean; error_code: string } }>(`
+      SELECT public.verify_password_reset_otp_atomic(
+        '${resetEmail}', '${wrongOtpHash}', '${recTokenHash}', '${tokenExpiresAt}'::timestamptz
+      ) AS result;
+    `);
+    assert(wrongRes.rows[0].result.success === false, `Wrong OTP attempt ${i} rejected`);
+    assert(wrongRes.rows[0].result.error_code === 'INCORRECT_OTP', 'Returned INCORRECT_OTP error code');
+  }
+
+  // 5th wrong attempt hits maximum attempts limit
+  const wrongRes5 = await db.query<{ result: { success: boolean; error_code: string } }>(`
+    SELECT public.verify_password_reset_otp_atomic(
+      '${resetEmail}', '${wrongOtpHash}', '${recTokenHash}', '${tokenExpiresAt}'::timestamptz
+    ) AS result;
+  `);
+  assert(wrongRes5.rows[0].result.success === false, '5th wrong OTP attempt rejected');
+  assert(wrongRes5.rows[0].result.error_code === 'TOO_MANY_ATTEMPTS', 'Max attempts reached returns TOO_MANY_ATTEMPTS');
+
+  // 6th attempt even with correct OTP must fail because challenge was marked used upon hitting max attempts
+  const correctAfterMax = await db.query<{ result: { success: boolean; error_code: string } }>(`
+    SELECT public.verify_password_reset_otp_atomic(
+      '${resetEmail}', '${otpHash}', '${recTokenHash}', '${tokenExpiresAt}'::timestamptz
+    ) AS result;
+  `);
+  assert(correctAfterMax.rows[0].result.success === false, 'Correct OTP rejected after max attempts exceeded');
+  assert(
+    correctAfterMax.rows[0].result.error_code === 'TOO_MANY_ATTEMPTS' || correctAfterMax.rows[0].result.error_code === 'EXPIRED_OTP',
+    'Returns error_code for invalidated challenge'
+  );
+
+  // 13c: Successful OTP Verification & Single-Use Recovery Token
+  // Clear old challenges and create fresh challenge for User B
+  await db.query(`DELETE FROM public.password_reset_challenges WHERE lower(email) = 'userb@example.com';`);
+
+  const userBOtpHash = hashStr('654321');
+  await db.query(`
+    SELECT public.request_password_reset_challenge_atomic(
+      '${userB}'::uuid, 'userb@example.com', '${userBOtpHash}', '${expiresAt}'::timestamptz, 5
+    );
+  `);
+
+  const userBTokenRaw = 'userb_recovery_token_xyz';
+  const userBTokenHash = hashStr(userBTokenRaw);
+
+  const verifySuccess = await db.query<{ result: { success: boolean } }>(`
+    SELECT public.verify_password_reset_otp_atomic(
+      'userb@example.com', '${userBOtpHash}', '${userBTokenHash}', '${tokenExpiresAt}'::timestamptz
+    ) AS result;
+  `);
+  assert(verifySuccess.rows[0].result.success === true, 'Correct OTP verified successfully');
+
+  // Duplicate OTP verification attempt must fail
+  const verifyDup = await db.query<{ result: { success: boolean; error_code: string } }>(`
+    SELECT public.verify_password_reset_otp_atomic(
+      'userb@example.com', '${userBOtpHash}', '${userBTokenHash}', '${tokenExpiresAt}'::timestamptz
+    ) AS result;
+  `);
+  assert(verifyDup.rows[0].result.success === false, 'Duplicate OTP verification attempt rejected');
+
+  // 13d: Concurrent Recovery Token Claim Atomicity
+  const claimResults = await Promise.all([
+    db.query<{ result: { success: boolean; user_id?: string; error_code?: string } }>(`
+      SELECT public.claim_password_reset_recovery_token('userb@example.com', '${userBTokenHash}') AS result;
+    `),
+    db.query<{ result: { success: boolean; user_id?: string; error_code?: string } }>(`
+      SELECT public.claim_password_reset_recovery_token('userb@example.com', '${userBTokenHash}') AS result;
+    `),
+  ]);
+
+  const successfulClaim = claimResults.find((c) => c.rows[0].result.success === true);
+  const rejectedClaim = claimResults.find((c) => c.rows[0].result.success === false);
+
+  assert(Boolean(successfulClaim), 'One recovery token claim succeeded');
+  assert(successfulClaim?.rows[0].result.user_id === userB, 'Claim returned correct user_id');
+  assert(Boolean(rejectedClaim), 'Concurrent recovery token claim rejected');
+  assert(rejectedClaim?.rows[0].result.error_code === 'INVALID_TOKEN', 'Rejected claim returned INVALID_TOKEN');
+
+  console.log('  -> Password reset atomic RPCs & security verified cleanly!');
 
   console.log('--- ALL SKILLSWAP CREDIT INTEGRATION & SECURITY TESTS PASSED PERFECTLY! ---');
 }
