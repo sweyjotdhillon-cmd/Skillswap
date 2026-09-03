@@ -874,15 +874,13 @@ h1 span { color: #a8781d; }
   -webkit-user-select: none;
   user-select: none;
   mix-blend-mode: multiply;
-  -webkit-mask-image: radial-gradient(ellipse at center, black 55%, transparent 95%);
-  mask-image: radial-gradient(ellipse at center, black 55%, transparent 95%);
-  filter: drop-shadow(0 12px 28px rgba(120, 90, 30, 0.08));
+  -webkit-mask-image: radial-gradient(circle at center, black 50%, transparent 72%);
+  mask-image: radial-gradient(circle at center, black 50%, transparent 72%);
 }
 [data-theme='dark'] .ecosystem-image {
   mix-blend-mode: lighten;
-  -webkit-mask-image: radial-gradient(ellipse at center, black 55%, transparent 95%);
-  mask-image: radial-gradient(ellipse at center, black 55%, transparent 95%);
-  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.35));
+  -webkit-mask-image: radial-gradient(circle at center, black 50%, transparent 72%);
+  mask-image: radial-gradient(circle at center, black 50%, transparent 72%);
 }
 
 .credit-core { position: absolute; left: 53%; top: 50%; transform: translate(-50%,-50%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.45rem; color: #b2822a; z-index: 8; }
