@@ -12,6 +12,7 @@ import { CreateSwapActions } from '../components/create-swap/CreateSwapActions';
 import { SwapPreviewCard } from '../components/create-swap/SwapPreviewCard';
 import { useAuth } from '../context/AuthContext';
 import { createCreditSwap } from '../lib/supabase/credits';
+import { generateUUID } from '../lib/uuid';
 
 export interface CreateSwapFormState {
   topic: string;
@@ -175,7 +176,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
     if (validate() && formState.chatPermission) {
       setIsSubmitting(true);
       if (!activeIdempotencyKeyRef.current) {
-        activeIdempotencyKeyRef.current = `swap_create:${crypto.randomUUID()}`;
+        activeIdempotencyKeyRef.current = `swap_create:${generateUUID()}`;
       }
       const amount = parseInt(formState.credits, 10);
       const topicTitle = formState.topic.trim();

@@ -1,5 +1,6 @@
 import { getSupabaseBrowserClient } from './client';
 import { formatFriendlyErrorMessage } from './profile';
+import { generateUUID } from '../uuid';
 import type { SwapMessage, SwapSubmission, SwapSubmissionFile } from '../../types/swap';
 
 export interface Account {
@@ -80,7 +81,7 @@ export async function createCreditSwap(input: CreateCreditSwapInput): Promise<{ 
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
 
-  const idempotencyKey = input.idempotencyKey || `swap_create:${crypto.randomUUID()}`;
+  const idempotencyKey = input.idempotencyKey || `swap_create:${generateUUID()}`;
 
   const { data, error } = await supabase.rpc('create_credit_swap', {
     p_topic: input.topic,
@@ -169,7 +170,7 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
       }
 
       const safeFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
-      const storagePath = `submissions/${input.swapId}/${user.id}/${crypto.randomUUID()}-${safeFileName}`;
+      const storagePath = `submissions/${input.swapId}/${user.id}/${generateUUID()}-${safeFileName}`;
 
       console.log(`[SUBMISSION] upload started: ${file.name}`, { storagePath, mimeType: file.type || 'application/octet-stream', size: file.size });
 

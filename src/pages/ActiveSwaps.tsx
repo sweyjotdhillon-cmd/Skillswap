@@ -939,7 +939,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     {submitWorkFiles.map((file, i) => (
                       <div key={i} className="attachment-card">
                         <div className="attachment-info">
-                          <span className="attachment-name">{file.name}</span>
+                          <span className="attachment-name" title={file.name}>{file.name}</span>
                           <span className="attachment-size">({(file.size / 1024).toFixed(1)} KB)</span>
                         </div>
                         <button
