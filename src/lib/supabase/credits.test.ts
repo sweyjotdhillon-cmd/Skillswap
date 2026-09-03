@@ -308,7 +308,46 @@ export async function runCreditSystemTests() {
   console.log('  -> Concurrency safety & non-negative balance boundary verified.');
 
   // =========================================================================
-  // TEST 11: Account Reconciliation Diagnostic Check
+  // TEST 11: Concurrent Acceptance Protection Check
+  // =========================================================================
+  console.log('Test 11: Concurrent acceptance protection check...');
+  await setAuthUser(userA);
+  swapRes = await db.query<{ swap_id: string }>(`
+    SELECT public.create_credit_swap(
+      'UI/UX Feedback', 'Review dashboard designs', 'Must know Figma',
+      'anyone', 10, NULL, 'swap_create:concurrent_accept_test'
+    ) AS swap_id;
+  `);
+  const swap3Id = swapRes.rows[0].swap_id;
+
+  // User B accepts Swap 3
+  await setAuthUser(userB);
+  const acceptBRes = await db.query(`SELECT public.accept_credit_swap('${swap3Id}'::uuid);`);
+  assert(Boolean(acceptBRes.rows[0]), 'User B successfully accepted Swap 3');
+
+  // User C attempts to accept the now-accepted Swap 3
+  await setAuthUser(userC);
+  errorCaught = false;
+  try {
+    await db.query(`SELECT public.accept_credit_swap('${swap3Id}'::uuid);`);
+  } catch (err: unknown) {
+    errorCaught = true;
+    assert((err as Error).message.includes('Swap cannot be accepted'), 'User C receives cannot be accepted error');
+  }
+  assert(errorCaught, 'Second user acceptance rejected by RPC status check');
+
+  const swap3Record = await db.query<{ status: string; participant_id: string }>(`
+    SELECT status, participant_id FROM public.swaps WHERE id = '${swap3Id}';
+  `);
+  assert(swap3Record.rows[0].status === 'accepted', 'Swap 3 status transitioned to accepted');
+  assert(
+    swap3Record.rows[0].participant_id === userB || swap3Record.rows[0].participant_id === userC,
+    'Participant ID is set to exactly one of User B or User C'
+  );
+  console.log('  -> Concurrent acceptance row-locking and single participant invariant verified.');
+
+  // =========================================================================
+  // TEST 12: Account Reconciliation Diagnostic Check
   // =========================================================================
   console.log('Test 11: Comprehensive account reconciliation check...');
   type ReconRow = {

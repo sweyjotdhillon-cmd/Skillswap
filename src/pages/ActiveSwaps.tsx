@@ -105,7 +105,14 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     setIsLoading(true);
     setFetchError(null);
     try {
-      const records: SwapRecord[] = await getUserSwaps(user.id);
+      const res = await getUserSwaps(user.id);
+      if (res.error) {
+        setFetchError(res.error);
+        setAcceptedSwaps([]);
+        setGivenSwaps([]);
+        return;
+      }
+      const records: SwapRecord[] = res.data;
       const canonicalSwaps: Swap[] = (records || []).map(mapSwapRecordToSwap);
       const accepted: AcceptedSwap[] = [];
       const given: GivenSwap[] = [];

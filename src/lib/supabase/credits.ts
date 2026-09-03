@@ -158,6 +158,11 @@ export interface GetOpenSwapsResult {
   error?: string;
 }
 
+export interface GetUserSwapsResult {
+  data: SwapRecord[];
+  error?: string;
+}
+
 /** Fetches open swaps for the explore catalog. */
 export async function getOpenSwaps(): Promise<GetOpenSwapsResult> {
   const supabase = getSupabaseBrowserClient();
@@ -184,9 +189,9 @@ export async function getOpenSwaps(): Promise<GetOpenSwapsResult> {
 }
 
 /** Fetches all swaps where the current user is requester or participant. */
-export async function getUserSwaps(userId: string): Promise<SwapRecord[]> {
+export async function getUserSwaps(userId: string): Promise<GetUserSwapsResult> {
   const supabase = getSupabaseBrowserClient();
-  if (!supabase || !userId) return [];
+  if (!supabase || !userId) return { data: [], error: !userId ? 'User ID is missing.' : 'Supabase client is unavailable.' };
   try {
     const { data, error } = await supabase
       .from('swaps')
@@ -200,12 +205,12 @@ export async function getUserSwaps(userId: string): Promise<SwapRecord[]> {
 
     if (error) {
       console.error('Error fetching user swaps:', error);
-      return [];
+      return { data: [], error: formatFriendlyErrorMessage(error) };
     }
-    return (data || []) as SwapRecord[];
+    return { data: (data || []) as SwapRecord[] };
   } catch (err) {
     console.error('Unexpected error fetching user swaps:', err);
-    return [];
+    return { data: [], error: formatFriendlyErrorMessage(err) };
   }
 }
 
