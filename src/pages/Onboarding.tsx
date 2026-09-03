@@ -155,9 +155,9 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
 
   useEffect(() => {
     void loadSkillsCatalog();
+    const currentDebounceTimer = debounceTimerRef.current;
     return () => {
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      if (currentDebounceTimer) clearTimeout(currentDebounceTimer);
     };
   }, [loadSkillsCatalog]);
 
@@ -343,7 +343,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
   };
 
   // Persist required onboarding data in order. RPCs derive ownership from auth.uid().
-  const executeProfileFinalization = async (data: {
+  const executeProfileFinalization = useCallback(async (data: {
     fullName: string;
     bio: string;
     username: string;
@@ -385,7 +385,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
     const targetPath = redirectTo || '/explore';
     if (onNavigate) onNavigate(targetPath);
     else window.location.href = targetPath;
-  };
+  }, [redirectTo, onNavigate, refreshProfile]);
 
   // Check for returning post-OAuth identity linking state
   useEffect(() => {
@@ -435,7 +435,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
     return () => {
       isMounted = false;
     };
-  }, [user, avatarUrl]);
+  }, [user, avatarUrl, executeProfileFinalization]);
 
   // Step 4 Validation & Final Submission
   const validatePhone = (phone: string): boolean => {
@@ -570,7 +570,6 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
 
   // Debounced server-side skill search query against public.skills catalog
   const [searchResults, setSearchResults] = useState<Skill[]>([]);
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const clean = searchQuery.trim();

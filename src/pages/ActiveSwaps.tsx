@@ -190,6 +190,9 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   const currentGivenItem = givenSwaps.find((s) => s.swap.id === selectedGivenId) || givenSwaps[0] || null;
   const currentSelectedItem = activeTab === 'accepted' ? currentAcceptedItem : currentGivenItem;
 
+  const currentSelectedSwapId = currentSelectedItem?.swap.id;
+  const currentSelectedSwapStatus = currentSelectedItem?.swap.status;
+
   // Load submission data whenever the selected swap ID or status changes (clearing stale state immediately)
   useEffect(() => {
     let active = true;
@@ -197,11 +200,11 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     setCurrentSubmission(null);
     setSignedFileUrls({});
 
-    const fetchSubmissionData = async () => {
-      if (!currentSelectedItem) return;
+    if (!currentSelectedSwapId) return;
 
+    const fetchSubmissionData = async () => {
       setSubmissionLoading(true);
-      const res = await getSwapSubmission(currentSelectedItem.swap.id);
+      const res = await getSwapSubmission(currentSelectedSwapId);
       if (!active) return;
 
       setSubmissionLoading(false);
@@ -226,7 +229,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     return () => {
       active = false;
     };
-  }, [currentSelectedItem?.swap.id, currentSelectedItem?.swap.status]);
+  }, [currentSelectedSwapId, currentSelectedSwapStatus]);
 
   const handleOpenChat = (item: ActiveSwapItem) => {
     setActiveChatSwap(item);
@@ -522,7 +525,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                         <div className="as-card-body">
                           <h3 className="as-card-title">{item.swap.topic}</h3>
                           <div className="as-card-meta-row">
-                            <span className="as-card-credits">{item.swap.creditAmount} Credits</span>
+                            <span className="as-card-credits">{item.swap.creditAmount} SkillCredits</span>
                             <span className="as-status-badge as-status-badge--waiting">
                               ● {submissionStatus}
                             </span>
