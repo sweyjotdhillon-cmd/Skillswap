@@ -1,143 +1,318 @@
-# Skillswap
+# SkillSwap
 
-Skillswap is a skill-exchange ecosystem where people exchange digital skills instead of directly paying money. The internal exchange currency is called **SkillCredits**.
+**SkillSwap** is a peer-to-peer digital skill exchange ecosystem where community members trade expertise directly without traditional money. Powered by **SkillCredits**, the internal currency of exchange, members transform what they know into what they need through reciprocal value creation.
 
-## Vision
+---
 
-Skillswap is designed to become a circular skill economy where community members transform what they know into what they need. The long-term loop is simple:
+## Table of Contents
 
-**Skills → Swaps → SkillCredits → Skills**
+- [Vision & Core Concept](#vision--core-concept)
+- [Key Features](#key-features)
+  - [1. Authentication & Security](#1-authentication--security)
+  - [2. User Profiles & Skills Engine](#2-user-profiles--skills-engine)
+  - [3. SkillCredits Ledger & Reservation Engine](#3-skillcredits-ledger--reservation-engine)
+  - [4. Swap Creation & Draft Persistence](#4-swap-creation--draft-persistence)
+  - [5. Explore Marketplace & Discovery](#5-explore-marketplace--discovery)
+  - [6. Active Swaps & Request Lifecycle](#6-active-swaps--request-lifecycle)
+  - [7. Real-Time P2P Chat & Work Submission](#7-real-time-p2p-chat--work-submission)
+- [Technology Stack](#technology-stack)
+- [Project Architecture & Directory Hierarchy](#project-architecture--directory-hierarchy)
+- [Database Migrations & Security Hardening](#database-migrations--security-hardening)
+- [Supabase Edge Functions](#supabase-edge-functions)
+- [Environment Setup](#environment-setup)
+- [Local Development & Commands](#local-development--commands)
+- [Automated Integration Testing](#automated-integration-testing)
+- [Security & Data Integrity Guarantees](#security--data-integrity-guarantees)
 
-## Core Concept
+---
 
-- **Swaps**: Requests for help with digital work, offered in exchange for SkillCredits.
-- **SkillCredits**: The internal value unit earned by completing Swaps and spent to request help from others.
-- **Skills**: Practical digital abilities people bring to the community, such as coding, design, writing, editing, marketing, automation, and strategy.
-- **Reputation**: A future trust layer based on completed Swaps, helpfulness, consistency, and community contribution.
+## Vision & Core Concept
 
-## Example
+SkillSwap is designed as a circular, human-centered skill economy. Instead of spending fiat currency on digital services, community members spend and earn SkillCredits by providing and receiving digital help.
 
-Person A needs a Python script and creates a Swap offering SkillCredits. Person B knows Python, completes the Swap, and earns those SkillCredits. Later, Person B needs video editing and spends SkillCredits on another Swap.
+### The Ecosystem Loop
 
-## Product Philosophy
-
-**Skills are your currency.**
-
-Skillswap should feel like a new community and exchange ecosystem, not a traditional freelancing marketplace. The product is human-centered, restrained, premium, and built around reciprocal value instead of direct payment.
-
-## Current MVP
-
-The current milestone is a polished homepage, a production-quality **Create Swap** page, and a clean Cloudflare-ready project foundation. The homepage introduces the brand, the SkillCredits concept, and links directly to **Create Swap**.
-
-## Create Swap Feature
-
-- **Route:** `/create-swap`
-- **Access:** Accessible by clicking "Create Swap" on the homepage. Supports browser back navigation and header logo navigation back to homepage (`/`). Not displayed inline on homepage.
-- **Form Fields & Initial State:**
-  - Starts completely empty (no demo values or hardcoded defaults).
-  - **Topic:** Required text input (max 120 chars) with live dynamic character counter.
-  - **Description:** Required textarea (max 2000 chars) with live dynamic character counter.
-  - **Attachments:** Optional file upload area supporting drag-and-drop and multiple file selection. Displays file cards with icons, filenames, formatted file sizes, and individual remove buttons.
-  - **Chat Permission:** Required dual radio-card selection ("Anyone can chat with me" vs. "Ask for permission first"). Initialized to `null` with no default preselection.
-  - **Credits:** Required numeric stepper input (`[-] [ ] [+] Credits`). Starts empty. Accepts positive integers.
-  - **Completion Requirements:** Required textarea (max 1000 chars) with live dynamic character counter.
-  - **Additional Message:** Optional textarea (max 1000 chars) with live dynamic character counter.
-- **Validation:** Validates required fields upon submission and displays user-friendly inline error messages.
-- **Actions:** Secondary "Save Draft" button and primary "Create Swap" button.
-- **Backend Persistence:** UI and form state architecture are fully implemented. Backend persistent storage/API submission will be connected in future database milestones.
-
-## Future Roadmap
-
-- **Phase 1:** Homepage and Cloudflare-ready foundation
-- **Phase 2:** Authentication
-- **Phase 3:** User profiles and skills
-- **Phase 4:** Create Swap
-- **Phase 5:** Explore Swaps
-- **Phase 6:** Swap fulfillment
-- **Phase 7:** SkillCredits ledger
-- **Phase 8:** Reputation
-- **Phase 9:** Messaging and notifications
-- **Phase 10:** Community growth
-
-## Technology
-
-- React
-- TypeScript
-- Vite
-- Tailwind CSS
-- Supabase (Authentication)
-- Cloudflare Workers
-- Cloudflare Vite plugin
-- Wrangler
-- Cloudflare D1, R2, and KV-ready architecture for future milestones
-
-## Deployment
-
-Install dependencies:
-
-```bash
-npm install
+```text
+Skills → Swaps → SkillCredits → Skills
 ```
 
-Run locally:
+- **Skills**: Practical digital abilities members bring to the platform (coding, design, video editing, writing, marketing, automation, strategy, etc.).
+- **Swaps**: Peer-to-peer digital service listings specifying requirements, chat preferences, and a SkillCredit value.
+- **SkillCredits**: Internal currency earned by completing swaps and spent to request assistance from others. New users receive an initial welcome grant of **100 SkillCredits**.
+- **Reputation**: Trust and track record built through verified completed swaps, timely deliveries, and community feedback.
+
+**Product Philosophy**: *Skills are your currency.*
+
+---
+
+## Key Features
+
+### 1. Authentication & Security
+- **Flexible Login Options**: Supports Email/Password authentication and Google OAuth 2.0 single sign-on.
+- **Email Verification**: Required email verification flow with query parameter preservation (`redirectTo`) for seamless user re-routing.
+- **Atomic Password Reset Workflow**: Custom serverless password reset system backed by Supabase Edge Functions (`request-password-reset`, `verify-password-reset-otp`, `complete-password-reset`). Includes:
+  - Strict attempt tracking and exponential backoff to prevent brute-force attacks.
+  - Single-use, time-bound recovery tokens consumed atomically via `FOR UPDATE` row-level locks.
+  - Constant-time token verification to mitigate timing attacks.
+  - Strict CORS origin validation on preflight options and RPC execution.
+- **Provider-Aware Password Management**: Smart Set/Change Password flow powered by the `has_user_password()` database function:
+  - Users created via OAuth or Magic Link receive a streamlined "Set Password" flow without requiring a prior password.
+  - Password-authenticated users require current password verification before updating.
+
+### 2. User Profiles & Skills Engine
+- **Permanent `@username` Identity**: Usernames are strictly immutable once set during profile completion, enforcing case-insensitive uniqueness across the system via the `idx_profiles_username_lower` database index.
+- **Mandatory Profile Onboarding**: Uncompleted profiles are automatically directed to an interactive onboarding page enforced at the router level. Profile completion runs atomically inside PostgreSQL via the `complete_profile()` stored procedure.
+- **Seeded Skills Catalog**: Comprehensive catalog seeded with predefined digital skills across 19 categories (Development, Design, AI & Machine Learning, Writing, Video & Audio, Marketing, Business & Strategy, Data, etc.).
+- **Debounced Server-Side Search**: Client-side catalog search debounced at 250ms querying `public.skills` via case-insensitive `ilike` operations.
+- **Custom Skill Additions**: Users can add custom skills on-the-fly via the `add_user_skill()` RPC, which handles idempotency through `ON CONFLICT DO NOTHING`.
+
+### 3. SkillCredits Ledger & Reservation Engine
+- **100 SkillCredits Welcome Grant**: Granted automatically to new accounts upon first activity via the `ensure_credit_account()` procedure.
+- **Dual Balance Accounting**: Every account maintains:
+  - **Available Balance** (`credits_balance`): Credits available for spending or reserving.
+  - **Reserved Credits** (`credits_reserved`): Credits held in escrow for open/active swap requests.
+  - **Lifetime Earned** (`credits_earned`): Total SkillCredits earned over account lifetime.
+  - **Lifetime Spent** (`credits_spent`): Total SkillCredits spent over account lifetime.
+- **Immutable Transaction Ledger**: All credit deductions, additions, reservations, releases, and settlements write immutable double-entry records to `public.credit_transactions`.
+- **Atomic Credit Reservation**: Creating a swap immediately reserves the required credits in escrow (`credits_balance` decreases, `credits_reserved` increases), preventing overspending.
+- **Balance Reconciliation RPC**: Built-in `reconcile_credit_balances()` diagnostic procedure validates full ledger integrity against active and completed commitments.
+- **Interactive Credit History Modal**: Real-time modal accessible from the navigation bar detailing current available and reserved balances, lifetime totals, and expandable transaction history cards.
+
+### 4. Swap Creation & Draft Persistence
+- **User-Scoped Draft Auto-Saving**: Form state (topic, description, attachments, chat permission, credit value, completion terms, extra note) automatically persists in `localStorage` under `skillswap_create_swap_draft_<userId>`. Drafts are automatically purged upon logout.
+- **Multi-File Drag-and-Drop Attachments**: Supports dragging and dropping multiple file attachments with client-side file type and size validation.
+- **Dynamic Business Idempotency Keys**: Generates unique idempotency keys (`swap_create:<uuid>`) per submission attempt. Retries reuse the same key to guarantee atomic, non-duplicative database creation and credit escrow.
+- **Sanitized Input & Error Formatting**: User inputs are validated client-side and server-side, with raw PostgreSQL/PostgREST errors translated into friendly user messages via `formatFriendlyErrorMessage`.
+
+### 5. Explore Marketplace & Discovery
+- **Live Marketplace**: Renders real open swap listings fetched dynamically from Supabase (`getOpenSwaps()`). Zero mock data fallbacks.
+- **Search & Category Filtering**: Fast keyword search across titles and descriptions alongside multi-category filters.
+- **Swap Details Drawer**: Quick preview drawer allowing users to inspect requirements, credit offer, creator profile, and initiate swap requests directly.
+
+### 6. Active Swaps & Request Lifecycle
+- **Swap Requests (`/requests`)**:
+  - **Received Requests**: Pending swap offers from other community members that can be accepted or declined.
+  - **Sent Requests**: User's outbound requests with real-time status tracking and cancellation capabilities.
+- **Active Swaps (`/swaps`)**:
+  - **Accepted Swaps**: Swaps where the user is the designated fulfiller (participant).
+  - **Given Swaps**: Swaps created by the user that have been accepted by another member.
+- **Atomic State Transitions**: Controlled via PostgreSQL procedures (`create_credit_swap`, `accept_credit_swap`, `submit_credit_swap`, `complete_credit_swap`, `cancel_credit_swap`):
+  - **Open**: Created and available on the marketplace; credits reserved in escrow.
+  - **Accepted**: A member accepts the swap request; participant is locked.
+  - **Submitted**: The fulfiller submits finished work and optional file deliverables.
+  - **Completed**: The creator approves the work; reserved credits are transferred to the fulfiller's account atomically.
+  - **Cancelled**: Creator cancels an unfulfilled swap; reserved credits are released back to the creator's available balance.
+
+### 7. Real-Time P2P Chat & Work Submission
+- **Supabase Realtime P2P Chat**: Active swap pages feature real-time messaging using Supabase Realtime channel subscriptions on `public.swap_messages`. Access is strictly isolated to swap participants via Row Level Security (RLS).
+- **Work Submission Workflow**: Fulfillers submit work deliverables with notes and file attachments.
+- **Secure File Storage**:
+  - Private Supabase Storage bucket (`swap-submissions`).
+  - Strict upload path structure (`{swap_id}/{user_id}/{uuid}-{filename}`).
+  - Multi-file uploads (up to 5 files per submission, 25MB max size per file, restricted MIME types).
+  - Temporary signed URLs generated for secure file access by swap participants.
+
+---
+
+## Technology Stack
+
+| Layer | Technology | Description |
+| :--- | :--- | :--- |
+| **Frontend Framework** | React 19 + TypeScript | UI composition with strict type checking |
+| **Build System** | Vite | Ultra-fast local development and asset bundling |
+| **Styling** | Tailwind CSS v4 + Custom CSS | Responsive layout and CSS variable-based dark/light theme engine |
+| **Database & Auth** | Supabase (PostgreSQL 15+) | Authentication, database, RLS policies, Realtime, and Storage |
+| **Edge Compute** | Cloudflare Workers | SSR & Edge request handling via `@cloudflare/vite-plugin` and Wrangler |
+| **Serverless Functions**| Supabase Edge Functions | Deno runtime Edge Functions for secure password reset workflows |
+| **Local Test Engine** | PGLite (`@electric-sql/pglite`) | In-memory WASM PostgreSQL engine for running full integration tests |
+
+---
+
+## Project Architecture & Directory Hierarchy
+
+```text
+skillswap/
+├── src/
+│   ├── assets/              # Static raster and vector media assets
+│   ├── components/          # Reusable UI component library
+│   │   ├── brand/           # Brand primitives and visual icons
+│   │   ├── create-swap/     # Create Swap form modules
+│   │   ├── credits/         # SkillCredit indicators and transaction modal
+│   │   ├── hero/            # Homepage hero visual and ecosystem graphic
+│   │   ├── navigation/      # Desktop & mobile responsive header and drawers
+│   │   ├── profile/         # Profile management & skills chips
+│   │   └── ui/              # Buttons, inputs, badges, theme toggle
+│   ├── context/             # AuthContext providing user state and credit methods
+│   ├── lib/                 # Service integrations
+│   │   └── supabase/        # Supabase client, API wrappers, and credit logic
+│   ├── pages/               # Top-level page views and routes
+│   │   ├── ActiveSwaps.tsx  # Active swaps management & fulfillment
+│   │   ├── ChangePassword.tsx# Security password updates
+│   │   ├── CreateSwap.tsx   # Swap creation interface
+│   │   ├── ExploreSwaps.tsx # Marketplace discovery page
+│   │   ├── ForgotPassword.tsx# Password reset initiation
+│   │   ├── Home.tsx         # Brand homepage & call-to-actions
+│   │   ├── Login.tsx        # Sign-in view
+│   │   ├── Onboarding.tsx   # Mandatory profile completion
+│   │   ├── Profile.tsx      # User profile & skills view
+│   │   ├── ResetPassword.tsx# Password reset token verification
+│   │   ├── Signup.tsx       # Sign-up view
+│   │   ├── SwapRequests.tsx # Incoming and outgoing request manager
+│   │   └── VerifyEmail.tsx  # Email verification prompt
+│   ├── styles/              # Global CSS foundation and theme variables
+│   ├── types/               # Canonical TypeScript interfaces (Swap, Profile, etc.)
+│   ├── App.tsx              # Router composition and route guards
+│   └── main.tsx             # Application bootstrapper
+├── supabase/
+│   ├── functions/           # Deno Edge Functions
+│   │   ├── _shared/         # Shared CORS headers and helpers
+│   │   ├── complete-password-reset/
+│   │   ├── request-password-reset/
+│   │   └── verify-password-reset-otp/
+│   ├── migrations/          # Incremental database migrations (001 - 014)
+│   └── config.toml          # Local Supabase configuration
+├── worker/                  # Cloudflare Worker entry point
+├── eslint.config.js         # ESLint flat configuration (ESLint 9)
+├── package.json             # Dependencies and scripts
+├── tsconfig.json            # TypeScript configuration
+├── vite.config.ts           # Vite build config with Tailwind & Cloudflare plugins
+└── wrangler.jsonc           # Cloudflare Workers configuration
+```
+
+---
+
+## Database Migrations & Security Hardening
+
+The database layer consists of 14 sequentially applied SQL migrations located in `supabase/migrations/`:
+
+| Migration | Focus Area | Key Implementations |
+| :--- | :--- | :--- |
+| `001_password_reset_challenges` | Security | OTP password reset rate-limiting table & locking functions |
+| `002_profile_and_skills_schema` | Profiles & Skills | `public.profiles`, `public.skills`, `public.user_skills`, and `complete_profile()` procedure |
+| `003_anonymous_onboarding...` | Identity Linking | Anonymous user migration and identity link trigger checks |
+| `004_seed_skills_catalog` | Catalog | Seeded 19 skill categories with case-insensitive `ON CONFLICT` handling |
+| `005_fix_username_identity...` | Identity Integrity | Case-insensitive `@username` lower index, triggers preventing username modification |
+| `006_credit_system_infra` | SkillCredits Core | `public.accounts`, `public.credit_transactions`, initial 100 SC grant procedure |
+| `007_credit_system_audit` | Accounting Audit | Ledger constraints, non-negative balance enforcement (`chk_min_balance`) |
+| `008_credit_reservation_system`| Escrow Engine | `credits_reserved` column, `public.credit_operations` idempotency log, atomic reservation RPCs |
+| `009_secure_swap_lifecycle` | Swap State Engine | `public.swaps` schema, state machine procedures (`create_credit_swap`, `cancel_credit_swap`, etc.) |
+| `010_credit_idempotency...` | Accounting Audit | Business idempotency key enforcement and `reconcile_credit_balances()` diagnostic procedure |
+| `011_has_user_password_rpc` | Auth Security | `public.has_user_password()` SECURITY DEFINER procedure for provider-aware password UI |
+| `012_atomic_password_reset...` | Auth Security | Single-use recovery token claim procedure (`claim_password_reset_recovery_token`) with `FOR UPDATE` locks |
+| `013_chat_and_submissions` | P2P Collaboration | `public.swap_messages`, `public.swap_submissions`, `public.swap_submission_files`, and private Storage bucket |
+| `014_chat_and_submission_sec` | Hardening & RLS | Strict swap participant RLS policies, Realtime publication setup, double submission protection |
+
+---
+
+## Supabase Edge Functions
+
+Location: `supabase/functions/`
+
+- **`request-password-reset`**: Validates request rate limits, generates a 6-digit OTP challenge, records challenge metadata, and delivers reset emails.
+- **`verify-password-reset-otp`**: Verifies the 6-digit OTP code against attempt counts using constant-time comparison, issuing a single-use recovery token upon success.
+- **`complete-password-reset`**: Atomically claims the recovery token via `FOR UPDATE` row lock and updates the user's password in `auth.users`.
+- **`_shared/cors.ts`**: Provides centralized, secure CORS handling that validates incoming origins against configured production hosts and local development endpoints.
+
+---
+
+## Environment Setup
+
+Create a `.env` file in the root directory based on `.env.example`:
+
+```bash
+VITE_SUPABASE_URL=https://your-supabase-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-anon-key
+```
+
+For Supabase Edge Functions deployment, configure the following secrets in your Supabase project:
+
+```bash
+SUPABASE_URL=https://your-supabase-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+ALLOWED_ORIGIN=https://your-app-domain.workers.dev
+```
+
+---
+
+## Local Development & Commands
+
+### 1. Installation
+Install project dependencies. *Note: Use `--legacy-peer-deps` to resolve peer dependency conflicts between ESLint packages.*
+
+```bash
+npm install --legacy-peer-deps
+```
+
+### 2. Start Local Development Server
+Run the local Vite dev server with Cloudflare Workers environment emulation:
 
 ```bash
 npm run dev
 ```
 
-Create a production build:
+### 3. Run Code Linter
+Run ESLint flat config check across the repository:
+
+```bash
+npm run lint
+```
+
+### 4. Run Automated Database & Credit System Tests
+Execute the local PGLite database integration test suite:
+
+```bash
+npm test
+```
+
+### 5. Build for Production
+Compile TypeScript types and bundle the application with Vite:
 
 ```bash
 npm run build
 ```
 
-Preview the production build locally:
+### 6. Preview Production Build
+Preview the Cloudflare Worker production build locally:
 
 ```bash
 npm run preview
 ```
 
-Deploy to Cloudflare Workers:
+### 7. Deploy to Cloudflare Workers
+Deploy the application directly to Cloudflare Workers:
 
 ```bash
 npm run deploy
 ```
 
-## Architecture
+---
 
-```text
-/
-├── src/
-│   ├── components/
-│   │   ├── brand/           Logo and brand primitives
-│   │   ├── create-swap/     Create Swap page components
-│   │   ├── hero/            Homepage hero and ecosystem visual
-│   │   ├── navigation/      Header/navigation components
-│   │   └── ui/              Shared UI primitives
-│   ├── context/             React contexts (e.g., AuthContext)
-│   ├── data/                Mock data
-│   ├── lib/                 External service clients (e.g., Supabase)
-│   ├── pages/               Page-level React views
-│   ├── styles/              Global Tailwind/CSS foundation
-│   ├── App.tsx              App composition and routing
-│   └── main.tsx             React entry point
-├── worker/                  Cloudflare Worker entry point
-├── vite.config.ts           Vite + React + Tailwind + Cloudflare config
-└── wrangler.jsonc           Cloudflare Workers deployment config
+## Automated Integration Testing
+
+SkillSwap features an in-memory database integration test runner (`src/lib/supabase/credits.test.ts`) powered by **PGLite** (`@electric-sql/pglite`).
+
+The test runner executes all 14 database migrations sequentially in a isolated WASM PostgreSQL instance and verifies:
+1. Initial 100 SkillCredit welcome grants and initializer idempotency.
+2. Atomic swap creation, credit escrow reservations, and duplicate request idempotency.
+3. Insufficient balance protections and negative balance prevention.
+4. Swap cancellation and atomic credit reservation releases.
+5. Swap acceptance, participant locking, work submission, and credit settlement.
+6. Premature settlement and unauthorized submission rejections.
+7. Real-time P2P chat persistence and Row Level Security isolation.
+8. Full double-entry balance accounting reconciliation via `reconcile_credit_balances()`.
+
+Run tests anytime with:
+
+```bash
+npm test
 ```
 
-## Development Principles
+---
 
-- Cloudflare-first
-- Free-tier-first
-- Minimal dependencies
-- Mobile-first and responsive
-- Accessible by default
-- Performance-minded
-- Security-conscious
-- No unnecessary complexity
-- Build incrementally
+## Security & Data Integrity Guarantees
 
-## Current Limitations
-
-Authentication, login, user accounts, database persistence, marketplace functionality, Swap creation, Swap fulfillment, messaging, notifications, payments, and real SkillCredit transactions are not implemented yet. Current buttons are intentional visual placeholders for future product flows.
+- **Row Level Security (RLS)**: Enabled on all database tables (`public.profiles`, `public.accounts`, `public.swaps`, `public.swap_messages`, `public.swap_submissions`, `storage.objects`).
+- **SECURITY DEFINER Encapuslation**: All credit movements, profile completions, and status changes are governed by SECURITY DEFINER stored procedures to prevent direct client table tampering.
+- **Strict Username Immutability**: `@username` fields cannot be altered once created, preventing identity spoofing.
+- **Idempotency Locks**: Operations use business idempotency keys recorded in `public.credit_operations` to prevent accidental double charges during network retries.
+- **Sanitized Technical Errors**: Technical SQL and PostgREST error codes are intercepted and formatted into friendly, user-understandable validation messages before reaching the frontend.
