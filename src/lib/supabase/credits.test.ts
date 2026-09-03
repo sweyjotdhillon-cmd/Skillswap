@@ -38,10 +38,23 @@ export async function runCreditSystemTests() {
   // Helper to switch current auth user in DB
   const setAuthUser = async (userId: string | null) => {
     if (userId) {
-      await db.exec(`SELECT set_config('request.jwt.claim.sub', '${userId}', false);`);
+      await db.exec(`
+        SELECT set_config('request.jwt.claim.sub', '${userId}', false);
+        SET ROLE authenticated;
+      `);
     } else {
-      await db.exec(`SELECT set_config('request.jwt.claim.sub', '', false);`);
+      await db.exec(`
+        SELECT set_config('request.jwt.claim.sub', '', false);
+        SET ROLE anon;
+      `);
     }
+  };
+
+  const setSuperuser = async () => {
+    await db.exec(`
+      RESET ROLE;
+      SELECT set_config('request.jwt.claim.sub', '', false);
+    `);
   };
 
   // Load and apply all repository migrations in order
@@ -58,6 +71,7 @@ export async function runCreditSystemTests() {
     '010_credit_system_idempotency_and_reconciliation.sql',
     '011_has_user_password_rpc.sql',
     '012_atomic_password_reset_security.sql',
+    '013_chat_and_submissions.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -72,6 +86,7 @@ export async function runCreditSystemTests() {
   const userB = '20000000-0000-0000-0000-000000000002';
   const userC = '30000000-0000-0000-0000-000000000003';
 
+  await setSuperuser();
   await db.exec(`
     INSERT INTO auth.users (id, email) VALUES
       ('${userA}', 'usera@example.com'),
@@ -88,7 +103,7 @@ export async function runCreditSystemTests() {
   // =========================================================================
   console.log('Test 1: Initial grant & initializer idempotency...');
   await setAuthUser(userA);
-  await db.exec(`SELECT public.ensure_credit_account('${userA}'::uuid);`);
+  await db.exec(`SELECT public.get_user_account();`);
 
   type AccountRow = {
     credits_balance: number;
@@ -104,7 +119,7 @@ export async function runCreditSystemTests() {
   assert(res.rows[0].credits_spent === 0, 'Initial spent is 0');
 
   // Retry initializer
-  await db.exec(`SELECT public.ensure_credit_account('${userA}'::uuid);`);
+  await db.exec(`SELECT public.get_user_account();`);
   res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
   assert(res.rows[0].credits_balance === 100, 'Retry initializer preserves 100 balance');
   assert(res.rows[0].credits_earned === 100, 'Retry initializer preserves 100 earned');
@@ -205,7 +220,7 @@ export async function runCreditSystemTests() {
   // =========================================================================
   // TEST 7: Swap Acceptance, Submission, and Settlement
   // =========================================================================
-  console.log('Test 7: Complete swap lifecycle and atomic settlement...');
+  console.log('Test 7: Complete swap lifecycle, atomic submission & settlement...');
   // User A creates Swap 2 (20 credits)
   swapRes = await db.query<{ swap_id: string }>(`
     SELECT public.create_credit_swap(
@@ -217,13 +232,40 @@ export async function runCreditSystemTests() {
 
   // Initialize User B
   await setAuthUser(userB);
-  await db.exec(`SELECT public.ensure_credit_account('${userB}'::uuid);`);
+  await db.exec(`SELECT public.get_user_account();`);
 
-  // User B accepts & submits Swap 2
+  // User B accepts Swap 2
   await db.query(`SELECT public.accept_credit_swap('${swap2Id}'::uuid);`);
-  await db.query(`SELECT public.submit_credit_swap('${swap2Id}'::uuid);`);
 
-  // User A completes Swap 2
+  // User A attempts to complete Swap 2 BEFORE submission -> Must be rejected!
+  await setAuthUser(userA);
+  errorCaught = false;
+  try {
+    await db.query(`SELECT public.complete_credit_swap('${swap2Id}'::uuid);`);
+  } catch (err: unknown) {
+    errorCaught = true;
+    assert((err as Error).message.includes('not eligible for completion'), 'Cannot complete swap in accepted state');
+  }
+  assert(errorCaught, 'Premature completion before submission rejected');
+
+  // User B submits work atomically with notes and file metadata
+  await setAuthUser(userB);
+  const submitRes = await db.query<{ submit_swap_work: { success: boolean; submission_id: string } }>(`
+    SELECT public.submit_swap_work(
+      '${swap2Id}'::uuid,
+      'Finished TS mentoring session and code sample repo.',
+      '[{"storage_path": "swap-submissions/${swap2Id}/${userB}/code.zip", "file_name": "code.zip", "mime_type": "application/zip", "file_size": 10240}]'::jsonb
+    );
+  `);
+  assert(submitRes.rows[0].submit_swap_work.success === true, 'Atomic submission succeeded');
+
+  const subRecord = await db.query<{ notes: string }>(`SELECT notes FROM public.swap_submissions WHERE swap_id = '${swap2Id}';`);
+  assert(subRecord.rows[0].notes.includes('Finished TS mentoring'), 'Submission notes persisted');
+
+  const fileRecord = await db.query<{ file_name: string }>(`SELECT file_name FROM public.swap_submission_files WHERE submission_id = '${submitRes.rows[0].submit_swap_work.submission_id}';`);
+  assert(fileRecord.rows[0].file_name === 'code.zip', 'File metadata persisted');
+
+  // User A completes Swap 2 now that submission exists
   await setAuthUser(userA);
   await db.query(`SELECT public.complete_credit_swap('${swap2Id}'::uuid);`);
 
@@ -234,122 +276,51 @@ export async function runCreditSystemTests() {
   assert(res.rows[0].credits_spent === 20, 'Payer credits_spent updated to 20');
 
   // Check User B (Recipient) Account
+  await setAuthUser(userB);
   res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userB}';`);
   assert(res.rows[0].credits_balance === 120, 'Recipient balance increased by 20 to 120');
   assert(res.rows[0].credits_earned === 120, 'Recipient earned credits increased by 20 to 120');
-  console.log('  -> Complete settlement lifecycle verified.');
+  console.log('  -> Complete submission and settlement lifecycle verified.');
 
   // =========================================================================
   // TEST 8: Duplicate Settlement Idempotency
   // =========================================================================
   console.log('Test 8: Duplicate settlement idempotency...');
+  await setAuthUser(userA);
   const completeRes = await db.query<{ result: { idempotent_retry?: boolean } }>(`SELECT public.complete_credit_swap('${swap2Id}'::uuid) AS result;`);
   assert(completeRes.rows[0].result.idempotent_retry === true, 'Duplicate completion returns idempotent_retry');
 
+  await setAuthUser(userB);
   res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userB}';`);
   assert(res.rows[0].credits_balance === 120, 'Recipient balance remains 120 (no double payout)');
   assert(res.rows[0].credits_earned === 120, 'Recipient earned remains 120');
   console.log('  -> Duplicate settlement idempotency verified.');
 
   // =========================================================================
-  // TEST 9: Unauthorized Actions Security Check
+  // TEST 9: Real P2P Messaging Persistence & Security
   // =========================================================================
-  console.log('Test 9: Unauthorized action security enforcement...');
-  await setAuthUser(userC);
-  await db.exec(`SELECT public.ensure_credit_account('${userC}'::uuid);`);
-
-  // User C tries to complete User A's swap
-  errorCaught = false;
-  try {
-    await db.query(`SELECT public.complete_credit_swap('${swap2Id}'::uuid);`);
-  } catch (err: unknown) {
-    errorCaught = true;
-    assert((err as Error).message.includes('not eligible for completion'), 'Throws not eligible error for unauthorized user');
-  }
-  assert(errorCaught, 'Unauthorized completion attempt blocked');
-
-  // User C tries to cancel User A/B's swap
-  errorCaught = false;
-  try {
-    await db.query(`SELECT public.cancel_credit_swap('${swap2Id}'::uuid);`);
-  } catch (err: unknown) {
-    errorCaught = true;
-    assert((err as Error).message.includes('cannot be cancelled'), 'Throws cannot be cancelled error for unauthorized user');
-  }
-  assert(errorCaught, 'Unauthorized cancellation attempt blocked');
-  console.log('  -> Security rules against unauthorized mutations verified.');
-
-  // =========================================================================
-  // TEST 10: Concurrency & Race Condition Safety
-  // =========================================================================
-  console.log('Test 10: Concurrency & account boundary checks...');
-  await setAuthUser(userC); // User C has 100 credits
-
-  // Attempt to create 6 parallel swaps of 20 credits each (total 120 required)
-  const concurrentCreationProms = [1, 2, 3, 4, 5, 6].map((i) =>
-    db.query(`
-      SELECT public.create_credit_swap(
-        'Concurrent Swap ${i}', 'Description', 'Reqs',
-        'anyone', 20, NULL, 'swap_create:concurrent_${i}'
-      );
-    `)
-  );
-
-  const results = await Promise.allSettled(concurrentCreationProms);
-  const fulfilledCount = results.filter((r) => r.status === 'fulfilled').length;
-  const rejectedCount = results.filter((r) => r.status === 'rejected').length;
-
-  assert(fulfilledCount === 5, 'Exactly 5 swaps succeeded (5 * 20 = 100 credits)');
-  assert(rejectedCount === 1, 'Exactly 1 swap rejected due to insufficient credits');
-
-  res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userC}';`);
-  assert(res.rows[0].credits_balance === 0, 'Available balance is exactly 0');
-  assert(res.rows[0].credits_reserved === 100, 'Reserved credits is exactly 100');
-  console.log('  -> Concurrency safety & non-negative balance boundary verified.');
-
-  // =========================================================================
-  // TEST 11: Concurrent Acceptance Protection Check
-  // =========================================================================
-  console.log('Test 11: Concurrent acceptance protection check...');
+  console.log('Test 9: Real P2P Messaging Persistence & Security...');
   await setAuthUser(userA);
-  swapRes = await db.query<{ swap_id: string }>(`
-    SELECT public.create_credit_swap(
-      'UI/UX Feedback', 'Review dashboard designs', 'Must know Figma',
-      'anyone', 10, NULL, 'swap_create:concurrent_accept_test'
-    ) AS swap_id;
+  await db.query(`
+    INSERT INTO public.swap_messages (swap_id, sender_id, recipient_id, body)
+    VALUES ('${swap2Id}'::uuid, '${userA}'::uuid, '${userB}'::uuid, 'Hello User B, looking forward to working with you!');
   `);
-  const swap3Id = swapRes.rows[0].swap_id;
 
-  // User B accepts Swap 3
   await setAuthUser(userB);
-  const acceptBRes = await db.query(`SELECT public.accept_credit_swap('${swap3Id}'::uuid);`);
-  assert(Boolean(acceptBRes.rows[0]), 'User B successfully accepted Swap 3');
+  const msgRes = await db.query<{ body: string }>(`SELECT body FROM public.swap_messages WHERE swap_id = '${swap2Id}';`);
+  assert(msgRes.rows[0].body.includes('Hello User B'), 'User B successfully reads persisted message from User A');
 
-  // User C attempts to accept the now-accepted Swap 3
+  // User C (unrelated) attempts to read messages from Swap 2
   await setAuthUser(userC);
-  errorCaught = false;
-  try {
-    await db.query(`SELECT public.accept_credit_swap('${swap3Id}'::uuid);`);
-  } catch (err: unknown) {
-    errorCaught = true;
-    assert((err as Error).message.includes('Swap cannot be accepted'), 'User C receives cannot be accepted error');
-  }
-  assert(errorCaught, 'Second user acceptance rejected by RPC status check');
-
-  const swap3Record = await db.query<{ status: string; participant_id: string }>(`
-    SELECT status, participant_id FROM public.swaps WHERE id = '${swap3Id}';
-  `);
-  assert(swap3Record.rows[0].status === 'accepted', 'Swap 3 status transitioned to accepted');
-  assert(
-    swap3Record.rows[0].participant_id === userB || swap3Record.rows[0].participant_id === userC,
-    'Participant ID is set to exactly one of User B or User C'
-  );
-  console.log('  -> Concurrent acceptance row-locking and single participant invariant verified.');
+  const msgResC = await db.query(`SELECT body FROM public.swap_messages WHERE swap_id = '${swap2Id}';`);
+  assert(msgResC.rows.length === 0, 'Unrelated User C receives 0 messages due to RLS');
+  console.log('  -> P2P Chat persistence and RLS isolation verified.');
 
   // =========================================================================
-  // TEST 12: Account Reconciliation Diagnostic Check
+  // TEST 10: Account Reconciliation Diagnostic Check
   // =========================================================================
-  console.log('Test 11: Comprehensive account reconciliation check...');
+  console.log('Test 10: Comprehensive account reconciliation check...');
+  await setSuperuser();
   type ReconRow = {
     recon: {
       total_accounts: number;

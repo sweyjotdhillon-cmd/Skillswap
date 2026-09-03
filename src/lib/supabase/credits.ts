@@ -1,5 +1,6 @@
 import { getSupabaseBrowserClient } from './client';
 import { formatFriendlyErrorMessage } from './profile';
+import type { SwapMessage, SwapSubmission, SwapSubmissionFile } from '../../types/swap';
 
 export interface Account {
   user_id: string;
@@ -105,7 +106,72 @@ export async function acceptCreditSwap(swapId: string): Promise<{ success: boole
   return { success: true, swap: data as SwapRecord };
 }
 
-/** Submits work for an accepted swap. */
+export interface SubmitSwapWorkInput {
+  swapId: string;
+  notes: string;
+  files?: File[];
+}
+
+/** Uploads attached files to Supabase Storage and executes the atomic submit_swap_work RPC. */
+export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promise<{ success: boolean; submissionId?: string; error?: string }> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'You must be logged in to submit work.' };
+
+  if (!input.notes || !input.notes.trim()) {
+    return { success: false, error: 'Submission notes are required.' };
+  }
+
+  const uploadedFileMetadata: Array<{ storage_path: string; file_name: string; mime_type: string; file_size: number }> = [];
+
+  if (input.files && input.files.length > 0) {
+    for (const file of input.files) {
+      if (file.size > 25 * 1024 * 1024) {
+        return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
+      }
+
+      const safeFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      const storagePath = `swap-submissions/${input.swapId}/${user.id}/${crypto.randomUUID()}-${safeFileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('swap-submissions')
+        .upload(storagePath, file, { upsert: false });
+
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        return { success: false, error: `Failed to upload file "${file.name}": ${formatFriendlyErrorMessage(uploadError)}` };
+      }
+
+      uploadedFileMetadata.push({
+        storage_path: storagePath,
+        file_name: file.name,
+        mime_type: file.type || 'application/octet-stream',
+        file_size: file.size,
+      });
+    }
+  }
+
+  const { data, error } = await supabase.rpc('submit_swap_work', {
+    p_swap_id: input.swapId,
+    p_notes: input.notes.trim(),
+    p_files: uploadedFileMetadata,
+  });
+
+  if (error || !data) {
+    return { success: false, error: formatFriendlyErrorMessage(error ?? new Error('Failed to submit swap work.')) };
+  }
+
+  const result = data as { success?: boolean; submission_id?: string; error?: string };
+  if (!result.success) {
+    return { success: false, error: result.error || 'Failed to record submission.' };
+  }
+
+  return { success: true, submissionId: result.submission_id };
+}
+
+/** Fallback wrapper for simple submit swap call without files. */
 export async function submitCreditSwap(swapId: string): Promise<{ success: boolean; swap?: SwapRecord; error?: string }> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
@@ -214,10 +280,177 @@ export async function getUserSwaps(userId: string): Promise<GetUserSwapsResult> 
   }
 }
 
+// ==========================================
+// CHAT API METHODS
+// ==========================================
+
+export async function getSwapMessages(swapId: string): Promise<{ data: SwapMessage[]; error?: string }> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return { data: [], error: 'Supabase client is unavailable.' };
+
+  try {
+    const { data, error } = await supabase
+      .from('swap_messages')
+      .select('*')
+      .eq('swap_id', swapId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching swap messages:', error);
+      return { data: [], error: formatFriendlyErrorMessage(error) };
+    }
+
+    const messages: SwapMessage[] = (data || []).map((m) => ({
+      id: m.id,
+      swapId: m.swap_id,
+      senderId: m.sender_id,
+      recipientId: m.recipient_id,
+      body: m.body,
+      readAt: m.read_at,
+      createdAt: m.created_at,
+    }));
+
+    return { data: messages };
+  } catch (err) {
+    console.error('Unexpected error fetching messages:', err);
+    return { data: [], error: formatFriendlyErrorMessage(err) };
+  }
+}
+
+export async function sendSwapMessage(
+  swapId: string,
+  recipientId: string,
+  body: string
+): Promise<{ success: boolean; message?: SwapMessage; error?: string }> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'You must be logged in to send messages.' };
+
+  const cleanBody = body.trim();
+  if (!cleanBody) return { success: false, error: 'Message cannot be empty.' };
+
+  try {
+    const { data, error } = await supabase
+      .from('swap_messages')
+      .insert({
+        swap_id: swapId,
+        sender_id: user.id,
+        recipient_id: recipientId,
+        body: cleanBody,
+      })
+      .select()
+      .single();
+
+    if (error || !data) {
+      console.error('Error sending message:', error);
+      return { success: false, error: formatFriendlyErrorMessage(error ?? new Error('Failed to send message.')) };
+    }
+
+    const message: SwapMessage = {
+      id: data.id,
+      swapId: data.swap_id,
+      senderId: data.sender_id,
+      recipientId: data.recipient_id,
+      body: data.body,
+      readAt: data.read_at,
+      createdAt: data.created_at,
+    };
+
+    return { success: true, message };
+  } catch (err) {
+    console.error('Unexpected error sending message:', err);
+    return { success: false, error: formatFriendlyErrorMessage(err) };
+  }
+}
+
+// ==========================================
+// SUBMISSION API METHODS
+// ==========================================
+
+export async function getSwapSubmission(swapId: string): Promise<{ data: SwapSubmission | null; error?: string }> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return { data: null, error: 'Supabase client is unavailable.' };
+
+  try {
+    const { data: subData, error: subError } = await supabase
+      .from('swap_submissions')
+      .select('*')
+      .eq('swap_id', swapId)
+      .maybeSingle();
+
+    if (subError) {
+      console.error('Error fetching submission:', subError);
+      return { data: null, error: formatFriendlyErrorMessage(subError) };
+    }
+
+    if (!subData) {
+      return { data: null };
+    }
+
+    const { data: fileData, error: fileError } = await supabase
+      .from('swap_submission_files')
+      .select('*')
+      .eq('submission_id', subData.id)
+      .order('created_at', { ascending: true });
+
+    if (fileError) {
+      console.error('Error fetching submission files:', fileError);
+    }
+
+    const files: SwapSubmissionFile[] = (fileData || []).map((f) => ({
+      id: f.id,
+      submissionId: f.submission_id,
+      storagePath: f.storage_path,
+      fileName: f.file_name,
+      mimeType: f.mime_type,
+      fileSize: f.file_size,
+      createdAt: f.created_at,
+    }));
+
+    const submission: SwapSubmission = {
+      id: subData.id,
+      swapId: subData.swap_id,
+      submittedBy: subData.submitted_by,
+      notes: subData.notes,
+      reviewedAt: subData.reviewed_at,
+      reviewedBy: subData.reviewed_by,
+      createdAt: subData.created_at,
+      updatedAt: subData.updated_at,
+      files,
+    };
+
+    return { data: submission };
+  } catch (err) {
+    console.error('Unexpected error fetching submission:', err);
+    return { data: null, error: formatFriendlyErrorMessage(err) };
+  }
+}
+
+export async function getSubmissionFileSignedUrl(storagePath: string): Promise<string | null> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return null;
+
+  try {
+    const { data, error } = await supabase.storage
+      .from('swap-submissions')
+      .createSignedUrl(storagePath, 3600);
+
+    if (error || !data) {
+      console.error('Error generating signed URL:', error);
+      return null;
+    }
+
+    return data.signedUrl;
+  } catch (err) {
+    console.error('Unexpected error generating signed URL:', err);
+    return null;
+  }
+}
+
 /**
  * Fetches or initializes the authenticated user's credit account record.
- * Executes the SECURITY DEFINER RPC `get_user_account` which performs
- * the exactly-once 100-credit initial grant.
  */
 export async function getUserAccount(): Promise<Account | null> {
   const supabase = getSupabaseBrowserClient();
@@ -228,7 +461,6 @@ export async function getUserAccount(): Promise<Account | null> {
 
     if (error) {
       console.error('Error in get_user_account RPC:', error);
-      // Fallback: Direct SELECT from public.accounts table under RLS
       const { data: selectData, error: selectError } = await supabase
         .from('accounts')
         .select('*')
@@ -266,7 +498,6 @@ export async function getCreditTransactions(
 
     if (error) {
       console.error('Error fetching credit transactions via RPC:', error);
-      // Fallback direct SELECT under RLS
       const { data: selectData, error: selectError } = await supabase
         .from('credit_transactions')
         .select('id, amount, balance_after, transaction_type, reason, related_swap_id, created_at')

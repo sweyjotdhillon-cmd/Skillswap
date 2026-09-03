@@ -39,6 +39,38 @@ export interface Swap {
   participantProfile?: SwapProfile | null;
 }
 
+export interface SwapMessage {
+  id: string;
+  swapId: string;
+  senderId: string;
+  recipientId: string;
+  body: string;
+  readAt?: string | null;
+  createdAt: string;
+}
+
+export interface SwapSubmissionFile {
+  id: string;
+  submissionId: string;
+  storagePath: string;
+  fileName: string;
+  mimeType?: string | null;
+  fileSize?: number | null;
+  createdAt: string;
+}
+
+export interface SwapSubmission {
+  id: string;
+  swapId: string;
+  submittedBy: string;
+  notes: string;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  files: SwapSubmissionFile[];
+}
+
 /**
   * Deterministically maps a database SwapRecord into the canonical application Swap model.
   * Contains no fabricated business values (no rating, category, offerSkill, isReal, etc.).
