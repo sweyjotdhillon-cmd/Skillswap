@@ -36,6 +36,7 @@ export async function runCreditSystemTests() {
     $$;
 
     CREATE SCHEMA IF NOT EXISTS storage;
+    GRANT USAGE ON SCHEMA storage TO authenticated, anon, service_role;
     CREATE TABLE IF NOT EXISTS storage.buckets (
       id text PRIMARY KEY,
       name text NOT NULL,
@@ -58,6 +59,7 @@ export async function runCreditSystemTests() {
       metadata jsonb,
       path_tokens text[] GENERATED ALWAYS AS (string_to_array(name, '/')) STORED
     );
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA storage TO authenticated, anon, service_role;
     CREATE OR REPLACE FUNCTION storage.foldername(name text)
     RETURNS text[]
     LANGUAGE sql
@@ -1086,8 +1088,29 @@ export async function runCreditSystemTests() {
   `);
   const swapAttId = swapRes.rows[0].swap_id;
 
-  // User A registers creator attachment via RPC register_swap_attachment
+  // User A inserts file into storage.objects for swap-attachments bucket
   const attStoragePath = `swap-attachments/${swapAttId}/${userA}/b281f9a2-script.py`;
+  await db.query(`
+    INSERT INTO storage.objects (bucket_id, name, owner)
+    VALUES ('swap-attachments', '${attStoragePath}', '${userA}'::uuid);
+  `);
+
+  // User C (unrelated) attempts to insert into storage.objects for User A's swap -> fails RLS check
+  await setAuthUser(userC);
+  let storageInsertCaught = false;
+  try {
+    await db.query(`
+      INSERT INTO storage.objects (bucket_id, name, owner)
+      VALUES ('swap-attachments', 'swap-attachments/${swapAttId}/${userC}/unauthorized.py', '${userC}'::uuid);
+    `);
+  } catch (err: unknown) {
+    storageInsertCaught = true;
+    assert((err as Error).message.includes('permission denied') || (err as Error).message.includes('row-level security'), 'RLS blocks unauthorized storage insert');
+  }
+  assert(storageInsertCaught, 'Unrelated user blocked from uploading storage object to another creator swap');
+
+  // User A registers creator attachment via RPC register_swap_attachment
+  await setAuthUser(userA);
   const regRes = await db.query<{ register_swap_attachment: { success: boolean; attachment_id: string } }>(`
     SELECT public.register_swap_attachment(
       '${swapAttId}'::uuid,
