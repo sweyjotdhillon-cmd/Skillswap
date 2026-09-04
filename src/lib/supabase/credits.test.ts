@@ -1079,16 +1079,14 @@ export async function runCreditSystemTests() {
 
   // Verify storage.buckets allowed_mime_types configuration in PostgreSQL database
   await setSuperuser();
-  const bucketRes = await db.query<{ id: string; allowed_mime_types: string[] }>(`
-    SELECT id, allowed_mime_types FROM storage.buckets WHERE id IN ('swap-attachments', 'swap-submissions');
+  const bucketRes = await db.query<{ id: string; allowed_mime_types: string[] | null; public: boolean; file_size_limit: number }>(`
+    SELECT id, allowed_mime_types, public, file_size_limit FROM storage.buckets WHERE id IN ('swap-attachments', 'swap-submissions');
   `);
   assert(bucketRes.rows.length === 2, 'Both storage buckets exist');
   for (const bRow of bucketRes.rows) {
-    assert(Array.isArray(bRow.allowed_mime_types), `Bucket ${bRow.id} has allowed_mime_types array`);
-    assert(bRow.allowed_mime_types.includes('image/jpeg'), `Bucket ${bRow.id} allows image/jpeg`);
-    assert(bRow.allowed_mime_types.includes('image/png'), `Bucket ${bRow.id} allows image/png`);
-    assert(bRow.allowed_mime_types.includes('image/webp'), `Bucket ${bRow.id} allows image/webp`);
-    assert(bRow.allowed_mime_types.includes('application/pdf'), `Bucket ${bRow.id} allows application/pdf`);
+    assert(bRow.allowed_mime_types === null, `Bucket ${bRow.id} has allowed_mime_types = null (allows arbitrary file types)`);
+    assert(bRow.public === false, `Bucket ${bRow.id} is private (public = false)`);
+    assert(Number(bRow.file_size_limit) === 26214400, `Bucket ${bRow.id} has 25MB file_size_limit (26214400)`);
   }
 
   // Code files (.py, .ts, .sql) and arbitrary extensions
