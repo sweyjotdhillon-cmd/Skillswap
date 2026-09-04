@@ -1,6 +1,7 @@
 import { PGlite } from '@electric-sql/pglite';
 import fs from 'fs';
 import path from 'path';
+import { getNormalizedMimeType, formatSubmissionErrorMessage } from './credits';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -945,6 +946,39 @@ export async function runCreditSystemTests() {
   assert(errorCaught, 'Invalid storage path without submissions prefix rejected by RPC');
 
   console.log('  -> Submission delivery & validation rules verified cleanly!');
+
+  // =========================================================================
+  // TEST 15: MIME Normalization & Submission Error Formatting
+  // =========================================================================
+  console.log('Test 15: Extension-aware MIME normalization & submission error formatting...');
+
+  // Mobile JPGs
+  assert(getNormalizedMimeType('Screenshot_20260903-195633.jpg', 'image/jpeg') === 'image/jpeg', 'JPG with image/jpeg browser type');
+  assert(getNormalizedMimeType('Screenshot_20260903-195633.jpg', '') === 'image/jpeg', 'JPG with empty browser type');
+  assert(getNormalizedMimeType('IMG-1234.JPG', 'application/octet-stream') === 'image/jpeg', 'JPG with generic octet-stream browser type');
+
+  // ZIP files
+  assert(getNormalizedMimeType('project.zip', 'application/x-zip-compressed') === 'application/zip', 'ZIP with x-zip-compressed browser type');
+  assert(getNormalizedMimeType('project.zip', '') === 'application/zip', 'ZIP with empty browser type');
+
+  // PDF, PNG, DOCX, MP4
+  assert(getNormalizedMimeType('document.pdf', '') === 'application/pdf', 'PDF with empty browser type');
+  assert(getNormalizedMimeType('photo.png', '') === 'image/png', 'PNG with empty browser type');
+  assert(getNormalizedMimeType('file.docx', '') === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'DOCX with empty browser type');
+  assert(getNormalizedMimeType('video.mp4', '') === 'video/mp4', 'MP4 with empty browser type');
+
+  // Error formatting without misleading profile messages
+  const http400Err = { status: 400, message: 'Invalid file format or upload rejected' };
+  const errText = formatSubmissionErrorMessage(http400Err, 'Screenshot_20260903-195633.jpg');
+  assert(errText.includes('Supabase rejected "Screenshot_20260903-195633.jpg"'), '400 error returns submission rejection text');
+  assert(!errText.includes('profile'), 'Submission error never mentions profile');
+
+  const genericErr = { message: 'Network request failed' };
+  const genericText = formatSubmissionErrorMessage(genericErr, 'test.pdf');
+  assert(genericText.includes('Failed to upload "test.pdf"'), 'Generic error returns submission error text');
+  assert(!genericText.includes('profile'), 'Generic submission error never mentions profile');
+
+  console.log('  -> Extension-aware MIME normalization & submission error formatting verified cleanly!');
 
   console.log('--- ALL SKILLSWAP CREDIT INTEGRATION & SECURITY TESTS PASSED PERFECTLY! ---');
 }

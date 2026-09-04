@@ -203,7 +203,7 @@ export function formatFriendlyErrorMessage(error: unknown): string {
   }
 
   // Do not expose unclassified backend details to users.
-  return 'We couldn’t save your profile right now. Please try again.';
+  return 'An unexpected error occurred. Please try again.';
 }
 
 /**
