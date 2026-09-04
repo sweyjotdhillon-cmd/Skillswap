@@ -117,6 +117,84 @@ const ALLOWED_FILE_EXTENSIONS = new Set([
   'pdf', 'zip', 'png', 'jpg', 'jpeg', 'webp', 'txt', 'doc', 'docx', 'csv', 'xlsx', 'mp4', 'json', 'fig', 'psd'
 ]);
 
+/**
+ * Extension-aware MIME normalization strategy.
+ * Maps file extensions to canonical MIME types when the browser's File.type is empty or generic.
+ */
+export function getNormalizedMimeType(fileName: string, browserType?: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+
+  const EXTENSION_MIME_MAP: Record<string, string> = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    pdf: 'application/pdf',
+    zip: 'application/zip',
+    txt: 'text/plain',
+    csv: 'text/csv',
+    json: 'application/json',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    mp4: 'video/mp4',
+    fig: 'application/octet-stream',
+    psd: 'application/octet-stream',
+  };
+
+  const extensionMime = EXTENSION_MIME_MAP[ext];
+  const cleanBrowserType = browserType?.trim().toLowerCase() || '';
+  const isGeneric = !cleanBrowserType || cleanBrowserType === 'application/octet-stream' || cleanBrowserType === 'text/plain';
+
+  if (!isGeneric) {
+    if (ext === 'zip') {
+      return 'application/zip';
+    }
+    return cleanBrowserType;
+  }
+
+  if (extensionMime) {
+    return extensionMime;
+  }
+
+  return cleanBrowserType || 'application/octet-stream';
+}
+
+/**
+ * Formats submission-specific error messages without returning misleading profile error copy.
+ */
+export function formatSubmissionErrorMessage(error: unknown, fileName?: string): string {
+  if (!error) {
+    return fileName ? `Failed to upload "${fileName}". Please try again.` : 'Submission could not be saved. Please try again.';
+  }
+
+  const errObj = error as { message?: string; details?: string; status?: number; statusCode?: number; error?: string; name?: string };
+  const rawMsg = typeof error === 'string' ? error : errObj.message || errObj.details || errObj.error || '';
+  const lower = rawMsg.toLowerCase();
+  const status = errObj.status || errObj.statusCode;
+
+  if (status === 400 || lower.includes('400') || lower.includes('bad request') || lower.includes('mime') || lower.includes('not allowed')) {
+    return fileName
+      ? `Supabase rejected "${fileName}". Please try a different supported file type or try again.`
+      : 'Supabase rejected this file upload. Please try a different supported file type or try again.';
+  }
+
+  if (lower.includes('jwt') || lower.includes('unauthorized') || lower.includes('not authenticated')) {
+    return 'Your session has expired. Please sign in again and retry.';
+  }
+
+  if (lower.includes('duplicate') || lower.includes('already submitted')) {
+    return 'Work has already been submitted for this swap.';
+  }
+
+  if (rawMsg) {
+    return fileName ? `Failed to upload "${fileName}": ${rawMsg}` : `Submission error: ${rawMsg}`;
+  }
+
+  return fileName ? `Failed to upload "${fileName}". Please try again.` : 'Submission could not be saved. Please try again.';
+}
+
 /** Uploads attached files to Supabase Storage and executes the atomic submit_swap_work RPC with rollback cleanup on failure. */
 export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promise<{ success: boolean; submissionId?: string; error?: string }> {
   console.log('[SUBMISSION] submit started', { swapId: input.swapId, fileCount: input.files?.length || 0 });
@@ -169,22 +247,50 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
         return { success: false, error: `File "${file.name}" has unsupported extension .${fileExt}. Allowed extensions: PDF, ZIP, PNG, JPG, WEBP, TXT, DOC, DOCX, CSV, XLSX, MP4, JSON.` };
       }
 
+      const normalizedMimeType = getNormalizedMimeType(file.name, file.type);
       const safeFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
       const storagePath = `submissions/${input.swapId}/${user.id}/${generateUUID()}-${safeFileName}`;
 
-      console.log(`[SUBMISSION] upload started: ${file.name}`, { storagePath, mimeType: file.type || 'application/octet-stream', size: file.size });
+      console.log(`[SUBMISSION] upload started: ${file.name}`, {
+        filename: file.name,
+        'file.size': file.size,
+        'file.type': file.type,
+        extension: fileExt,
+        normalizedMimeType,
+        'storage path': storagePath,
+        'bucket name': 'swap-submissions',
+      });
 
       const { error: uploadError } = await supabase.storage
         .from('swap-submissions')
-        .upload(storagePath, file, { upsert: false });
+        .upload(storagePath, file, {
+          contentType: normalizedMimeType,
+          upsert: false,
+        });
 
       if (uploadError) {
+        const errObj = uploadError as {
+          message?: string;
+          name?: string;
+          status?: number;
+          statusCode?: number;
+          error?: string;
+          details?: string;
+        };
+
         console.error(`[SUBMISSION] upload failed: ${file.name}`, {
-          operationName: 'storage.upload',
-          errorMessage: uploadError.message,
-          errorDetails: uploadError,
-          swapId: input.swapId,
-          storagePath,
+          filename: file.name,
+          'file.size': file.size,
+          'file.type': file.type,
+          extension: fileExt,
+          'storage path': storagePath,
+          'bucket name': 'swap-submissions',
+          'Supabase error.message': errObj.message,
+          'Supabase error.name': errObj.name,
+          'Supabase error.status': errObj.status,
+          'Supabase error.statusCode': errObj.statusCode,
+          'Supabase error.error': errObj.error,
+          'Supabase error.details': errObj.details,
         });
 
         // Clean up any files uploaded so far before returning error
@@ -196,7 +302,7 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
             console.error('[SUBMISSION] cleanup failed after upload failure', { uploadedPaths, cleanupErr });
           }
         }
-        return { success: false, error: `Failed to upload file "${file.name}": ${formatFriendlyErrorMessage(uploadError)}` };
+        return { success: false, error: formatSubmissionErrorMessage(uploadError, file.name) };
       }
 
       console.log(`[SUBMISSION] upload completed: ${storagePath}`);
@@ -204,7 +310,7 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
       uploadedFileMetadata.push({
         storage_path: storagePath,
         file_name: file.name,
-        mime_type: file.type || 'application/octet-stream',
+        mime_type: normalizedMimeType,
         file_size: file.size,
       });
     }
@@ -237,7 +343,7 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
         console.error('[SUBMISSION] cleanup failed after RPC error', { uploadedPaths, cleanupErr });
       }
     }
-    return { success: false, error: formatFriendlyErrorMessage(error ?? new Error('Failed to submit swap work.')) };
+    return { success: false, error: formatSubmissionErrorMessage(error ?? new Error('Failed to submit swap work.')) };
   }
 
   const result = data as { success?: boolean; submission_id?: string; error?: string };

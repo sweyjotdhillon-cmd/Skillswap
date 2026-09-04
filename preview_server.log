@@ -1,0 +1,13 @@
+
+> skillswap@0.1.0 preview
+> vite preview --host 0.0.0.0
+
+(node:58204) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+  ➜  Local:   http://localhost:4173/
+  ➜  Network: http://192.168.0.2:4173/  eth0
+  ➜  Debug:   http://localhost:4173/__debug
+GET / 200 OK (8ms)
+GET /assets/index-24R3xeN0.js 200 OK (3ms)
+GET /assets/index-CFZzNO4e.css 200 OK (2ms)
+GET /assets/skillcredits-hero-BO8MSqde.png 200 OK (5ms)
