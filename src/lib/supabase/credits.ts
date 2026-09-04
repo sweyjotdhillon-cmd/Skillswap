@@ -124,6 +124,25 @@ export interface SubmitSwapWorkInput {
   files?: File[];
 }
 
+/**
+ * Single canonical filename sanitization helper.
+ * Computes a safe, deterministic stored filename value preserving Unicode characters,
+ * extensions, and valid path characters while replacing unsafe characters, control chars,
+ * slashes, and whitespace with underscores.
+ */
+export function sanitizeFileName(fileName: string): string {
+  if (!fileName) return 'unnamed_file';
+  const trimmed = fileName.trim();
+  if (!trimmed) return 'unnamed_file';
+
+  // Replace slashes, control chars, whitespace, and unsafe path characters with underscores.
+  // Uses Unicode-aware regex matching to preserve Unicode letters/numbers (e.g. résumé.pdf).
+  const sanitized = trimmed
+    .replace(/[\0\r\n\t/]/g, '_')
+    .replace(/[^\p{L}\p{N}_.-]/gu, '_');
+
+  return sanitized || 'unnamed_file';
+}
 
 /**
  * Extension-aware MIME normalization strategy.
@@ -344,12 +363,13 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
         return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
       }
 
-      const normalizedMimeType = getNormalizedMimeType(file.name, file.type);
-      const safeFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
-      const storagePath = `submissions/${input.swapId}/${user.id}/${generateUUID()}-${safeFileName}`;
+      const storedFileName = sanitizeFileName(file.name);
+      const normalizedMimeType = getNormalizedMimeType(storedFileName, file.type);
+      const storagePath = `submissions/${input.swapId}/${user.id}/${generateUUID()}-${storedFileName}`;
 
       console.log(`[SUBMISSION] upload started: ${file.name}`, {
         filename: file.name,
+        storedFileName,
         'file.size': file.size,
         'file.type': file.type,
         normalizedMimeType,
@@ -376,6 +396,7 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
 
         console.error(`[SUBMISSION] upload failed: ${file.name}`, {
           filename: file.name,
+          storedFileName,
           'file.size': file.size,
           'file.type': file.type,
           'storage path': storagePath,
@@ -404,7 +425,7 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
       uploadedPaths.push(storagePath);
       uploadedFileMetadata.push({
         storage_path: storagePath,
-        file_name: file.name,
+        file_name: storedFileName,
         mime_type: normalizedMimeType,
         file_size: file.size,
       });
@@ -849,9 +870,9 @@ export async function uploadSwapAttachments(
         return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
       }
 
-      const normalizedMime = getNormalizedMimeType(file.name, file.type);
-      const safeFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
-      const storagePath = `swap-attachments/${swapId}/${user.id}/${generateUUID()}-${safeFileName}`;
+      const storedFileName = sanitizeFileName(file.name);
+      const normalizedMime = getNormalizedMimeType(storedFileName, file.type);
+      const storagePath = `swap-attachments/${swapId}/${user.id}/${generateUUID()}-${storedFileName}`;
 
       const { error: uploadErr } = await supabase.storage
         .from('swap-attachments')
@@ -868,12 +889,12 @@ export async function uploadSwapAttachments(
 
       uploadedPaths.push(storagePath);
 
-      // Register metadata via RPC register_swap_attachment
+      // Register metadata via RPC register_swap_attachment using the exact storedFileName
       let attachmentId: string | null = null;
       const { data: rpcData, error: rpcErr } = await supabase.rpc('register_swap_attachment', {
         p_swap_id: swapId,
         p_storage_path: storagePath,
-        p_file_name: file.name,
+        p_file_name: storedFileName,
         p_mime_type: normalizedMime,
         p_file_size: file.size,
       });
