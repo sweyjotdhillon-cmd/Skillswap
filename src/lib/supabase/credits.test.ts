@@ -1,7 +1,7 @@
 import { PGlite } from '@electric-sql/pglite';
 import fs from 'fs';
 import path from 'path';
-import { getNormalizedMimeType, formatSubmissionErrorMessage } from './credits';
+import { getNormalizedMimeType, formatSubmissionErrorMessage, ALLOWED_FILE_EXTENSIONS } from './credits';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -109,6 +109,7 @@ export async function runCreditSystemTests() {
     '016_chat_rls_and_submission_fixes.sql',
     '018_submission_delivery_and_validation_fixes.sql',
     '019_final_submission_flow_alignment.sql',
+    '020_swap_creator_attachments.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -1033,6 +1034,17 @@ export async function runCreditSystemTests() {
   assert(getNormalizedMimeType('file.docx', '') === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'DOCX with empty browser type');
   assert(getNormalizedMimeType('video.mp4', '') === 'video/mp4', 'MP4 with empty browser type');
 
+  // Code files (.py, .ts, .sql)
+  assert(getNormalizedMimeType('script.py', '') === 'text/x-python', 'PY with empty browser type');
+  assert(getNormalizedMimeType('app.ts', '') === 'text/typescript', 'TS with empty browser type');
+  assert(getNormalizedMimeType('schema.sql', '') === 'application/sql', 'SQL with empty browser type');
+
+  // Verify ALLOWED_FILE_EXTENSIONS contains developer extensions
+  assert(ALLOWED_FILE_EXTENSIONS.has('py'), 'ALLOWED_FILE_EXTENSIONS contains py');
+  assert(ALLOWED_FILE_EXTENSIONS.has('ts'), 'ALLOWED_FILE_EXTENSIONS contains ts');
+  assert(ALLOWED_FILE_EXTENSIONS.has('sql'), 'ALLOWED_FILE_EXTENSIONS contains sql');
+  assert(ALLOWED_FILE_EXTENSIONS.has('zip'), 'ALLOWED_FILE_EXTENSIONS contains zip');
+
   // Error formatting without misleading profile messages
   const http400Err = { status: 400, message: 'Invalid file format or upload rejected' };
   const errText = formatSubmissionErrorMessage(http400Err, 'Screenshot_20260903-195633.jpg');
@@ -1045,6 +1057,56 @@ export async function runCreditSystemTests() {
   assert(!genericText.includes('profile'), 'Generic submission error never mentions profile');
 
   console.log('  -> Extension-aware MIME normalization & submission error formatting verified cleanly!');
+
+  // =========================================================================
+  // TEST 16: Swap Creator Attachments & RLS Policy Verification
+  // =========================================================================
+  console.log('Test 16: Swap creator attachments & RLS policy verification...');
+
+  // User A creates Swap 8
+  await setAuthUser(userA);
+  swapRes = await db.query<{ swap_id: string }>(`
+    SELECT public.create_credit_swap('Creator Attachments Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_creator_att') AS swap_id;
+  `);
+  const swapAttId = swapRes.rows[0].swap_id;
+
+  // User A inserts creator attachment metadata
+  const attStoragePath = `swap-attachments/${swapAttId}/${userA}/b281f9a2-script.py`;
+  await db.query(`
+    INSERT INTO public.swap_attachments (swap_id, uploaded_by, storage_path, file_name, mime_type, file_size)
+    VALUES ('${swapAttId}'::uuid, '${userA}'::uuid, '${attStoragePath}', 'script.py', 'text/x-python', 1280);
+  `);
+
+  // User A (creator) can read creator attachments
+  const attRows = await db.query<{ file_name: string }>(`
+    SELECT file_name FROM public.swap_attachments WHERE swap_id = '${swapAttId}';
+  `);
+  assert(attRows.rows.length === 1 && attRows.rows[0].file_name === 'script.py', 'Creator (User A) can view creator attachments');
+
+  // User B (not yet participant) attempts to read creator attachments on open swap -> returns 0 rows due to RLS
+  await setAuthUser(userB);
+  let attRowsB = await db.query<{ file_name: string }>(`
+    SELECT file_name FROM public.swap_attachments WHERE swap_id = '${swapAttId}';
+  `);
+  assert(attRowsB.rows.length === 0, 'Non-participant User B cannot view creator attachments for open swap');
+
+  // User B accepts Swap 8
+  await db.query(`SELECT public.accept_credit_swap('${swapAttId}'::uuid);`);
+
+  // User B (now accepted participant) can view creator attachments
+  attRowsB = await db.query<{ file_name: string }>(`
+    SELECT file_name FROM public.swap_attachments WHERE swap_id = '${swapAttId}';
+  `);
+  assert(attRowsB.rows.length === 1 && attRowsB.rows[0].file_name === 'script.py', 'Accepted participant (User B) can view creator attachments');
+
+  // Unrelated User C attempts to view creator attachments -> returns 0 rows
+  await setAuthUser(userC);
+  const attRowsC = await db.query<{ file_name: string }>(`
+    SELECT file_name FROM public.swap_attachments WHERE swap_id = '${swapAttId}';
+  `);
+  assert(attRowsC.rows.length === 0, 'Unrelated User C cannot view creator attachments due to RLS');
+
+  console.log('  -> Swap creator attachments & RLS policy verified cleanly!');
 
   console.log('--- ALL SKILLSWAP CREDIT INTEGRATION & SECURITY TESTS PASSED PERFECTLY! ---');
 }

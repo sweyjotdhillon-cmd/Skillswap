@@ -5,19 +5,20 @@ import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import {
   getUserSwaps,
   getSwapSubmission,
+  getSwapAttachments,
   submitSwapWorkWithFiles,
   completeCreditSwap,
   getSubmissionFileSignedUrl,
+  getSwapAttachmentSignedUrl,
+  downloadFileFromSignedUrl,
+  ALLOWED_FILE_EXTENSIONS,
   type SwapRecord,
+  type SwapAttachment,
 } from '../lib/supabase/credits';
 import { mapSwapRecordToSwap, type Swap, type SwapSubmission } from '../types/swap';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
-
-const ALLOWED_EXTENSIONS = new Set([
-  'pdf', 'zip', 'png', 'jpg', 'jpeg', 'webp', 'txt', 'doc', 'docx', 'csv', 'xlsx', 'mp4', 'json', 'fig', 'psd'
-]);
 
 export interface SwapParticipant {
   userId: string;
@@ -54,10 +55,15 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
   const [isMutating, setIsMutating] = useState(false);
 
-  // Selected swap submission state
+  // Selected swap submission & creator attachment state
   const [currentSubmission, setCurrentSubmission] = useState<SwapSubmission | null>(null);
   const [submissionLoading, setSubmissionLoading] = useState(false);
-  const [signedFileUrls, setSignedFileUrls] = useState<Record<string, string>>({});
+  const [creatorAttachments, setCreatorAttachments] = useState<SwapAttachment[]>([]);
+  const [creatorAttachmentsLoading, setCreatorAttachmentsLoading] = useState(false);
+
+  // Download state
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   // Submit Work Modal state
   const [isSubmitWorkModalOpen, setIsSubmitWorkModalOpen] = useState(false);
@@ -193,39 +199,43 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   const currentSelectedSwapId = currentSelectedItem?.swap.id;
   const currentSelectedSwapStatus = currentSelectedItem?.swap.status;
 
-  // Load submission data whenever the selected swap ID or status changes (clearing stale state immediately)
+  // Load submission and creator attachments whenever the selected swap ID or status changes
   useEffect(() => {
     let active = true;
-    // Clear previous submission state immediately on selection or status change
     setCurrentSubmission(null);
-    setSignedFileUrls({});
+    setCreatorAttachments([]);
+    setDownloadError(null);
 
     if (!currentSelectedSwapId) return;
 
-    const fetchSubmissionData = async () => {
+    const fetchDetailsData = async () => {
       setSubmissionLoading(true);
-      const res = await getSwapSubmission(currentSelectedSwapId);
+      setCreatorAttachmentsLoading(true);
+
+      const [subRes, attRes] = await Promise.all([
+        getSwapSubmission(currentSelectedSwapId),
+        getSwapAttachments(currentSelectedSwapId),
+      ]);
+
       if (!active) return;
 
       setSubmissionLoading(false);
-      if (res.data) {
-        setCurrentSubmission(res.data);
-        // Fetch signed URLs for submission files
-        const urls: Record<string, string> = {};
-        for (const file of res.data.files) {
-          const url = await getSubmissionFileSignedUrl(file.storagePath);
-          if (url && active) {
-            urls[file.id] = url;
-          }
-        }
-        if (active) setSignedFileUrls(urls);
+      setCreatorAttachmentsLoading(false);
+
+      if (subRes.data) {
+        setCurrentSubmission(subRes.data);
       } else {
         setCurrentSubmission(null);
-        setSignedFileUrls({});
+      }
+
+      if (attRes.data) {
+        setCreatorAttachments(attRes.data);
+      } else {
+        setCreatorAttachments([]);
       }
     };
 
-    void fetchSubmissionData();
+    void fetchDetailsData();
     return () => {
       active = false;
     };
@@ -233,6 +243,42 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
   const handleOpenChat = (item: ActiveSwapItem) => {
     setActiveChatSwap(item);
+  };
+
+  // ==========================================
+  // DOWNLOAD LOGIC (Blob-based Forced Download)
+  // ==========================================
+
+  const handleDownloadFile = async (
+    storagePath: string,
+    fileName: string,
+    fileId: string,
+    isSubmission: boolean = true
+  ) => {
+    setDownloadingFileId(fileId);
+    setDownloadError(null);
+
+    try {
+      const signedUrl = isSubmission
+        ? await getSubmissionFileSignedUrl(storagePath)
+        : await getSwapAttachmentSignedUrl(storagePath);
+
+      if (!signedUrl) {
+        setDownloadError(`Unable to generate secure download link for "${fileName}".`);
+        setDownloadingFileId(null);
+        return;
+      }
+
+      const res = await downloadFileFromSignedUrl(signedUrl, fileName);
+      if (!res.success) {
+        setDownloadError(res.error || `Failed to download "${fileName}".`);
+      }
+    } catch (err) {
+      console.error('Download exception:', err);
+      setDownloadError(`Error downloading "${fileName}".`);
+    } finally {
+      setDownloadingFileId(null);
+    }
   };
 
   // ==========================================
@@ -249,7 +295,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         continue;
       }
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      if (!ALLOWED_EXTENSIONS.has(ext)) {
+      if (!ALLOWED_FILE_EXTENSIONS.has(ext)) {
         setSubmitError(`File "${file.name}" has unaccepted extension .${ext}`);
         continue;
       }
@@ -311,12 +357,6 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     setIsMutating(true);
 
     try {
-      console.log('[SUBMISSION] handleSubmitWork triggered', {
-        swapId: currentAcceptedItem.swap.id,
-        notesLength: trimmedNotes.length,
-        fileCount: submitWorkFiles.length,
-      });
-
       const res = await submitSwapWorkWithFiles({
         swapId: currentAcceptedItem.swap.id,
         notes: trimmedNotes,
@@ -324,17 +364,13 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
       });
 
       if (!res.success) {
-        console.error('[SUBMISSION] handleSubmitWork failed', res.error);
         setSubmitError(res.error || 'Failed to submit work.');
         return;
       }
 
-      console.log('[SUBMISSION] submission record verified', { submissionId: res.submissionId });
-
       await refreshAccount();
       await loadRealActiveSwaps();
 
-      console.log('[SUBMISSION] UI state updated');
       setIsSubmitWorkModalOpen(false);
       setSubmitWorkNotes('');
       setSubmitWorkFiles([]);
@@ -345,8 +381,6 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
       toastTimerRef.current = setTimeout(() => {
         if (isMountedRef.current) setSubmitSuccessToast(null);
       }, 5000);
-
-      console.log('[SUBMISSION] submission completed');
     } catch (err) {
       console.error('[SUBMISSION] unexpected error in handleSubmitWork', err);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred while submitting work.';
@@ -541,6 +575,12 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
           {/* RIGHT PANEL: SELECTED SWAP DETAILS */}
           <section className="as-right-panel" aria-label="Selected swap details">
+            {downloadError && (
+              <div className="error-alert" style={{ color: 'var(--error-color, #ef4444)', padding: '0.75rem 1rem', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.08)', marginBottom: '1rem' }}>
+                {downloadError}
+              </div>
+            )}
+
             {activeTab === 'accepted' ? (
               currentAcceptedItem ? (
                 <div className="as-detail-card">
@@ -606,6 +646,45 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     <p className="as-section-body-text">{currentAcceptedItem.swap.requirements || currentAcceptedItem.swap.description}</p>
                   </div>
 
+                  {/* CREATOR ATTACHMENTS (if present) */}
+                  {creatorAttachmentsLoading ? (
+                    <div className="as-detail-section">
+                      <h4 className="as-section-subheading">Creator Attachments</h4>
+                      <p className="as-section-body-text">Loading creator attachments...</p>
+                    </div>
+                  ) : creatorAttachments.length > 0 ? (
+                    <div className="as-detail-section">
+                      <h4 className="as-section-subheading">Attachments from Swap Creator</h4>
+                      <div className="attachment-list" style={{ marginTop: '0.5rem' }}>
+                        {creatorAttachments.map((att) => {
+                          const isDownloading = downloadingFileId === att.id;
+                          return (
+                            <div key={att.id} className="attachment-card" style={{ flexWrap: 'wrap' }}>
+                              <div className="attachment-info">
+                                <span style={{ fontSize: '1.2rem', marginRight: '0.25rem' }}>📎</span>
+                                <div className="attachment-details">
+                                  <span className="attachment-name" title={att.fileName}>{att.fileName}</span>
+                                  {att.fileSize ? (
+                                    <span className="attachment-size">{(att.fileSize / 1024).toFixed(1)} KB</span>
+                                  ) : null}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                className="as-btn as-btn--secondary"
+                                style={{ padding: '0.35rem 0.85rem', fontSize: '0.825rem' }}
+                                disabled={isDownloading}
+                                onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false)}
+                              >
+                                {isDownloading ? 'Downloading...' : 'Download'}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+
                   {/* YOUR SUBMISSION / NEXT STEP */}
                   <div className="as-detail-section">
                     <h4 className="as-section-subheading">Submission Status</h4>
@@ -616,30 +695,37 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                         <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
                           Submitted on {new Date(currentSubmission.createdAt).toLocaleDateString()}
                         </p>
-                        <p style={{ marginTop: '0.25rem' }}>“{currentSubmission.notes}”</p>
+                        {currentSubmission.notes && <p style={{ marginTop: '0.25rem' }}>“{currentSubmission.notes}”</p>}
                         {currentSubmission.files && currentSubmission.files.length > 0 && (
-                          <div className="as-submitted-files-list" style={{ marginTop: '0.5rem' }}>
-                            <strong>Attached Files:</strong>
-                            <ul style={{ listStyle: 'none', padding: 0, marginTop: '0.25rem' }}>
-                              {currentSubmission.files.map((file) => (
-                                <li key={file.id} style={{ margin: '0.25rem 0' }}>
-                                  <a
-                                    href={signedFileUrls[file.id] || '#'}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="as-file-chip"
-                                    onClick={(e) => {
-                                      if (!signedFileUrls[file.id]) {
-                                        e.preventDefault();
-                                        alert('Generating secure download link...');
-                                      }
-                                    }}
-                                  >
-                                    📎 {file.fileName} {file.fileSize ? `(${(file.fileSize / 1024).toFixed(1)} KB)` : ''}
-                                  </a>
-                                </li>
-                              ))}
-                            </ul>
+                          <div className="as-submitted-files-list" style={{ marginTop: '0.75rem' }}>
+                            <strong style={{ display: 'block', marginBottom: '0.5rem' }}>Submitted Deliverables:</strong>
+                            <div className="attachment-list">
+                              {currentSubmission.files.map((file) => {
+                                const isDownloading = downloadingFileId === file.id;
+                                return (
+                                  <div key={file.id} className="attachment-card" style={{ flexWrap: 'wrap' }}>
+                                    <div className="attachment-info">
+                                      <span style={{ fontSize: '1.2rem', marginRight: '0.25rem' }}>📎</span>
+                                      <div className="attachment-details">
+                                        <span className="attachment-name" title={file.fileName}>{file.fileName}</span>
+                                        {file.fileSize ? (
+                                          <span className="attachment-size">{(file.fileSize / 1024).toFixed(1)} KB</span>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="as-btn as-btn--secondary"
+                                      style={{ padding: '0.35rem 0.85rem', fontSize: '0.825rem' }}
+                                      disabled={isDownloading}
+                                      onClick={() => handleDownloadFile(file.storagePath, file.fileName, file.id, true)}
+                                    >
+                                      {isDownloading ? 'Downloading...' : 'Download'}
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
                         <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
@@ -751,6 +837,45 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     </div>
                   </div>
 
+                  {/* CREATOR ATTACHMENTS (if present) */}
+                  {creatorAttachmentsLoading ? (
+                    <div className="as-detail-section">
+                      <h4 className="as-section-subheading">Your Created Attachments</h4>
+                      <p className="as-section-body-text">Loading attachments...</p>
+                    </div>
+                  ) : creatorAttachments.length > 0 ? (
+                    <div className="as-detail-section">
+                      <h4 className="as-section-subheading">Your Attachments for this Swap</h4>
+                      <div className="attachment-list" style={{ marginTop: '0.5rem' }}>
+                        {creatorAttachments.map((att) => {
+                          const isDownloading = downloadingFileId === att.id;
+                          return (
+                            <div key={att.id} className="attachment-card" style={{ flexWrap: 'wrap' }}>
+                              <div className="attachment-info">
+                                <span style={{ fontSize: '1.2rem', marginRight: '0.25rem' }}>📎</span>
+                                <div className="attachment-details">
+                                  <span className="attachment-name" title={att.fileName}>{att.fileName}</span>
+                                  {att.fileSize ? (
+                                    <span className="attachment-size">{(att.fileSize / 1024).toFixed(1)} KB</span>
+                                  ) : null}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                className="as-btn as-btn--secondary"
+                                style={{ padding: '0.35rem 0.85rem', fontSize: '0.825rem' }}
+                                disabled={isDownloading}
+                                onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false)}
+                              >
+                                {isDownloading ? 'Downloading...' : 'Download'}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+
                   {/* CALLOUT / SUBMISSION DETAILS */}
                   <div className="as-detail-section">
                     {currentGivenItem.swap.status === 'accepted' ? (
@@ -767,30 +892,37 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                         <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>
                           Submitted Deliverables (Review Required)
                         </h4>
-                        <p style={{ margin: '0 0 0.5rem 0', fontStyle: 'italic' }}>“{currentSubmission.notes}”</p>
+                        {currentSubmission.notes && <p style={{ margin: '0 0 0.5rem 0', fontStyle: 'italic' }}>“{currentSubmission.notes}”</p>}
                         {currentSubmission.files && currentSubmission.files.length > 0 && (
                           <div className="as-submitted-files-list">
-                            <strong>Attached Files:</strong>
-                            <ul style={{ listStyle: 'none', padding: 0, marginTop: '0.25rem' }}>
-                              {currentSubmission.files.map((file) => (
-                                <li key={file.id} style={{ margin: '0.25rem 0' }}>
-                                  <a
-                                    href={signedFileUrls[file.id] || '#'}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="as-file-chip"
-                                    onClick={(e) => {
-                                      if (!signedFileUrls[file.id]) {
-                                        e.preventDefault();
-                                        alert('Generating download link...');
-                                      }
-                                    }}
-                                  >
-                                    📎 {file.fileName} {file.fileSize ? `(${(file.fileSize / 1024).toFixed(1)} KB)` : ''}
-                                  </a>
-                                </li>
-                              ))}
-                            </ul>
+                            <strong style={{ display: 'block', marginBottom: '0.5rem' }}>Submitted Deliverables:</strong>
+                            <div className="attachment-list">
+                              {currentSubmission.files.map((file) => {
+                                const isDownloading = downloadingFileId === file.id;
+                                return (
+                                  <div key={file.id} className="attachment-card" style={{ flexWrap: 'wrap' }}>
+                                    <div className="attachment-info">
+                                      <span style={{ fontSize: '1.2rem', marginRight: '0.25rem' }}>📎</span>
+                                      <div className="attachment-details">
+                                        <span className="attachment-name" title={file.fileName}>{file.fileName}</span>
+                                        {file.fileSize ? (
+                                          <span className="attachment-size">{(file.fileSize / 1024).toFixed(1)} KB</span>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="as-btn as-btn--secondary"
+                                      style={{ padding: '0.35rem 0.85rem', fontSize: '0.825rem' }}
+                                      disabled={isDownloading}
+                                      onClick={() => handleDownloadFile(file.storagePath, file.fileName, file.id, true)}
+                                    >
+                                      {isDownloading ? 'Downloading...' : 'Download'}
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -933,7 +1065,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                       📁 Browse / Select Files
                     </button>
                     <span className="dropzone-add-text">Drag & drop files here or click browse</span>
-                    <span className="dropzone-subtext">PDF, ZIP, PNG, JPG, DOCX, etc. up to 25MB</span>
+                    <span className="dropzone-subtext">PDF, ZIP, PY, JPG, DOCX, etc. up to 25MB</span>
                   </div>
                 </div>
 

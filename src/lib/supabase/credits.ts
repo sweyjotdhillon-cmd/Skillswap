@@ -76,6 +76,17 @@ export interface CreateCreditSwapInput {
   idempotencyKey?: string;
 }
 
+export interface SwapAttachment {
+  id: string;
+  swapId: string;
+  uploadedBy: string;
+  storagePath: string;
+  fileName: string;
+  mimeType?: string | null;
+  fileSize?: number | null;
+  createdAt: string;
+}
+
 /** Creates the swap and its reservation in one database transaction using a stable idempotency key. */
 export async function createCreditSwap(input: CreateCreditSwapInput): Promise<{ success: boolean; swapId?: string; error?: string }> {
   const supabase = getSupabaseBrowserClient();
@@ -113,8 +124,23 @@ export interface SubmitSwapWorkInput {
   files?: File[];
 }
 
-const ALLOWED_FILE_EXTENSIONS = new Set([
-  'pdf', 'zip', 'png', 'jpg', 'jpeg', 'webp', 'txt', 'doc', 'docx', 'csv', 'xlsx', 'mp4', 'json', 'fig', 'psd'
+export const ALLOWED_FILE_EXTENSIONS = new Set([
+  // Images
+  'png', 'jpg', 'jpeg', 'webp', 'gif', 'svg',
+  // Documents
+  'pdf', 'doc', 'docx', 'txt', 'md', 'rtf',
+  // Spreadsheets
+  'csv', 'xls', 'xlsx',
+  // Presentations
+  'ppt', 'pptx',
+  // Archives
+  'zip', 'tar', 'gz', '7z',
+  // Code/development
+  'py', 'js', 'jsx', 'ts', 'tsx', 'html', 'css', 'scss', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'go', 'rs', 'php', 'rb', 'swift', 'kt', 'sql', 'sh', 'bat', 'ps1', 'json', 'xml', 'yaml', 'yml',
+  // Media
+  'mp3', 'wav', 'mp4', 'webm', 'mov',
+  // Design
+  'fig', 'psd', 'ai'
 ]);
 
 /**
@@ -125,22 +151,78 @@ export function getNormalizedMimeType(fileName: string, browserType?: string): s
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
 
   const EXTENSION_MIME_MAP: Record<string, string> = {
+    // Images
+    png: 'image/png',
     jpg: 'image/jpeg',
     jpeg: 'image/jpeg',
-    png: 'image/png',
     webp: 'image/webp',
+    gif: 'image/gif',
+    svg: 'image/svg+xml',
+
+    // Documents
     pdf: 'application/pdf',
-    zip: 'application/zip',
-    txt: 'text/plain',
-    csv: 'text/csv',
-    json: 'application/json',
     doc: 'application/msword',
     docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    txt: 'text/plain',
+    md: 'text/markdown',
+    rtf: 'application/rtf',
+
+    // Spreadsheets
+    csv: 'text/csv',
     xls: 'application/vnd.ms-excel',
     xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+
+    // Presentations
+    ppt: 'application/vnd.ms-powerpoint',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+
+    // Archives
+    zip: 'application/zip',
+    tar: 'application/x-tar',
+    gz: 'application/gzip',
+    '7z': 'application/x-7z-compressed',
+
+    // Code/development
+    py: 'text/x-python',
+    js: 'text/javascript',
+    jsx: 'text/javascript',
+    ts: 'text/typescript',
+    tsx: 'text/typescript',
+    html: 'text/html',
+    css: 'text/css',
+    scss: 'text/x-scss',
+    java: 'text/x-java-source',
+    c: 'text/x-c',
+    cpp: 'text/x-c++',
+    h: 'text/x-h',
+    hpp: 'text/x-h++',
+    cs: 'text/plain',
+    go: 'text/plain',
+    rs: 'text/plain',
+    php: 'application/x-httpd-php',
+    rb: 'text/x-ruby',
+    swift: 'text/plain',
+    kt: 'text/plain',
+    sql: 'application/sql',
+    sh: 'application/x-sh',
+    bat: 'text/plain',
+    ps1: 'text/plain',
+    json: 'application/json',
+    xml: 'application/xml',
+    yaml: 'text/yaml',
+    yml: 'text/yaml',
+
+    // Media
+    mp3: 'audio/mpeg',
+    wav: 'audio/wav',
     mp4: 'video/mp4',
+    webm: 'video/webm',
+    mov: 'video/quicktime',
+
+    // Design
     fig: 'application/octet-stream',
-    psd: 'application/octet-stream',
+    psd: 'image/vnd.adobe.photoshop',
+    ai: 'application/postscript',
   };
 
   const extensionMime = EXTENSION_MIME_MAP[ext];
@@ -244,7 +326,7 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
       const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
       if (!ALLOWED_FILE_EXTENSIONS.has(fileExt)) {
         console.error('[SUBMISSION] file validation failed: unsupported extension', { fileName: file.name, fileExt });
-        return { success: false, error: `File "${file.name}" has unsupported extension .${fileExt}. Allowed extensions: PDF, ZIP, PNG, JPG, WEBP, TXT, DOC, DOCX, CSV, XLSX, MP4, JSON.` };
+        return { success: false, error: `File "${file.name}" has unsupported extension .${fileExt}.` };
       }
 
       const normalizedMimeType = getNormalizedMimeType(file.name, file.type);
@@ -667,6 +749,174 @@ export async function getSubmissionFileSignedUrl(storagePath: string): Promise<s
   } catch (err) {
     console.error('Unexpected error generating signed URL:', err);
     return null;
+  }
+}
+
+// ==========================================
+// SWAP CREATOR ATTACHMENTS API METHODS
+// ==========================================
+
+export async function getSwapAttachments(swapId: string): Promise<{ data: SwapAttachment[]; error?: string }> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase || !swapId) return { data: [], error: !swapId ? 'Swap ID is missing.' : 'Supabase client is unavailable.' };
+
+  try {
+    const { data, error } = await supabase
+      .from('swap_attachments')
+      .select('*')
+      .eq('swap_id', swapId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching swap attachments:', error);
+      return { data: [], error: formatFriendlyErrorMessage(error) };
+    }
+
+    const attachments: SwapAttachment[] = (data || []).map((a) => ({
+      id: a.id,
+      swapId: a.swap_id,
+      uploadedBy: a.uploaded_by,
+      storagePath: a.storage_path,
+      fileName: a.file_name,
+      mimeType: a.mime_type,
+      fileSize: a.file_size,
+      createdAt: a.created_at,
+    }));
+
+    return { data: attachments };
+  } catch (err) {
+    console.error('Unexpected error fetching swap attachments:', err);
+    return { data: [], error: formatFriendlyErrorMessage(err) };
+  }
+}
+
+export async function uploadSwapAttachments(
+  swapId: string,
+  files: File[]
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'You must be logged in to upload attachments.' };
+
+  if (!files || files.length === 0) return { success: true };
+
+  if (files.length > 5) {
+    return { success: false, error: 'Maximum 5 attachments allowed per swap.' };
+  }
+
+  const uploadedPaths: string[] = [];
+  const attachmentMetadata: Array<{ swap_id: string; uploaded_by: string; storage_path: string; file_name: string; mime_type: string; file_size: number }> = [];
+
+  for (const file of files) {
+    if (file.size > 25 * 1024 * 1024) {
+      return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
+    }
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    if (!ALLOWED_FILE_EXTENSIONS.has(ext)) {
+      return { success: false, error: `File "${file.name}" has unsupported extension .${ext}.` };
+    }
+
+    const normalizedMime = getNormalizedMimeType(file.name, file.type);
+    const safeFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+    const storagePath = `swap-attachments/${swapId}/${user.id}/${generateUUID()}-${safeFileName}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from('swap-submissions')
+      .upload(storagePath, file, {
+        contentType: normalizedMime,
+        upsert: false,
+      });
+
+    if (uploadErr) {
+      console.error('Creator attachment upload failed:', uploadErr);
+      if (uploadedPaths.length > 0) {
+        try {
+          await supabase.storage.from('swap-submissions').remove(uploadedPaths);
+        } catch (cleanupErr) {
+          console.error('Cleanup failed after creator attachment upload error:', cleanupErr);
+        }
+      }
+      return { success: false, error: formatSubmissionErrorMessage(uploadErr, file.name) };
+    }
+
+    uploadedPaths.push(storagePath);
+    attachmentMetadata.push({
+      swap_id: swapId,
+      uploaded_by: user.id,
+      storage_path: storagePath,
+      file_name: file.name,
+      mime_type: normalizedMime,
+      file_size: file.size,
+    });
+  }
+
+  const { error: dbErr } = await supabase
+    .from('swap_attachments')
+    .insert(attachmentMetadata);
+
+  if (dbErr) {
+    console.error('Failed to save swap_attachments metadata:', dbErr);
+    if (uploadedPaths.length > 0) {
+      try {
+        await supabase.storage.from('swap-submissions').remove(uploadedPaths);
+      } catch (cleanupErr) {
+        console.error('Cleanup failed after DB metadata error:', cleanupErr);
+      }
+    }
+    return { success: false, error: formatSubmissionErrorMessage(dbErr) };
+  }
+
+  return { success: true };
+}
+
+export async function getSwapAttachmentSignedUrl(storagePath: string): Promise<string | null> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase || !storagePath) return null;
+
+  try {
+    const { data, error } = await supabase.storage
+      .from('swap-submissions')
+      .createSignedUrl(storagePath, 3600);
+
+    if (error || !data) {
+      console.error('Error generating creator attachment signed URL:', error);
+      return null;
+    }
+
+    return data.signedUrl;
+  } catch (err) {
+    console.error('Unexpected error generating creator attachment signed URL:', err);
+    return null;
+  }
+}
+
+/**
+ * Downloads a file from a signed URL in the browser without navigating away or opening inline.
+ */
+export async function downloadFileFromSignedUrl(signedUrl: string, fileName: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(signedUrl);
+    if (!response.ok) {
+      return { success: false, error: `Failed to download file (HTTP ${response.status})` };
+    }
+
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+
+    return { success: true };
+  } catch (err) {
+    console.error('Error in downloadFileFromSignedUrl:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Download failed.' };
   }
 }
 

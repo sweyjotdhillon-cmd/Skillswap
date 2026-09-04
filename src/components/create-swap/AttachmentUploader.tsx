@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { ALLOWED_FILE_EXTENSIONS } from '../../lib/supabase/credits';
 
 export interface AttachmentItem {
   id: string;
@@ -61,24 +62,30 @@ export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAtta
   const [isDragOver, setIsDragOver] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
 
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
+  const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB per file
+  const MAX_FILES = 5;
 
   const filterAndAddFiles = (files: FileList | File[]) => {
+    setFileError(null);
     const validFiles: File[] = [];
-    let oversized = false;
+    const filesArr = Array.from(files);
 
-    Array.from(files).forEach((file) => {
+    if (attachments.length + filesArr.length > MAX_FILES) {
+      setFileError(`Maximum ${MAX_FILES} attachments allowed per swap.`);
+      return;
+    }
+
+    for (const file of filesArr) {
       if (file.size > MAX_FILE_SIZE) {
-        oversized = true;
-      } else {
-        validFiles.push(file);
+        setFileError(`File "${file.name}" exceeds 25MB limit.`);
+        return;
       }
-    });
-
-    if (oversized) {
-      setFileError('Some files exceeded the 10MB limit and were skipped.');
-    } else {
-      setFileError(null);
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      if (!ALLOWED_FILE_EXTENSIONS.has(ext)) {
+        setFileError(`File "${file.name}" has unaccepted extension .${ext}`);
+        return;
+      }
+      validFiles.push(file);
     }
 
     if (validFiles.length > 0) {
@@ -87,6 +94,8 @@ export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAtta
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (e.target.files && e.target.files.length > 0) {
       filterAndAddFiles(e.target.files);
       e.target.value = '';
@@ -95,16 +104,19 @@ export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAtta
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragOver(true);
   };
 
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragOver(false);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       filterAndAddFiles(e.dataTransfer.files);
@@ -126,12 +138,17 @@ export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAtta
         multiple
         className="hidden-file-input"
         onChange={handleFileChange}
+        onClick={(e) => e.stopPropagation()}
       />
 
       <div className="attachments-wrapper">
         <div
           className={`dropzone ${isDragOver ? 'dropzone--active' : ''}`}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            fileInputRef.current?.click();
+          }}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -141,13 +158,14 @@ export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAtta
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
+              e.stopPropagation();
               fileInputRef.current?.click();
             }
           }}
         >
           <div className="dropzone-content">
             <span className="dropzone-add-text">+ Add attachments</span>
-            <span className="dropzone-subtext">Upload files or drag and drop (Max 10MB per file)</span>
+            <span className="dropzone-subtext">Upload files or drag and drop (Max 25MB per file, up to 5 files)</span>
           </div>
         </div>
         {fileError && <p className="error-message" role="alert">{fileError}</p>}
@@ -166,7 +184,11 @@ export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAtta
                 <button
                   type="button"
                   className="attachment-remove-btn"
-                  onClick={() => onRemoveAttachment(item.id)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onRemoveAttachment(item.id);
+                  }}
                   aria-label={`Remove attachment ${item.name}`}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
