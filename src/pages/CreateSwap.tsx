@@ -11,7 +11,7 @@ import { AdditionalMessageField } from '../components/create-swap/AdditionalMess
 import { CreateSwapActions } from '../components/create-swap/CreateSwapActions';
 import { SwapPreviewCard } from '../components/create-swap/SwapPreviewCard';
 import { useAuth } from '../context/AuthContext';
-import { createCreditSwap } from '../lib/supabase/credits';
+import { createCreditSwap, uploadSwapAttachments, cancelCreditSwap } from '../lib/supabase/credits';
 import { generateUUID } from '../lib/uuid';
 
 export interface CreateSwapFormState {
@@ -200,6 +200,26 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       }
 
       const createdId = res.swapId;
+
+      // Upload creator attachments if selected
+      const rawFiles = formState.attachments
+        .map((att) => att.file)
+        .filter((f): f is File => Boolean(f));
+
+      if (rawFiles.length > 0) {
+        const uploadRes = await uploadSwapAttachments(createdId, rawFiles);
+        if (!uploadRes.success) {
+          // Roll back newly created swap on attachment failure
+          await cancelCreditSwap(createdId);
+          setErrors((prev) => ({
+            ...prev,
+            credits: uploadRes.error || 'Failed to upload attachments. Swap creation was safely rolled back.',
+          }));
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       await refreshAccount();
 
       try {
