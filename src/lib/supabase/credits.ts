@@ -124,24 +124,6 @@ export interface SubmitSwapWorkInput {
   files?: File[];
 }
 
-export const ALLOWED_FILE_EXTENSIONS = new Set([
-  // Images
-  'png', 'jpg', 'jpeg', 'webp', 'gif', 'svg',
-  // Documents
-  'pdf', 'doc', 'docx', 'txt', 'md', 'rtf',
-  // Spreadsheets
-  'csv', 'xls', 'xlsx',
-  // Presentations
-  'ppt', 'pptx',
-  // Archives
-  'zip', 'tar', 'gz', '7z',
-  // Code/development
-  'py', 'js', 'jsx', 'ts', 'tsx', 'html', 'css', 'scss', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'go', 'rs', 'php', 'rb', 'swift', 'kt', 'sql', 'sh', 'bat', 'ps1', 'json', 'xml', 'yaml', 'yml',
-  // Media
-  'mp3', 'wav', 'mp4', 'webm', 'mov',
-  // Design
-  'fig', 'psd', 'ai'
-]);
 
 /**
  * Extension-aware MIME normalization strategy.
@@ -158,6 +140,10 @@ export function getNormalizedMimeType(fileName: string, browserType?: string): s
     webp: 'image/webp',
     gif: 'image/gif',
     svg: 'image/svg+xml',
+    heic: 'image/heic',
+    avif: 'image/avif',
+    bmp: 'image/bmp',
+    tiff: 'image/tiff',
 
     // Documents
     pdf: 'application/pdf',
@@ -180,6 +166,9 @@ export function getNormalizedMimeType(fileName: string, browserType?: string): s
     zip: 'application/zip',
     tar: 'application/x-tar',
     gz: 'application/gzip',
+    bz2: 'application/x-bzip2',
+    xz: 'application/x-xz',
+    rar: 'application/vnd.rar',
     '7z': 'application/x-7z-compressed',
 
     // Code/development
@@ -203,6 +192,11 @@ export function getNormalizedMimeType(fileName: string, browserType?: string): s
     rb: 'text/x-ruby',
     swift: 'text/plain',
     kt: 'text/plain',
+    dart: 'text/plain',
+    lua: 'text/x-lua',
+    r: 'text/plain',
+    scala: 'text/x-scala',
+    hs: 'text/x-haskell',
     sql: 'application/sql',
     sh: 'application/x-sh',
     bat: 'text/plain',
@@ -211,13 +205,24 @@ export function getNormalizedMimeType(fileName: string, browserType?: string): s
     xml: 'application/xml',
     yaml: 'text/yaml',
     yml: 'text/yaml',
+    toml: 'text/plain',
+    ini: 'text/plain',
+    cfg: 'text/plain',
+    log: 'text/plain',
 
     // Media
     mp3: 'audio/mpeg',
     wav: 'audio/wav',
+    flac: 'audio/flac',
+    aac: 'audio/aac',
+    ogg: 'audio/ogg',
+    m4a: 'audio/mp4',
     mp4: 'video/mp4',
-    webm: 'video/webm',
+    mkv: 'video/x-matroska',
     mov: 'video/quicktime',
+    avi: 'video/x-msvideo',
+    webm: 'video/webm',
+    flv: 'video/x-flv',
 
     // Design
     fig: 'application/octet-stream',
@@ -274,8 +279,8 @@ export function formatSubmissionErrorMessage(error: unknown, fileName?: string):
 
   if (status === 400 || lower.includes('400') || lower.includes('bad request') || lower.includes('mime') || lower.includes('not allowed')) {
     return fileName
-      ? `Supabase rejected "${fileName}". Please try a different supported file type or try again.`
-      : 'Supabase rejected this file upload. Please try a different supported file type or try again.';
+      ? `Supabase rejected "${fileName}". Please check the file and try again.`
+      : 'Supabase rejected this file upload. Please check the file and try again.';
   }
 
   if (lower.includes('jwt') || lower.includes('unauthorized') || lower.includes('not authenticated')) {
@@ -339,12 +344,6 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
         return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
       }
 
-      const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
-      if (!ALLOWED_FILE_EXTENSIONS.has(fileExt)) {
-        console.error('[SUBMISSION] file validation failed: unsupported extension', { fileName: file.name, fileExt });
-        return { success: false, error: `File "${file.name}" has unsupported extension .${fileExt}.` };
-      }
-
       const normalizedMimeType = getNormalizedMimeType(file.name, file.type);
       const safeFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
       const storagePath = `submissions/${input.swapId}/${user.id}/${generateUUID()}-${safeFileName}`;
@@ -353,7 +352,6 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
         filename: file.name,
         'file.size': file.size,
         'file.type': file.type,
-        extension: fileExt,
         normalizedMimeType,
         'storage path': storagePath,
         'bucket name': 'swap-submissions',
@@ -380,7 +378,6 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
           filename: file.name,
           'file.size': file.size,
           'file.type': file.type,
-          extension: fileExt,
           'storage path': storagePath,
           'bucket name': 'swap-submissions',
           'Supabase error.message': errObj.message,
@@ -850,12 +847,6 @@ export async function uploadSwapAttachments(
       if (file.size > 25 * 1024 * 1024) {
         await cleanupRollback();
         return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
-      }
-
-      const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      if (!ALLOWED_FILE_EXTENSIONS.has(ext)) {
-        await cleanupRollback();
-        return { success: false, error: `File "${file.name}" has unsupported extension .${ext}.` };
       }
 
       const normalizedMime = getNormalizedMimeType(file.name, file.type);

@@ -1,7 +1,7 @@
 import { PGlite } from '@electric-sql/pglite';
 import fs from 'fs';
 import path from 'path';
-import { getNormalizedMimeType, formatSubmissionErrorMessage, ALLOWED_FILE_EXTENSIONS } from './credits';
+import { getNormalizedMimeType, formatSubmissionErrorMessage } from './credits';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -1076,16 +1076,13 @@ export async function runCreditSystemTests() {
     assert(bRow.allowed_mime_types.includes('application/pdf'), `Bucket ${bRow.id} allows application/pdf`);
   }
 
-  // Code files (.py, .ts, .sql)
+  // Code files (.py, .ts, .sql) and arbitrary extensions
   assert(getNormalizedMimeType('script.py', '') === 'text/x-python', 'PY with empty browser type');
   assert(getNormalizedMimeType('app.ts', '') === 'text/typescript', 'TS with empty browser type');
   assert(getNormalizedMimeType('schema.sql', '') === 'application/sql', 'SQL with empty browser type');
-
-  // Verify ALLOWED_FILE_EXTENSIONS contains developer extensions
-  assert(ALLOWED_FILE_EXTENSIONS.has('py'), 'ALLOWED_FILE_EXTENSIONS contains py');
-  assert(ALLOWED_FILE_EXTENSIONS.has('ts'), 'ALLOWED_FILE_EXTENSIONS contains ts');
-  assert(ALLOWED_FILE_EXTENSIONS.has('sql'), 'ALLOWED_FILE_EXTENSIONS contains sql');
-  assert(ALLOWED_FILE_EXTENSIONS.has('zip'), 'ALLOWED_FILE_EXTENSIONS contains zip');
+  assert(getNormalizedMimeType('custom.unknown', '') === 'application/octet-stream', 'Unknown extension defaults to application/octet-stream');
+  assert(getNormalizedMimeType('noextension', '') === 'application/octet-stream', 'File without extension defaults to application/octet-stream');
+  assert(getNormalizedMimeType('custom.xyz', 'custom/type') === 'custom/type', 'Unusual browser MIME type is preserved');
 
   // Error formatting without misleading profile messages
   const http400Err = { status: 400, message: 'Invalid file format or upload rejected' };

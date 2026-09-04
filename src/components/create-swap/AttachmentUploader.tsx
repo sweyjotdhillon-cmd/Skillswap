@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import { ALLOWED_FILE_EXTENSIONS } from '../../lib/supabase/credits';
 
 export interface AttachmentItem {
   id: string;
@@ -78,11 +77,6 @@ export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAtta
     for (const file of filesArr) {
       if (file.size > MAX_FILE_SIZE) {
         setFileError(`File "${file.name}" exceeds 25MB limit.`);
-        return;
-      }
-      const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      if (!ALLOWED_FILE_EXTENSIONS.has(ext)) {
-        setFileError(`File "${file.name}" has unaccepted extension .${ext}`);
         return;
       }
       validFiles.push(file);
