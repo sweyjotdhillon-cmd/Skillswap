@@ -110,6 +110,7 @@ export async function runCreditSystemTests() {
     '018_submission_delivery_and_validation_fixes.sql',
     '019_final_submission_flow_alignment.sql',
     '020_swap_creator_attachments.sql',
+    '021_creator_attachment_contract_alignment.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -1070,14 +1071,46 @@ export async function runCreditSystemTests() {
   `);
   const swapAttId = swapRes.rows[0].swap_id;
 
-  // User A inserts creator attachment metadata
+  // User A registers creator attachment via RPC register_swap_attachment
   const attStoragePath = `swap-attachments/${swapAttId}/${userA}/b281f9a2-script.py`;
-  await db.query(`
-    INSERT INTO public.swap_attachments (swap_id, uploaded_by, storage_path, file_name, mime_type, file_size)
-    VALUES ('${swapAttId}'::uuid, '${userA}'::uuid, '${attStoragePath}', 'script.py', 'text/x-python', 1280);
+  const regRes = await db.query<{ register_swap_attachment: { success: boolean; attachment_id: string } }>(`
+    SELECT public.register_swap_attachment(
+      '${swapAttId}'::uuid,
+      '${attStoragePath}',
+      'script.py',
+      'text/x-python',
+      1280
+    );
   `);
+  assert(regRes.rows[0].register_swap_attachment.success === true, 'register_swap_attachment RPC succeeded');
+  assert(Boolean(regRes.rows[0].register_swap_attachment.attachment_id), 'register_swap_attachment returned attachment_id');
+
+  // Verify swap_attachment_files view maps to swap_attachments
+  const viewRows = await db.query<{ file_name: string }>(`
+    SELECT file_name FROM public.swap_attachment_files WHERE swap_id = '${swapAttId}';
+  `);
+  assert(viewRows.rows.length === 1 && viewRows.rows[0].file_name === 'script.py', 'swap_attachment_files view returns attachment');
+
+  // Verify anonymous user is denied register_swap_attachment RPC
+  await setAuthUser(null);
+  let anonRpcDenied = false;
+  try {
+    await db.query(`
+      SELECT public.register_swap_attachment(
+        '${swapAttId}'::uuid,
+        '${attStoragePath}',
+        'script.py',
+        'text/x-python',
+        1280
+      );
+    `);
+  } catch (err: unknown) {
+    anonRpcDenied = (err as Error).message.includes('permission denied');
+  }
+  assert(anonRpcDenied, 'Anonymous user permission denied on register_swap_attachment RPC');
 
   // User A (creator) can read creator attachments
+  await setAuthUser(userA);
   const attRows = await db.query<{ file_name: string }>(`
     SELECT file_name FROM public.swap_attachments WHERE swap_id = '${swapAttId}';
   `);
