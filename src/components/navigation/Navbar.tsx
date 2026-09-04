@@ -180,16 +180,6 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                   type="button"
                   className="btn-signout"
                   onClick={handleSignOut}
-                  style={{
-                    background: 'none',
-                    border: '1px solid var(--shell-border, rgba(17, 22, 28, 0.15))',
-                    borderRadius: '999px',
-                    padding: '0.4rem 0.85rem',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    color: 'inherit',
-                  }}
                 >
                   Sign Out
                 </button>

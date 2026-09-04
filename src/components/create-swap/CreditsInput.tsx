@@ -57,6 +57,7 @@ export function CreditsInput({ value, onChange, error }: CreditsInputProps) {
             type="button"
             className="stepper-btn stepper-btn--minus"
             onClick={handleDecrement}
+            disabled={numValue !== null && numValue <= 1}
             aria-label="Decrease credits"
           >
             –

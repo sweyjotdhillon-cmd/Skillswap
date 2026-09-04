@@ -7,7 +7,7 @@ type ActionButtonProps = {
 
 export function ActionButton({ href, children, variant, onClick }: ActionButtonProps) {
   return (
-    <a className={`action-button action-button--${variant}`} href={href} onClick={onClick}>
+    <a className={`action-button action-button--${variant}`} href={href} onClick={onClick} role="button">
       <span>{children}</span>
       <span aria-hidden="true">→</span>
     </a>
