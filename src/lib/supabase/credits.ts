@@ -861,7 +861,7 @@ export async function uploadSwapAttachments(
     uploadedPaths.push(storagePath);
 
     // Register metadata via RPC register_swap_attachment with table fallback
-    let attachmentId: string | null;
+    let attachmentId: string | null = null;
     const { data: rpcData, error: rpcErr } = await supabase.rpc('register_swap_attachment', {
       p_swap_id: swapId,
       p_storage_path: storagePath,
@@ -870,10 +870,21 @@ export async function uploadSwapAttachments(
       p_file_size: file.size,
     });
 
-    if (!rpcErr && rpcData && (rpcData as { success?: boolean }).success) {
-      attachmentId = (rpcData as { attachment_id?: string }).attachment_id || null;
-    } else {
-      // Fallback direct table insert if RPC is unavailable
+    if (!rpcErr && rpcData) {
+      const res = rpcData as { success?: boolean; attachment_id?: string; id?: string; error?: string };
+      if (res.attachment_id) {
+        attachmentId = res.attachment_id;
+      } else if (res.id) {
+        attachmentId = res.id;
+      } else if (res.success === false) {
+        console.error('register_swap_attachment RPC returned failure:', res.error);
+        await cleanupRollback();
+        return { success: false, error: res.error || 'Failed to register creator attachment.' };
+      }
+    }
+
+    if (!attachmentId) {
+      // Fallback direct table insert if RPC is unavailable or returned unexpected shape without explicit error
       const { data: dbData, error: dbErr } = await supabase
         .from('swap_attachment_files')
         .insert({
@@ -897,6 +908,9 @@ export async function uploadSwapAttachments(
 
     if (attachmentId) {
       registeredIds.push(attachmentId);
+    } else {
+      await cleanupRollback();
+      return { success: false, error: `Failed to record attachment "${file.name}".` };
     }
   }
 
