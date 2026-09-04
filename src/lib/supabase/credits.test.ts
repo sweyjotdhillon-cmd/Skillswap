@@ -124,6 +124,7 @@ export async function runCreditSystemTests() {
     '021_creator_attachment_contract_alignment.sql',
     '022_creator_attachment_schema_and_security_hardening.sql',
     '023_storage_bucket_mime_type_configuration.sql',
+    '023_fix_creator_attachment_registration.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -1130,8 +1131,101 @@ export async function runCreditSystemTests() {
   }
   assert(storageInsertCaught, 'Unrelated user blocked from uploading storage object to another creator swap');
 
-  // User A registers creator attachment via RPC register_swap_attachment
+  // User A tests register_swap_attachment RPC path validation
   await setAuthUser(userA);
+
+  // Rejection 1: Wrong bucket prefix
+  const wrongBucketRes = await db.query<{ register_swap_attachment: { success: boolean; error?: string } }>(`
+    SELECT public.register_swap_attachment(
+      '${swapAttId}'::uuid,
+      'wrong-bucket/${swapAttId}/${userA}/script.py',
+      'script.py',
+      'text/x-python',
+      1280
+    );
+  `);
+  assert(wrongBucketRes.rows[0].register_swap_attachment.success === false, 'Wrong bucket prefix rejected by RPC');
+  assert(wrongBucketRes.rows[0].register_swap_attachment.error?.includes('must begin with swap-attachments prefix') === true, 'Wrong bucket error message matches');
+
+  // Rejection 2: Swap ID mismatch in path
+  const wrongSwapRes = await db.query<{ register_swap_attachment: { success: boolean; error?: string } }>(`
+    SELECT public.register_swap_attachment(
+      '${swapAttId}'::uuid,
+      'swap-attachments/00000000-0000-0000-0000-000000000000/${userA}/script.py',
+      'script.py',
+      'text/x-python',
+      1280
+    );
+  `);
+  assert(wrongSwapRes.rows[0].register_swap_attachment.success === false, 'Swap ID mismatch rejected by RPC');
+  assert(wrongSwapRes.rows[0].register_swap_attachment.error?.includes('swap ID mismatch') === true, 'Swap ID mismatch error message matches');
+
+  // Rejection 3: Creator User ID mismatch in path
+  const wrongUserRes = await db.query<{ register_swap_attachment: { success: boolean; error?: string } }>(`
+    SELECT public.register_swap_attachment(
+      '${swapAttId}'::uuid,
+      'swap-attachments/${swapAttId}/${userB}/script.py',
+      'script.py',
+      'text/x-python',
+      1280
+    );
+  `);
+  assert(wrongUserRes.rows[0].register_swap_attachment.success === false, 'Creator user ID mismatch rejected by RPC');
+  assert(wrongUserRes.rows[0].register_swap_attachment.error?.includes('creator user ID mismatch') === true, 'User ID mismatch error message matches');
+
+  // Rejection 4: Missing filename in path
+  const missingFileRes = await db.query<{ register_swap_attachment: { success: boolean; error?: string } }>(`
+    SELECT public.register_swap_attachment(
+      '${swapAttId}'::uuid,
+      'swap-attachments/${swapAttId}/${userA}/',
+      'script.py',
+      'text/x-python',
+      1280
+    );
+  `);
+  assert(missingFileRes.rows[0].register_swap_attachment.success === false, 'Missing filename segment rejected by RPC');
+  assert(missingFileRes.rows[0].register_swap_attachment.error?.includes('missing file name segment') === true, 'Missing filename error message matches');
+
+  // Rejection 5: Extra path segments / subfolder
+  const extraSegmentsRes = await db.query<{ register_swap_attachment: { success: boolean; error?: string } }>(`
+    SELECT public.register_swap_attachment(
+      '${swapAttId}'::uuid,
+      'swap-attachments/${swapAttId}/${userA}/subfolder/script.py',
+      'script.py',
+      'text/x-python',
+      1280
+    );
+  `);
+  assert(extraSegmentsRes.rows[0].register_swap_attachment.success === false, 'Extra path segments rejected by RPC');
+  assert(extraSegmentsRes.rows[0].register_swap_attachment.error?.includes('unexpected subfolder or extra segments') === true, 'Extra segments error message matches');
+
+  // Rejection 6: Directory traversal
+  const traversalRes = await db.query<{ register_swap_attachment: { success: boolean; error?: string } }>(`
+    SELECT public.register_swap_attachment(
+      '${swapAttId}'::uuid,
+      'swap-attachments/${swapAttId}/${userA}/../script.py',
+      'script.py',
+      'text/x-python',
+      1280
+    );
+  `);
+  assert(traversalRes.rows[0].register_swap_attachment.success === false, 'Directory traversal rejected by RPC');
+  assert(traversalRes.rows[0].register_swap_attachment.error?.includes('directory traversal') === true, 'Traversal error message matches');
+
+  // Rejection 7: Leading slash
+  const leadingSlashRes = await db.query<{ register_swap_attachment: { success: boolean; error?: string } }>(`
+    SELECT public.register_swap_attachment(
+      '${swapAttId}'::uuid,
+      '/swap-attachments/${swapAttId}/${userA}/script.py',
+      'script.py',
+      'text/x-python',
+      1280
+    );
+  `);
+  assert(leadingSlashRes.rows[0].register_swap_attachment.success === false, 'Leading slash rejected by RPC');
+  assert(leadingSlashRes.rows[0].register_swap_attachment.error?.includes('leading slash not allowed') === true, 'Leading slash error message matches');
+
+  // Valid Registration
   const regRes = await db.query<{ register_swap_attachment: { success: boolean; attachment_id: string } }>(`
     SELECT public.register_swap_attachment(
       '${swapAttId}'::uuid,
@@ -1141,7 +1235,7 @@ export async function runCreditSystemTests() {
       1280
     );
   `);
-  assert(regRes.rows[0].register_swap_attachment.success === true, 'register_swap_attachment RPC succeeded');
+  assert(regRes.rows[0].register_swap_attachment.success === true, 'register_swap_attachment RPC succeeded for valid path');
   assert(Boolean(regRes.rows[0].register_swap_attachment.attachment_id), 'register_swap_attachment returned attachment_id');
 
   // Verify swap_attachment_files view maps to swap_attachments

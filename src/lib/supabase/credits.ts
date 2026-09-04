@@ -868,7 +868,7 @@ export async function uploadSwapAttachments(
 
       uploadedPaths.push(storagePath);
 
-      // Register metadata via RPC register_swap_attachment with table fallback
+      // Register metadata via RPC register_swap_attachment
       let attachmentId: string | null = null;
       const { data: rpcData, error: rpcErr } = await supabase.rpc('register_swap_attachment', {
         p_swap_id: swapId,
@@ -878,45 +878,30 @@ export async function uploadSwapAttachments(
         p_file_size: file.size,
       });
 
-      if (!rpcErr && rpcData) {
+      if (rpcErr) {
+        console.error('register_swap_attachment RPC error:', rpcErr);
+        await cleanupRollback();
+        return { success: false, error: formatSubmissionErrorMessage(rpcErr, file.name) };
+      }
+
+      if (rpcData) {
         const res = rpcData as { success?: boolean; attachment_id?: string; id?: string; error?: string };
+        if (res.success === false) {
+          console.error('register_swap_attachment RPC returned failure:', res.error);
+          await cleanupRollback();
+          return { success: false, error: res.error ? `Failed to register attachment: ${res.error}` : 'Failed to register creator attachment.' };
+        }
         if (res.attachment_id) {
           attachmentId = res.attachment_id;
         } else if (res.id) {
           attachmentId = res.id;
-        } else if (res.success === false) {
-          console.error('register_swap_attachment RPC returned failure:', res.error);
-          await cleanupRollback();
-          return { success: false, error: res.error || 'Failed to register creator attachment.' };
         }
-      }
-
-      if (!attachmentId) {
-        // Fallback direct table insert if RPC is unavailable or returned unexpected shape without explicit error
-        const { data: dbData, error: dbErr } = await supabase
-          .from('swap_attachment_files')
-          .insert({
-            swap_id: swapId,
-            uploaded_by: user.id,
-            storage_path: storagePath,
-            file_name: file.name,
-            mime_type: normalizedMime,
-            file_size: file.size,
-          })
-          .select('id')
-          .single();
-
-        if (dbErr || !dbData) {
-          console.error('Failed to register creator attachment metadata:', rpcErr || dbErr);
-          await cleanupRollback();
-          return { success: false, error: formatSubmissionErrorMessage(rpcErr || dbErr || new Error('Registration failed.')) };
-        }
-        attachmentId = dbData.id;
       }
 
       if (attachmentId) {
         registeredIds.push(attachmentId);
       } else {
+        console.error('register_swap_attachment RPC returned invalid response shape:', rpcData);
         await cleanupRollback();
         return { success: false, error: `Failed to record attachment "${file.name}".` };
       }
