@@ -332,15 +332,27 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
       errorDetails: error?.details,
       errorHint: error?.hint,
       swapId: input.swapId,
+      notesLength: cleanNotes.length,
+      fileMetadataCount: uploadedFileMetadata.length,
     });
 
     // Rollback uploaded files on database transaction error
     if (uploadedPaths.length > 0) {
       try {
-        await supabase.storage.from('swap-submissions').remove(uploadedPaths);
-        console.log('[SUBMISSION] cleanup completed after RPC error', { uploadedPaths });
+        const { error: removeErr } = await supabase.storage.from('swap-submissions').remove(uploadedPaths);
+        if (removeErr) {
+          console.error('[SUBMISSION] CRITICAL: Storage cleanup failed for orphaned files after RPC error:', {
+            uploadedPaths,
+            removeError: removeErr,
+          });
+        } else {
+          console.log('[SUBMISSION] Storage cleanup completed after RPC error:', { uploadedPaths });
+        }
       } catch (cleanupErr) {
-        console.error('[SUBMISSION] cleanup failed after RPC error', { uploadedPaths, cleanupErr });
+        console.error('[SUBMISSION] CRITICAL: Storage cleanup exception for orphaned files after RPC error:', {
+          uploadedPaths,
+          cleanupErr,
+        });
       }
     }
     return { success: false, error: formatSubmissionErrorMessage(error ?? new Error('Failed to submit swap work.')) };
@@ -349,16 +361,28 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
   const result = data as { success?: boolean; submission_id?: string; error?: string };
   if (!result.success) {
     console.error('[SUBMISSION] submission RPC returned unsuccessful status', {
+      operationName: 'rpc.submit_swap_work',
       swapId: input.swapId,
       resultError: result.error,
+      returnedData: data,
     });
 
     if (uploadedPaths.length > 0) {
       try {
-        await supabase.storage.from('swap-submissions').remove(uploadedPaths);
-        console.log('[SUBMISSION] cleanup completed after unsuccessful RPC result', { uploadedPaths });
+        const { error: removeErr } = await supabase.storage.from('swap-submissions').remove(uploadedPaths);
+        if (removeErr) {
+          console.error('[SUBMISSION] CRITICAL: Storage cleanup failed for orphaned files after unsuccessful RPC result:', {
+            uploadedPaths,
+            removeError: removeErr,
+          });
+        } else {
+          console.log('[SUBMISSION] Storage cleanup completed after unsuccessful RPC result:', { uploadedPaths });
+        }
       } catch (cleanupErr) {
-        console.error('[SUBMISSION] cleanup failed after unsuccessful RPC result', { uploadedPaths, cleanupErr });
+        console.error('[SUBMISSION] CRITICAL: Storage cleanup exception for orphaned files after unsuccessful RPC result:', {
+          uploadedPaths,
+          cleanupErr,
+        });
       }
     }
     return { success: false, error: result.error || 'Failed to record submission.' };

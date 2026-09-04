@@ -884,30 +884,96 @@ export async function runCreditSystemTests() {
   const textSubNotes = (await db.query<{ notes: string }>(`SELECT notes FROM public.swap_submissions WHERE swap_id = '${swapSubTextId}';`)).rows[0].notes;
   assert(textSubNotes === 'Completed with text explanation only.', 'Text-only submission notes persisted correctly');
 
-  // Create Swap 6 for User A, accepted by User B
+  // Verify exactly 1 submission row exists for swapSubTextId
+  const textSubRowsCount = await db.query<{ count: string | number }>(`SELECT COUNT(*) FROM public.swap_submissions WHERE swap_id = '${swapSubTextId}';`);
+  assert(Number(textSubRowsCount.rows[0].count) === 1, 'Exactly one submission row exists for text-only swap');
+
+  // Verify Requester (User A) can view submission and files via RLS
+  await setAuthUser(userA);
+  const requesterSubView = await db.query<{ notes: string }>(`SELECT notes FROM public.swap_submissions WHERE swap_id = '${swapSubTextId}';`);
+  assert(requesterSubView.rows[0].notes === 'Completed with text explanation only.', 'Requester can view submission via RLS');
+
+  // Create Swap 6 for User A, accepted by User B (testing JPG file upload)
   await setAuthUser(userA);
   swapRes = await db.query<{ swap_id: string }>(`
-    SELECT public.create_credit_swap('Zip File Only Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_sub_zip') AS swap_id;
+    SELECT public.create_credit_swap('JPG Image Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_sub_jpg') AS swap_id;
   `);
-  const swapSubZipId = swapRes.rows[0].swap_id;
+  const swapSubJpgId = swapRes.rows[0].swap_id;
 
   await setAuthUser(userB);
-  await db.query(`SELECT public.accept_credit_swap('${swapSubZipId}'::uuid);`);
+  await db.query(`SELECT public.accept_credit_swap('${swapSubJpgId}'::uuid);`);
 
-  // 14b: Attachment-only submission (e.g., test.zip with empty text) -> MUST SUCCEED
-  const zipSubRes = await db.query<{ submit_swap_work: { success: boolean; submission_id: string } }>(`
+  // 14b-1: Submission with ONE JPG file (submissions/<swap_id>/<participant_id>/photo.jpg) -> MUST SUCCEED
+  const jpgPath = `submissions/${swapSubJpgId}/${userB}/f83e291b-photo.jpg`;
+  const jpgSubRes = await db.query<{ submit_swap_work: { success: boolean; submission_id: string } }>(`
     SELECT public.submit_swap_work(
-      '${swapSubZipId}'::uuid,
-      '',
-      '[{"storage_path": "submissions/${swapSubZipId}/${userB}/test.zip", "file_name": "test.zip", "mime_type": "application/zip", "file_size": 2048}]'::jsonb
+      '${swapSubJpgId}'::uuid,
+      'Here is the requested diagram screenshot.',
+      '[{"storage_path": "${jpgPath}", "file_name": "photo.jpg", "mime_type": "image/jpeg", "file_size": 512000}]'::jsonb
     );
   `);
-  assert(zipSubRes.rows[0].submit_swap_work.success === true, 'Attachment-only zip submission succeeded');
+  assert(jpgSubRes.rows[0].submit_swap_work.success === true, 'JPG image submission succeeded');
 
-  const zipFileRecord = await db.query<{ file_name: string }>(`
-    SELECT file_name FROM public.swap_submission_files WHERE submission_id = '${zipSubRes.rows[0].submit_swap_work.submission_id}';
+  // Verify corresponding row in swap_submissions
+  const jpgSubRowsCount = await db.query<{ count: string | number }>(`SELECT COUNT(*) FROM public.swap_submissions WHERE swap_id = '${swapSubJpgId}';`);
+  assert(Number(jpgSubRowsCount.rows[0].count) === 1, 'Exactly one submission row exists for JPG swap');
+
+  // Verify corresponding file metadata row in swap_submission_files
+  const jpgFileRecords = await db.query<{ storage_path: string; file_name: string; mime_type: string }>(`
+    SELECT storage_path, file_name, mime_type FROM public.swap_submission_files WHERE submission_id = '${jpgSubRes.rows[0].submit_swap_work.submission_id}';
   `);
-  assert(zipFileRecord.rows[0].file_name === 'test.zip', 'Attachment-only file record persisted');
+  assert(jpgFileRecords.rows.length === 1, 'Exactly one file metadata row exists for JPG submission');
+  assert(jpgFileRecords.rows[0].storage_path === jpgPath, 'Storage path matches canonical format submissions/<swap_id>/<participant_id>/<filename>');
+  assert(jpgFileRecords.rows[0].file_name === 'photo.jpg', 'File name persisted correctly');
+  assert(jpgFileRecords.rows[0].mime_type === 'image/jpeg', 'MIME type persisted correctly');
+
+  // Verify Requester (User A) can read file metadata via RLS
+  await setAuthUser(userA);
+  const requesterJpgFileView = await db.query<{ file_name: string }>(`
+    SELECT file_name FROM public.swap_submission_files WHERE submission_id = '${jpgSubRes.rows[0].submit_swap_work.submission_id}';
+  `);
+  assert(requesterJpgFileView.rows[0].file_name === 'photo.jpg', 'Requester can view file metadata via RLS');
+
+  // Create Swap 6b for User A, accepted by User B (testing Document PDF file upload)
+  await setAuthUser(userA);
+  swapRes = await db.query<{ swap_id: string }>(`
+    SELECT public.create_credit_swap('PDF Document Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_sub_pdf') AS swap_id;
+  `);
+  const swapSubPdfId = swapRes.rows[0].swap_id;
+
+  await setAuthUser(userB);
+  await db.query(`SELECT public.accept_credit_swap('${swapSubPdfId}'::uuid);`);
+
+  // 14b-2: Submission with ONE PDF file -> MUST SUCCEED
+  const pdfPath = `submissions/${swapSubPdfId}/${userB}/a91e8421-document.pdf`;
+  const pdfSubRes = await db.query<{ submit_swap_work: { success: boolean; submission_id: string } }>(`
+    SELECT public.submit_swap_work(
+      '${swapSubPdfId}'::uuid,
+      'Attached full PDF report.',
+      '[{"storage_path": "${pdfPath}", "file_name": "document.pdf", "mime_type": "application/pdf", "file_size": 1048576}]'::jsonb
+    );
+  `);
+  assert(pdfSubRes.rows[0].submit_swap_work.success === true, 'PDF document submission succeeded');
+
+  const pdfFileRecords = await db.query<{ storage_path: string; file_name: string; mime_type: string }>(`
+    SELECT storage_path, file_name, mime_type FROM public.swap_submission_files WHERE submission_id = '${pdfSubRes.rows[0].submit_swap_work.submission_id}';
+  `);
+  assert(pdfFileRecords.rows[0].storage_path === pdfPath, 'PDF storage path matches canonical format');
+  assert(pdfFileRecords.rows[0].file_name === 'document.pdf', 'PDF file name persisted correctly');
+
+  // 14b-3: Verify direct table insert attempts by unauthorized authenticated users are blocked
+  await setAuthUser(userC);
+  errorCaught = false;
+  try {
+    await db.query(`
+      INSERT INTO public.swap_submissions (swap_id, submitted_by, notes)
+      VALUES ('${swapSubPdfId}'::uuid, '${userC}'::uuid, 'Unauthorized direct insert attempt');
+    `);
+  } catch (err: unknown) {
+    errorCaught = true;
+    assert((err as Error).message.includes('permission denied'), 'Direct table insert blocked by permission grants');
+  }
+  assert(errorCaught, 'Unauthorized user cannot insert directly into swap_submissions');
 
   // Create Swap 7 for User A, accepted by User B
   await setAuthUser(userA);
