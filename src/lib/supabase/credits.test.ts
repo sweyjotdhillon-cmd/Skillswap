@@ -123,6 +123,7 @@ export async function runCreditSystemTests() {
     '020_swap_creator_attachments.sql',
     '021_creator_attachment_contract_alignment.sql',
     '022_creator_attachment_schema_and_security_hardening.sql',
+    '023_storage_bucket_mime_type_configuration.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -1037,10 +1038,19 @@ export async function runCreditSystemTests() {
   // =========================================================================
   console.log('Test 15: Extension-aware MIME normalization & submission error formatting...');
 
-  // Mobile JPGs
+  // JPG / JPEG normalization and non-standard browser alias handling
+  assert(getNormalizedMimeType('Screenshot_20260904-151932.jpg', 'image/jpg') === 'image/jpeg', 'JPG with non-standard image/jpg browser type normalizes to image/jpeg');
   assert(getNormalizedMimeType('Screenshot_20260903-195633.jpg', 'image/jpeg') === 'image/jpeg', 'JPG with image/jpeg browser type');
+  assert(getNormalizedMimeType('photo.jpeg', 'image/jpeg') === 'image/jpeg', 'JPEG with image/jpeg browser type');
+  assert(getNormalizedMimeType('photo.jpg', 'image/pjpeg') === 'image/jpeg', 'JPG with image/pjpeg browser alias normalizes to image/jpeg');
+  assert(getNormalizedMimeType('photo.jpg', 'image/jfif') === 'image/jpeg', 'JPG with image/jfif browser alias normalizes to image/jpeg');
   assert(getNormalizedMimeType('Screenshot_20260903-195633.jpg', '') === 'image/jpeg', 'JPG with empty browser type');
   assert(getNormalizedMimeType('IMG-1234.JPG', 'application/octet-stream') === 'image/jpeg', 'JPG with generic octet-stream browser type');
+
+  // PNG & WEBP images
+  assert(getNormalizedMimeType('graphic.png', 'image/png') === 'image/png', 'PNG with image/png browser type');
+  assert(getNormalizedMimeType('graphic.png', 'image/x-png') === 'image/png', 'PNG with image/x-png browser alias normalizes to image/png');
+  assert(getNormalizedMimeType('banner.webp', 'image/webp') === 'image/webp', 'WEBP with image/webp browser type');
 
   // ZIP files
   assert(getNormalizedMimeType('project.zip', 'application/x-zip-compressed') === 'application/zip', 'ZIP with x-zip-compressed browser type');
@@ -1051,6 +1061,20 @@ export async function runCreditSystemTests() {
   assert(getNormalizedMimeType('photo.png', '') === 'image/png', 'PNG with empty browser type');
   assert(getNormalizedMimeType('file.docx', '') === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'DOCX with empty browser type');
   assert(getNormalizedMimeType('video.mp4', '') === 'video/mp4', 'MP4 with empty browser type');
+
+  // Verify storage.buckets allowed_mime_types configuration in PostgreSQL database
+  await setSuperuser();
+  const bucketRes = await db.query<{ id: string; allowed_mime_types: string[] }>(`
+    SELECT id, allowed_mime_types FROM storage.buckets WHERE id IN ('swap-attachments', 'swap-submissions');
+  `);
+  assert(bucketRes.rows.length === 2, 'Both storage buckets exist');
+  for (const bRow of bucketRes.rows) {
+    assert(Array.isArray(bRow.allowed_mime_types), `Bucket ${bRow.id} has allowed_mime_types array`);
+    assert(bRow.allowed_mime_types.includes('image/jpeg'), `Bucket ${bRow.id} allows image/jpeg`);
+    assert(bRow.allowed_mime_types.includes('image/png'), `Bucket ${bRow.id} allows image/png`);
+    assert(bRow.allowed_mime_types.includes('image/webp'), `Bucket ${bRow.id} allows image/webp`);
+    assert(bRow.allowed_mime_types.includes('application/pdf'), `Bucket ${bRow.id} allows application/pdf`);
+  }
 
   // Code files (.py, .ts, .sql)
   assert(getNormalizedMimeType('script.py', '') === 'text/x-python', 'PY with empty browser type');

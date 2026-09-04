@@ -145,7 +145,7 @@ export const ALLOWED_FILE_EXTENSIONS = new Set([
 
 /**
  * Extension-aware MIME normalization strategy.
- * Maps file extensions to canonical MIME types when the browser's File.type is empty or generic.
+ * Maps file extensions and browser MIME aliases to canonical standard MIME types.
  */
 export function getNormalizedMimeType(fileName: string, browserType?: string): string {
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
@@ -227,20 +227,36 @@ export function getNormalizedMimeType(fileName: string, browserType?: string): s
 
   const extensionMime = EXTENSION_MIME_MAP[ext];
   const cleanBrowserType = browserType?.trim().toLowerCase() || '';
+
+  // Non-standard or vendor-specific MIME type aliases that should map to standard canonical IANA MIME types
+  const MIME_ALIAS_MAP: Record<string, string> = {
+    'image/jpg': 'image/jpeg',
+    'image/pjpeg': 'image/jpeg',
+    'image/jfif': 'image/jpeg',
+    'image/x-citrix-jpeg': 'image/jpeg',
+    'text/jpg': 'image/jpeg',
+    'text/jpeg': 'image/jpeg',
+    'image/x-png': 'image/png',
+    'application/x-zip-compressed': 'application/zip',
+    'application/zip-compressed': 'application/zip',
+    'application/x-pdf': 'application/pdf',
+    'text/pdf': 'application/pdf',
+  };
+
+  const normalizedBrowserAlias = MIME_ALIAS_MAP[cleanBrowserType];
+  if (normalizedBrowserAlias) {
+    return normalizedBrowserAlias;
+  }
+
   const isGeneric = !cleanBrowserType || cleanBrowserType === 'application/octet-stream' || cleanBrowserType === 'text/plain';
 
-  if (!isGeneric) {
-    if (ext === 'zip') {
-      return 'application/zip';
-    }
-    return cleanBrowserType;
-  }
-
   if (extensionMime) {
-    return extensionMime;
+    if (isGeneric || ext === 'jpg' || ext === 'jpeg' || ext === 'png' || ext === 'webp' || ext === 'zip' || ext === 'pdf') {
+      return extensionMime;
+    }
   }
 
-  return cleanBrowserType || 'application/octet-stream';
+  return cleanBrowserType || extensionMime || 'application/octet-stream';
 }
 
 /**
