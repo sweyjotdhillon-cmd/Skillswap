@@ -11,7 +11,6 @@ import {
   getSubmissionFileSignedUrl,
   getSwapAttachmentSignedUrl,
   downloadFileFromSignedUrl,
-  ALLOWED_FILE_EXTENSIONS,
   type SwapRecord,
   type SwapAttachment,
 } from '../lib/supabase/credits';
@@ -296,11 +295,6 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     for (const file of newFiles) {
       if (file.size > 25 * 1024 * 1024) {
         setSubmitError(`File "${file.name}" exceeds 25MB size limit.`);
-        continue;
-      }
-      const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      if (!ALLOWED_FILE_EXTENSIONS.has(ext)) {
-        setSubmitError(`File "${file.name}" has unaccepted extension .${ext}`);
         continue;
       }
       validToAdd.push(file);
@@ -1097,7 +1091,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                       📁 Browse / Select Files
                     </button>
                     <span className="dropzone-add-text">Drag & drop files here or click browse</span>
-                    <span className="dropzone-subtext">PDF, ZIP, PY, JPG, DOCX, etc. up to 25MB</span>
+                    <span className="dropzone-subtext">Any file type up to 25MB</span>
                   </div>
                 </div>
 
