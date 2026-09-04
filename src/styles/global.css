@@ -546,13 +546,16 @@ button:disabled,
   color: #4ade80;
 }
 
-[data-theme='dark'] .as-status-badge--in-progress {
+[data-theme='dark'] .as-status-badge--in-progress,
+[data-theme='dark'] .as-status-badge--accepted,
+[data-theme='dark'] .as-status-badge--open {
   background: rgba(22, 101, 52, 0.25);
   color: #4ade80;
   border-color: rgba(74, 222, 128, 0.3);
 }
 
-[data-theme='dark'] .as-status-badge--review {
+[data-theme='dark'] .as-status-badge--review,
+[data-theme='dark'] .as-status-badge--submitted {
   background: rgba(29, 78, 216, 0.25);
   color: #60a5fa;
   border-color: rgba(96, 165, 250, 0.3);
@@ -562,6 +565,19 @@ button:disabled,
   background: rgba(133, 77, 14, 0.25);
   color: #facc15;
   border-color: rgba(250, 204, 21, 0.3);
+}
+
+[data-theme='dark'] .as-status-badge--completed {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+[data-theme='dark'] .as-status-badge--cancelled,
+[data-theme='dark'] .as-status-badge--declined {
+  background: rgba(153, 27, 27, 0.25);
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.3);
 }
 
 [data-theme='dark'] .sr-status-pill--pending {
@@ -576,7 +592,8 @@ button:disabled,
   border-color: rgba(74, 222, 128, 0.3);
 }
 
-[data-theme='dark'] .sr-status-pill--declined {
+[data-theme='dark'] .sr-status-pill--declined,
+[data-theme='dark'] .sr-status-pill--cancelled {
   background: rgba(153, 27, 27, 0.25);
   color: #f87171;
   border-color: rgba(248, 113, 113, 0.3);
@@ -873,6 +890,14 @@ button:disabled,
   padding: 1.25rem;
   box-shadow: 0 16px 36px rgba(17, 22, 28, 0.18);
   z-index: 1100;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+}
+
+@media (max-width: 360px) {
+  .header-right-group {
+    gap: 0.4rem;
+  }
 }
 
 .mobile-drawer-nav {
@@ -1960,6 +1985,7 @@ h1 span { color: #a8781d; }
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .credits-stepper {
@@ -2520,11 +2546,12 @@ h1 span { color: #a8781d; }
   padding: 2rem;
   width: min(480px, calc(100vw - 2rem));
   max-width: 100%;
+  max-height: calc(100vh - 2rem);
   box-shadow: 0 20px 60px rgba(17, 22, 28, 0.15);
   border: 1px solid rgba(17, 22, 28, 0.08);
   animation: modalPop 0.2s ease-out;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 @keyframes modalPop {
@@ -3038,13 +3065,16 @@ h1 span { color: #a8781d; }
   white-space: nowrap;
 }
 
-.as-status-badge--in-progress {
+.as-status-badge--in-progress,
+.as-status-badge--accepted,
+.as-status-badge--open {
   background: #f0fdf4;
   color: #166534;
   border: 1px solid #bbf7d0;
 }
 
-.as-status-badge--review {
+.as-status-badge--review,
+.as-status-badge--submitted {
   background: #eff6ff;
   color: #1d4ed8;
   border: 1px solid #bfdbfe;
@@ -3054,6 +3084,19 @@ h1 span { color: #a8781d; }
   background: #fefce8;
   color: #854d0e;
   border: 1px solid #fef08a;
+}
+
+.as-status-badge--completed {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.as-status-badge--cancelled,
+.as-status-badge--declined {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
 }
 
 .as-status-badge--large {
@@ -3477,6 +3520,13 @@ h1 span { color: #a8781d; }
   .as-detail-actions-row {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .as-detail-actions-row .as-status-badge {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    box-sizing: border-box;
   }
 
   .as-btn {
@@ -4186,6 +4236,8 @@ h1 span { color: #a8781d; }
   display: flex;
   align-items: center;
   gap: 0.9rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .sr-card-avatar {
@@ -4194,11 +4246,14 @@ h1 span { color: #a8781d; }
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid rgba(17, 22, 28, 0.1);
+  flex-shrink: 0;
 }
 
 .sr-user-meta {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  flex: 1;
 }
 
 .sr-user-name {
@@ -4206,6 +4261,9 @@ h1 span { color: #a8781d; }
   font-size: 1.1rem;
   font-weight: 700;
   color: #11161c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sr-user-role {
@@ -4437,7 +4495,8 @@ h1 span { color: #a8781d; }
   border: 1px solid #bbf7d0;
 }
 
-.sr-status-pill--declined {
+.sr-status-pill--declined,
+.sr-status-pill--cancelled {
   background: #fef2f2;
   color: #991b1b;
   border: 1px solid #fecaca;
@@ -4594,6 +4653,16 @@ h1 span { color: #a8781d; }
   .sr-left-actions, .sr-right-actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .sr-sent-meta {
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .sr-card {
+    padding: 1.25rem 1.15rem;
   }
 
   .sr-btn {

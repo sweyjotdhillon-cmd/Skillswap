@@ -284,6 +284,19 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                   >
                     My Profile
                   </a>
+                  {showUserHeader && (
+                    <a
+                      href="/swap-requests"
+                      className="mobile-drawer-link"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setMobileMenuOpen(false);
+                        if (onNavigate) onNavigate('/swap-requests');
+                      }}
+                    >
+                      Notifications &amp; Messages
+                    </a>
+                  )}
                   <a
                     href="/change-password"
                     className="mobile-drawer-link"
