@@ -1,7 +1,7 @@
 import { PGlite } from '@electric-sql/pglite';
 import fs from 'fs';
 import path from 'path';
-import { getNormalizedMimeType, formatSubmissionErrorMessage } from './credits';
+import { getNormalizedMimeType, formatSubmissionErrorMessage, sanitizeFileName } from './credits';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -1038,6 +1038,20 @@ export async function runCreditSystemTests() {
   // TEST 15: MIME Normalization & Submission Error Formatting
   // =========================================================================
   console.log('Test 15: Extension-aware MIME normalization & submission error formatting...');
+
+  // Canonical filename sanitization contract verification
+  assert(sanitizeFileName('Screenshot.jpg') === 'Screenshot.jpg', 'Screenshot.jpg preserved');
+  assert(sanitizeFileName('my project final.py') === 'my_project_final.py', 'Spaces converted to underscores');
+  assert(sanitizeFileName('project (final).zip') === 'project__final_.zip', 'Parentheses converted to underscores');
+  assert(sanitizeFileName('project.final.v2.ts') === 'project.final.v2.ts', 'Multiple dots preserved');
+  assert(sanitizeFileName('README.md') === 'README.md', 'README.md preserved');
+  assert(sanitizeFileName('video.mkv') === 'video.mkv', 'video.mkv preserved');
+  assert(sanitizeFileName('archive.7z') === 'archive.7z', 'archive.7z preserved');
+  assert(sanitizeFileName('unknown.custom') === 'unknown.custom', 'unknown.custom preserved');
+  assert(sanitizeFileName('file with no extension') === 'file_with_no_extension', 'File with no extension preserved with underscores');
+  assert(sanitizeFileName('résumé.pdf') === 'résumé.pdf', 'Unicode characters in résumé.pdf preserved');
+  assert(sanitizeFileName('.env') === '.env', '.env preserved');
+  assert(sanitizeFileName('.gitignore') === '.gitignore', '.gitignore preserved');
 
   // JPG / JPEG normalization and non-standard browser alias handling
   assert(getNormalizedMimeType('Screenshot_20260904-151932.jpg', 'image/jpg') === 'image/jpeg', 'JPG with non-standard image/jpg browser type normalizes to image/jpeg');
