@@ -829,92 +829,98 @@ export async function uploadSwapAttachments(
     }
   };
 
-  for (const file of files) {
-    if (file.size > 25 * 1024 * 1024) {
-      await cleanupRollback();
-      return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
-    }
+  try {
+    for (const file of files) {
+      if (file.size > 25 * 1024 * 1024) {
+        await cleanupRollback();
+        return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
+      }
 
-    const ext = file.name.split('.').pop()?.toLowerCase() || '';
-    if (!ALLOWED_FILE_EXTENSIONS.has(ext)) {
-      await cleanupRollback();
-      return { success: false, error: `File "${file.name}" has unsupported extension .${ext}.` };
-    }
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      if (!ALLOWED_FILE_EXTENSIONS.has(ext)) {
+        await cleanupRollback();
+        return { success: false, error: `File "${file.name}" has unsupported extension .${ext}.` };
+      }
 
-    const normalizedMime = getNormalizedMimeType(file.name, file.type);
-    const safeFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
-    const storagePath = `swap-attachments/${swapId}/${user.id}/${generateUUID()}-${safeFileName}`;
+      const normalizedMime = getNormalizedMimeType(file.name, file.type);
+      const safeFileName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      const storagePath = `swap-attachments/${swapId}/${user.id}/${generateUUID()}-${safeFileName}`;
 
-    const { error: uploadErr } = await supabase.storage
-      .from('swap-attachments')
-      .upload(storagePath, file, {
-        contentType: normalizedMime,
-        upsert: false,
+      const { error: uploadErr } = await supabase.storage
+        .from('swap-attachments')
+        .upload(storagePath, file, {
+          contentType: normalizedMime,
+          upsert: false,
+        });
+
+      if (uploadErr) {
+        console.error('Creator attachment upload failed:', uploadErr);
+        await cleanupRollback();
+        return { success: false, error: formatSubmissionErrorMessage(uploadErr, file.name) };
+      }
+
+      uploadedPaths.push(storagePath);
+
+      // Register metadata via RPC register_swap_attachment with table fallback
+      let attachmentId: string | null = null;
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('register_swap_attachment', {
+        p_swap_id: swapId,
+        p_storage_path: storagePath,
+        p_file_name: file.name,
+        p_mime_type: normalizedMime,
+        p_file_size: file.size,
       });
 
-    if (uploadErr) {
-      console.error('Creator attachment upload failed:', uploadErr);
-      await cleanupRollback();
-      return { success: false, error: formatSubmissionErrorMessage(uploadErr, file.name) };
-    }
+      if (!rpcErr && rpcData) {
+        const res = rpcData as { success?: boolean; attachment_id?: string; id?: string; error?: string };
+        if (res.attachment_id) {
+          attachmentId = res.attachment_id;
+        } else if (res.id) {
+          attachmentId = res.id;
+        } else if (res.success === false) {
+          console.error('register_swap_attachment RPC returned failure:', res.error);
+          await cleanupRollback();
+          return { success: false, error: res.error || 'Failed to register creator attachment.' };
+        }
+      }
 
-    uploadedPaths.push(storagePath);
+      if (!attachmentId) {
+        // Fallback direct table insert if RPC is unavailable or returned unexpected shape without explicit error
+        const { data: dbData, error: dbErr } = await supabase
+          .from('swap_attachment_files')
+          .insert({
+            swap_id: swapId,
+            uploaded_by: user.id,
+            storage_path: storagePath,
+            file_name: file.name,
+            mime_type: normalizedMime,
+            file_size: file.size,
+          })
+          .select('id')
+          .single();
 
-    // Register metadata via RPC register_swap_attachment with table fallback
-    let attachmentId: string | null = null;
-    const { data: rpcData, error: rpcErr } = await supabase.rpc('register_swap_attachment', {
-      p_swap_id: swapId,
-      p_storage_path: storagePath,
-      p_file_name: file.name,
-      p_mime_type: normalizedMime,
-      p_file_size: file.size,
-    });
+        if (dbErr || !dbData) {
+          console.error('Failed to register creator attachment metadata:', rpcErr || dbErr);
+          await cleanupRollback();
+          return { success: false, error: formatSubmissionErrorMessage(rpcErr || dbErr || new Error('Registration failed.')) };
+        }
+        attachmentId = dbData.id;
+      }
 
-    if (!rpcErr && rpcData) {
-      const res = rpcData as { success?: boolean; attachment_id?: string; id?: string; error?: string };
-      if (res.attachment_id) {
-        attachmentId = res.attachment_id;
-      } else if (res.id) {
-        attachmentId = res.id;
-      } else if (res.success === false) {
-        console.error('register_swap_attachment RPC returned failure:', res.error);
+      if (attachmentId) {
+        registeredIds.push(attachmentId);
+      } else {
         await cleanupRollback();
-        return { success: false, error: res.error || 'Failed to register creator attachment.' };
+        return { success: false, error: `Failed to record attachment "${file.name}".` };
       }
     }
 
-    if (!attachmentId) {
-      // Fallback direct table insert if RPC is unavailable or returned unexpected shape without explicit error
-      const { data: dbData, error: dbErr } = await supabase
-        .from('swap_attachment_files')
-        .insert({
-          swap_id: swapId,
-          uploaded_by: user.id,
-          storage_path: storagePath,
-          file_name: file.name,
-          mime_type: normalizedMime,
-          file_size: file.size,
-        })
-        .select('id')
-        .single();
-
-      if (dbErr || !dbData) {
-        console.error('Failed to register creator attachment metadata:', rpcErr || dbErr);
-        await cleanupRollback();
-        return { success: false, error: formatSubmissionErrorMessage(rpcErr || dbErr || new Error('Registration failed.')) };
-      }
-      attachmentId = dbData.id;
-    }
-
-    if (attachmentId) {
-      registeredIds.push(attachmentId);
-    } else {
-      await cleanupRollback();
-      return { success: false, error: `Failed to record attachment "${file.name}".` };
-    }
+    return { success: true };
+  } catch (err) {
+    console.error('Unexpected exception during creator attachment upload:', err);
+    await cleanupRollback();
+    return { success: false, error: err instanceof Error ? err.message : 'Unexpected attachment upload error.' };
   }
-
-  return { success: true };
 }
 
 export async function getSwapAttachmentSignedUrl(storagePath: string): Promise<string | null> {
