@@ -125,6 +125,7 @@ export async function runCreditSystemTests() {
     '022_creator_attachment_schema_and_security_hardening.sql',
     '023_storage_bucket_mime_type_configuration.sql',
     '023_fix_creator_attachment_registration.sql',
+    '024_fix_nul_character_in_register_swap_attachment.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -1123,7 +1124,8 @@ export async function runCreditSystemTests() {
   const swapAttId = swapRes.rows[0].swap_id;
 
   // User A inserts file into storage.objects for swap-attachments bucket
-  const attStoragePath = `swap-attachments/${swapAttId}/${userA}/b281f9a2-script.py`;
+  const testUuid1 = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+  const attStoragePath = `swap-attachments/${swapAttId}/${userA}/${testUuid1}-script.py`;
   await db.query(`
     INSERT INTO storage.objects (bucket_id, name, owner)
     VALUES ('swap-attachments', '${attStoragePath}', '${userA}'::uuid);
@@ -1237,24 +1239,53 @@ export async function runCreditSystemTests() {
   assert(leadingSlashRes.rows[0].register_swap_attachment.success === false, 'Leading slash rejected by RPC');
   assert(leadingSlashRes.rows[0].register_swap_attachment.error?.includes('leading slash not allowed') === true, 'Leading slash error message matches');
 
-  // Valid Registration
-  const regRes = await db.query<{ register_swap_attachment: { success: boolean; attachment_id: string } }>(`
+  // Valid Registration: Test realistic filenames including reported JPG screenshot
+  const realisticTestFiles = [
+    { rawName: 'Screenshot_20260904-151932.jpg', mime: 'image/jpeg', size: 204800, uuid: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' },
+    { rawName: 'test.png', mime: 'image/png', size: 10240, uuid: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a22' },
+    { rawName: 'hello world.md', mime: 'text/markdown', size: 512, uuid: 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33' },
+    { rawName: 'script.py', mime: 'text/x-python', size: 1280, uuid: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380a44' },
+    { rawName: 'video.mkv', mime: 'video/x-matroska', size: 1048576, uuid: 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55' },
+    { rawName: 'archive.zip', mime: 'application/zip', size: 20480, uuid: 'f5eebc99-9c0b-4ef8-bb6d-6bb9bd380a66' },
+    { rawName: 'data.json', mime: 'application/json', size: 256, uuid: '06eebc99-9c0b-4ef8-bb6d-6bb9bd380a77' },
+    { rawName: 'README', mime: 'application/octet-stream', size: 100, uuid: '17eebc99-9c0b-4ef8-bb6d-6bb9bd380a88' },
+    { rawName: 'file-without-extension', mime: 'application/octet-stream', size: 300, uuid: '28eebc99-9c0b-4ef8-bb6d-6bb9bd380a99' },
+  ];
+
+  for (const tf of realisticTestFiles) {
+    const cleanName = sanitizeFileName(tf.rawName);
+    const path = `swap-attachments/${swapAttId}/${userA}/${tf.uuid}-${cleanName}`;
+    const testRegRes = await db.query<{ register_swap_attachment: { success: boolean; attachment_id: string } }>(`
+      SELECT public.register_swap_attachment(
+        '${swapAttId}'::uuid,
+        '${path}',
+        '${cleanName}',
+        '${tf.mime}',
+        ${tf.size}
+      );
+    `);
+    assert(testRegRes.rows[0].register_swap_attachment.success === true, `register_swap_attachment RPC succeeded for "${tf.rawName}" -> "${cleanName}"`);
+    assert(Boolean(testRegRes.rows[0].register_swap_attachment.attachment_id), `register_swap_attachment returned attachment_id for "${cleanName}"`);
+  }
+
+  // Duplicate storage path rejection
+  const dupPath = `swap-attachments/${swapAttId}/${userA}/${realisticTestFiles[0].uuid}-${sanitizeFileName(realisticTestFiles[0].rawName)}`;
+  const dupRes = await db.query<{ register_swap_attachment: { success: boolean; error?: string } }>(`
     SELECT public.register_swap_attachment(
       '${swapAttId}'::uuid,
-      '${attStoragePath}',
-      'script.py',
-      'text/x-python',
-      1280
+      '${dupPath}',
+      '${sanitizeFileName(realisticTestFiles[0].rawName)}',
+      'image/jpeg',
+      204800
     );
   `);
-  assert(regRes.rows[0].register_swap_attachment.success === true, 'register_swap_attachment RPC succeeded for valid path');
-  assert(Boolean(regRes.rows[0].register_swap_attachment.attachment_id), 'register_swap_attachment returned attachment_id');
+  assert(dupRes.rows[0].register_swap_attachment.success === false, 'Duplicate storage path rejected');
 
   // Verify swap_attachment_files view maps to swap_attachments
   const viewRows = await db.query<{ file_name: string }>(`
     SELECT file_name FROM public.swap_attachment_files WHERE swap_id = '${swapAttId}';
   `);
-  assert(viewRows.rows.length === 1 && viewRows.rows[0].file_name === 'script.py', 'swap_attachment_files view returns attachment');
+  assert(viewRows.rows.length === realisticTestFiles.length, 'swap_attachment_files view returns all registered attachments');
 
   // Verify anonymous user is denied register_swap_attachment RPC
   await setAuthUser(null);
@@ -1279,13 +1310,13 @@ export async function runCreditSystemTests() {
   const attRows = await db.query<{ file_name: string }>(`
     SELECT file_name FROM public.swap_attachment_files WHERE swap_id = '${swapAttId}';
   `);
-  assert(attRows.rows.length === 1 && attRows.rows[0].file_name === 'script.py', 'Creator (User A) can view creator attachments in swap_attachment_files');
+  assert(attRows.rows.length === realisticTestFiles.length, 'Creator (User A) can view creator attachments in swap_attachment_files');
 
   // Verify compatibility view public.swap_attachments maps to public.swap_attachment_files
   const attViewRows = await db.query<{ file_name: string }>(`
     SELECT file_name FROM public.swap_attachments WHERE swap_id = '${swapAttId}';
   `);
-  assert(attViewRows.rows.length === 1 && attViewRows.rows[0].file_name === 'script.py', 'Compatibility view swap_attachments returns attachment');
+  assert(attViewRows.rows.length === realisticTestFiles.length, 'Compatibility view swap_attachments returns attachment');
 
   // User B (not yet participant) attempts to read creator attachments on open swap -> returns 0 rows due to RLS
   await setAuthUser(userB);
@@ -1301,7 +1332,7 @@ export async function runCreditSystemTests() {
   attRowsB = await db.query<{ file_name: string }>(`
     SELECT file_name FROM public.swap_attachments WHERE swap_id = '${swapAttId}';
   `);
-  assert(attRowsB.rows.length === 1 && attRowsB.rows[0].file_name === 'script.py', 'Accepted participant (User B) can view creator attachments');
+  assert(attRowsB.rows.length === realisticTestFiles.length, 'Accepted participant (User B) can view creator attachments');
 
   // Unrelated User C attempts to view creator attachments -> returns 0 rows
   await setAuthUser(userC);
