@@ -11,10 +11,11 @@
   - [1. Authentication & Security](#1-authentication--security)
   - [2. User Profiles & Skills Engine](#2-user-profiles--skills-engine)
   - [3. SkillCredits Ledger & Reservation Engine](#3-skillcredits-ledger--reservation-engine)
-  - [4. Swap Creation & Draft Persistence](#4-swap-creation--draft-persistence)
+  - [4. Swap Creation, Draft Persistence & Attachments](#4-swap-creation-draft-persistence--attachments)
   - [5. Explore Marketplace & Discovery](#5-explore-marketplace--discovery)
   - [6. Active Swaps & Request Lifecycle](#6-active-swaps--request-lifecycle)
   - [7. Real-Time P2P Chat & Work Submission](#7-real-time-p2p-chat--work-submission)
+  - [8. Upcoming Features & Roadmap](#8-upcoming-features--roadmap)
 - [Technology Stack](#technology-stack)
 - [Project Architecture & Directory Hierarchy](#project-architecture--directory-hierarchy)
 - [Database Migrations & Security Hardening](#database-migrations--security-hardening)
@@ -37,9 +38,9 @@ Skills → Swaps → SkillCredits → Skills
 ```
 
 - **Skills**: Practical digital abilities members bring to the platform (coding, design, video editing, writing, marketing, automation, strategy, etc.).
-- **Swaps**: Peer-to-peer digital service listings specifying requirements, chat preferences, and a SkillCredit value.
+- **Swaps**: Peer-to-peer digital service listings specifying requirements, chat preferences, creator attachments, and a SkillCredit value.
 - **SkillCredits**: Internal currency earned by completing swaps and spent to request assistance from others. New users receive an initial welcome grant of **100 SkillCredits**.
-- **Reputation**: Trust and track record built through verified completed swaps, timely deliveries, and community feedback.
+* **Reputation & Community Ratings** *(Future Feature)*: Trust scores, verified swap reviews, and community badges built through completed swaps and timely deliveries.
 
 **Product Philosophy**: *Skills are your currency.*
 
@@ -78,16 +79,16 @@ Skills → Swaps → SkillCredits → Skills
 - **Balance Reconciliation RPC**: Built-in `reconcile_credit_balances()` diagnostic procedure validates full ledger integrity against active and completed commitments.
 - **Interactive Credit History Modal**: Real-time modal accessible from the navigation bar detailing current available and reserved balances, lifetime totals, and expandable transaction history cards.
 
-### 4. Swap Creation & Draft Persistence
+### 4. Swap Creation, Draft Persistence & Attachments
 - **User-Scoped Draft Auto-Saving**: Form state (topic, description, attachments, chat permission, credit value, completion terms, extra note) automatically persists in `localStorage` under `skillswap_create_swap_draft_<userId>`. Drafts are automatically purged upon logout.
-- **Multi-File Drag-and-Drop Attachments**: Supports dragging and dropping multiple file attachments with client-side file type and size validation.
+- **Creator Attachment Support**: Swap creators can attach reference files (up to 5 files, 25MB max per file) during swap creation, stored securely in the private `swap-attachments` bucket (`swap_attachment_files`).
 - **Dynamic Business Idempotency Keys**: Generates unique idempotency keys (`swap_create:<uuid>`) per submission attempt. Retries reuse the same key to guarantee atomic, non-duplicative database creation and credit escrow.
 - **Sanitized Input & Error Formatting**: User inputs are validated client-side and server-side, with raw PostgreSQL/PostgREST errors translated into friendly user messages via `formatFriendlyErrorMessage`.
 
 ### 5. Explore Marketplace & Discovery
 - **Live Marketplace**: Renders real open swap listings fetched dynamically from Supabase (`getOpenSwaps()`). Zero mock data fallbacks.
 - **Search & Category Filtering**: Fast keyword search across titles and descriptions alongside multi-category filters.
-- **Swap Details Drawer**: Quick preview drawer allowing users to inspect requirements, credit offer, creator profile, and initiate swap requests directly.
+- **Swap Details Drawer**: Quick preview drawer allowing users to inspect requirements, credit offer, creator profile, creator attachments, and initiate swap requests directly.
 
 ### 6. Active Swaps & Request Lifecycle
 - **Swap Requests (`/requests`)**:
@@ -102,15 +103,24 @@ Skills → Swaps → SkillCredits → Skills
   - **Submitted**: The fulfiller submits finished work and optional file deliverables.
   - **Completed**: The creator approves the work; reserved credits are transferred to the fulfiller's account atomically.
   - **Cancelled**: Creator cancels an unfulfilled swap; reserved credits are released back to the creator's available balance.
+* **Automated Cron Schedulers for Timeouts** *(Future Feature)*: While the database layer supports timeout and abandoned swap expiry RPCs (`expire_abandoned_swaps` and `process_submitted_swap_timeouts`), automated background cron triggering (e.g. via Edge Function or pg_cron schedulers) is planned for a future release.
 
 ### 7. Real-Time P2P Chat & Work Submission
-- **Supabase Realtime P2P Chat**: Active swap pages feature real-time messaging using Supabase Realtime channel subscriptions on `public.swap_messages`. Access is strictly isolated to swap participants via Row Level Security (RLS).
+- **Supabase Realtime P2P Chat**: Active swap pages feature real-time messaging using Supabase Realtime channel subscriptions (`skillswap-chat:<swapId>`) and RLS-protected database storage (`public.swap_messages`). Access is strictly isolated to swap participants via Row Level Security (RLS).
 - **Work Submission Workflow**: Fulfillers submit work deliverables with notes and file attachments.
 - **Secure File Storage**:
   - Private Supabase Storage bucket (`swap-submissions`).
-  - Strict upload path structure (`{swap_id}/{user_id}/{uuid}-{filename}`).
-  - Multi-file uploads (up to 5 files per submission, 25MB max size per file, restricted MIME types).
+  - Strict upload path structure (`submissions/{swap_id}/{user_id}/{uuid}-{filename}`).
+  - Multi-file uploads (up to 5 files per submission, 25MB max size per file, file-type agnostic with extension-aware MIME normalization).
   - Temporary signed URLs generated for secure file access by swap participants.
+
+### 8. Upcoming Features & Roadmap
+The following features are planned for future platform iterations and are actively being designed:
+* **Ratings & Peer Reviews** *(Future Feature)*: Star ratings and written reviews after swap completion to build public member reputation scores.
+* **Automated Expiry & Timeout Cron Workers** *(Future Feature)*: Scheduled background jobs executing `expire_abandoned_swaps` and `process_submitted_swap_timeouts` without manual invocation.
+* **AI Skill Recommendations** *(Future Feature)*: Intelligent skill matching that connects community members based on complementary skill offers and needs.
+* **Dispute Resolution & Mediation** *(Future Feature)*: Formal dispute submission and community mediation workflows for incomplete or contested work deliverables.
+* **In-App & Push Notifications** *(Future Feature)*: Real-time browser and mobile notifications for new swap requests, chat messages, and work submissions.
 
 ---
 
@@ -136,15 +146,17 @@ skillswap/
 │   ├── assets/              # Static raster and vector media assets
 │   ├── components/          # Reusable UI component library
 │   │   ├── brand/           # Brand primitives and visual icons
-│   │   ├── create-swap/     # Create Swap form modules
+│   │   ├── chat/            # Real-time P2P chat modal
+│   │   ├── create-swap/     # Create Swap form modules & attachment uploader
 │   │   ├── credits/         # SkillCredit indicators and transaction modal
 │   │   ├── hero/            # Homepage hero visual and ecosystem graphic
 │   │   ├── navigation/      # Desktop & mobile responsive header and drawers
 │   │   ├── profile/         # Profile management & skills chips
 │   │   └── ui/              # Buttons, inputs, badges, theme toggle
 │   ├── context/             # AuthContext providing user state and credit methods
-│   ├── lib/                 # Service integrations
-│   │   └── supabase/        # Supabase client, API wrappers, and credit logic
+│   ├── lib/                 # Service integrations & utilities
+│   │   ├── supabase/        # Supabase client, API wrappers, and credit logic
+│   │   └── uuid.ts          # Browser-safe UUID generator
 │   ├── pages/               # Top-level page views and routes
 │   │   ├── ActiveSwaps.tsx  # Active swaps management & fulfillment
 │   │   ├── ChangePassword.tsx# Security password updates
@@ -169,7 +181,7 @@ skillswap/
 │   │   ├── complete-password-reset/
 │   │   ├── request-password-reset/
 │   │   └── verify-password-reset-otp/
-│   ├── migrations/          # Incremental database migrations (001 - 014)
+│   ├── migrations/          # Incremental database migrations (001 - 023)
 │   └── config.toml          # Local Supabase configuration
 ├── worker/                  # Cloudflare Worker entry point
 ├── eslint.config.js         # ESLint flat configuration (ESLint 9)
@@ -183,7 +195,7 @@ skillswap/
 
 ## Database Migrations & Security Hardening
 
-The database layer consists of 14 sequentially applied SQL migrations located in `supabase/migrations/`:
+The database layer consists of 23 sequentially applied SQL migrations located in `supabase/migrations/`:
 
 | Migration | Focus Area | Key Implementations |
 | :--- | :--- | :--- |
@@ -201,6 +213,15 @@ The database layer consists of 14 sequentially applied SQL migrations located in
 | `012_atomic_password_reset...` | Auth Security | Single-use recovery token claim procedure (`claim_password_reset_recovery_token`) with `FOR UPDATE` locks |
 | `013_chat_and_submissions` | P2P Collaboration | `public.swap_messages`, `public.swap_submissions`, `public.swap_submission_files`, and private Storage bucket |
 | `014_chat_and_submission_sec` | Hardening & RLS | Strict swap participant RLS policies, Realtime publication setup, double submission protection |
+| `015_swap_expiry_and_timeout` | Timeouts & Expiry | `expire_abandoned_swaps` and `process_submitted_swap_timeouts` SECURITY DEFINER procedures |
+| `016_chat_rls_and_submission` | Chat & Deliverables | Bidirectional sender/recipient RLS policies on `swap_messages` |
+| `017_realtime_broadcast_sec` | Realtime Security | RLS enforcement on `realtime.messages` for `skillswap-chat:<swap_id>` topic |
+| `018_submission_delivery_fixes`| Deliverable Validation| Flexible `notes` constraints allowing attachment-only work submissions |
+| `019_final_submission_alignment`| Storage Alignment | Storage path structure alignment (`submissions/{swap_id}/{user_id}/{filename}`) |
+| `020_swap_creator_attachments` | Creator Attachments | Initial creator reference files schema and `swap-attachments` bucket setup |
+| `021_creator_attachment_contract`| Contract Alignment| Contract alignment for creator attachment RPCs and storage parameters |
+| `022_creator_attachment_sec` | Creator Attachments | `public.swap_attachment_files` RLS policies and `swap_attachments` compatibility view |
+| `023_storage_mime_configuration`| Storage Configuration| File-type agnostic bucket configuration (`allowed_mime_types = NULL`) with 25MB limits |
 
 ---
 
@@ -291,7 +312,7 @@ npm run deploy
 
 SkillSwap features an in-memory database integration test runner (`src/lib/supabase/credits.test.ts`) powered by **PGLite** (`@electric-sql/pglite`).
 
-The test runner executes all 14 database migrations sequentially in a isolated WASM PostgreSQL instance and verifies:
+The test runner executes all 23 database migrations sequentially in an isolated WASM PostgreSQL instance and verifies:
 1. Initial 100 SkillCredit welcome grants and initializer idempotency.
 2. Atomic swap creation, credit escrow reservations, and duplicate request idempotency.
 3. Insufficient balance protections and negative balance prevention.
@@ -300,6 +321,10 @@ The test runner executes all 14 database migrations sequentially in a isolated W
 6. Premature settlement and unauthorized submission rejections.
 7. Real-time P2P chat persistence and Row Level Security isolation.
 8. Full double-entry balance accounting reconciliation via `reconcile_credit_balances()`.
+9. Swap expiry and submission review timeout procedures.
+10. Password reset atomic RPCs and rate limiting.
+11. Deliverable validation rules and file-type agnostic MIME normalization.
+12. Creator attachment uploads, metadata registration, and participant access RLS policies.
 
 Run tests anytime with:
 
@@ -311,8 +336,8 @@ npm test
 
 ## Security & Data Integrity Guarantees
 
-- **Row Level Security (RLS)**: Enabled on all database tables (`public.profiles`, `public.accounts`, `public.swaps`, `public.swap_messages`, `public.swap_submissions`, `storage.objects`).
-- **SECURITY DEFINER Encapuslation**: All credit movements, profile completions, and status changes are governed by SECURITY DEFINER stored procedures to prevent direct client table tampering.
+- **Row Level Security (RLS)**: Enabled on all database tables (`public.profiles`, `public.accounts`, `public.swaps`, `public.swap_messages`, `public.swap_submissions`, `public.swap_attachment_files`, `storage.objects`).
+- **SECURITY DEFINER Encapsulation**: All credit movements, profile completions, and status changes are governed by SECURITY DEFINER stored procedures to prevent direct client table tampering.
 - **Strict Username Immutability**: `@username` fields cannot be altered once created, preventing identity spoofing.
 - **Idempotency Locks**: Operations use business idempotency keys recorded in `public.credit_operations` to prevent accidental double charges during network retries.
 - **Sanitized Technical Errors**: Technical SQL and PostgREST error codes are intercepted and formatted into friendly, user-understandable validation messages before reaching the frontend.
