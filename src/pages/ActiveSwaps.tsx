@@ -60,6 +60,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   const [submissionLoading, setSubmissionLoading] = useState(false);
   const [creatorAttachments, setCreatorAttachments] = useState<SwapAttachment[]>([]);
   const [creatorAttachmentsLoading, setCreatorAttachmentsLoading] = useState(false);
+  const [showCreatorAttachments, setShowCreatorAttachments] = useState(true);
 
   // Download state
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
@@ -174,6 +175,9 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         void loadRealActiveSwaps();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'swap_submissions' }, () => {
+        void loadRealActiveSwaps();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'swap_attachment_files' }, () => {
         void loadRealActiveSwaps();
       })
       .subscribe();
@@ -654,34 +658,48 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     </div>
                   ) : creatorAttachments.length > 0 ? (
                     <div className="as-detail-section">
-                      <h4 className="as-section-subheading">Attachments from Swap Creator</h4>
-                      <div className="attachment-list" style={{ marginTop: '0.5rem' }}>
-                        {creatorAttachments.map((att) => {
-                          const isDownloading = downloadingFileId === att.id;
-                          return (
-                            <div key={att.id} className="attachment-card" style={{ flexWrap: 'wrap' }}>
-                              <div className="attachment-info">
-                                <span style={{ fontSize: '1.2rem', marginRight: '0.25rem' }}>📎</span>
-                                <div className="attachment-details">
-                                  <span className="attachment-name" title={att.fileName}>{att.fileName}</span>
-                                  {att.fileSize ? (
-                                    <span className="attachment-size">{(att.fileSize / 1024).toFixed(1)} KB</span>
-                                  ) : null}
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                className="as-btn as-btn--secondary"
-                                style={{ padding: '0.35rem 0.85rem', fontSize: '0.825rem' }}
-                                disabled={isDownloading}
-                                onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false)}
-                              >
-                                {isDownloading ? 'Downloading...' : 'Download'}
-                              </button>
-                            </div>
-                          );
-                        })}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <h4 className="as-section-subheading" style={{ margin: 0 }}>
+                          Attachments from Swap Creator ({creatorAttachments.length})
+                        </h4>
+                        <button
+                          type="button"
+                          className="as-btn as-btn--secondary"
+                          style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}
+                          onClick={() => setShowCreatorAttachments((prev) => !prev)}
+                        >
+                          {showCreatorAttachments ? 'Hide Attachments ▲' : 'Show Attachments ▼'}
+                        </button>
                       </div>
+                      {showCreatorAttachments && (
+                        <div className="attachment-list" style={{ marginTop: '0.5rem' }}>
+                          {creatorAttachments.map((att) => {
+                            const isDownloading = downloadingFileId === att.id;
+                            return (
+                              <div key={att.id} className="attachment-card" style={{ flexWrap: 'wrap' }}>
+                                <div className="attachment-info">
+                                  <span style={{ fontSize: '1.2rem', marginRight: '0.25rem' }}>📎</span>
+                                  <div className="attachment-details">
+                                    <span className="attachment-name" title={att.fileName}>{att.fileName}</span>
+                                    {att.fileSize ? (
+                                      <span className="attachment-size">{(att.fileSize / 1024).toFixed(1)} KB</span>
+                                    ) : null}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="as-btn as-btn--secondary"
+                                  style={{ padding: '0.35rem 0.85rem', fontSize: '0.825rem' }}
+                                  disabled={isDownloading}
+                                  onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false)}
+                                >
+                                  {isDownloading ? 'Downloading...' : 'Download'}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ) : null}
 
@@ -845,34 +863,48 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     </div>
                   ) : creatorAttachments.length > 0 ? (
                     <div className="as-detail-section">
-                      <h4 className="as-section-subheading">Your Attachments for this Swap</h4>
-                      <div className="attachment-list" style={{ marginTop: '0.5rem' }}>
-                        {creatorAttachments.map((att) => {
-                          const isDownloading = downloadingFileId === att.id;
-                          return (
-                            <div key={att.id} className="attachment-card" style={{ flexWrap: 'wrap' }}>
-                              <div className="attachment-info">
-                                <span style={{ fontSize: '1.2rem', marginRight: '0.25rem' }}>📎</span>
-                                <div className="attachment-details">
-                                  <span className="attachment-name" title={att.fileName}>{att.fileName}</span>
-                                  {att.fileSize ? (
-                                    <span className="attachment-size">{(att.fileSize / 1024).toFixed(1)} KB</span>
-                                  ) : null}
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                className="as-btn as-btn--secondary"
-                                style={{ padding: '0.35rem 0.85rem', fontSize: '0.825rem' }}
-                                disabled={isDownloading}
-                                onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false)}
-                              >
-                                {isDownloading ? 'Downloading...' : 'Download'}
-                              </button>
-                            </div>
-                          );
-                        })}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <h4 className="as-section-subheading" style={{ margin: 0 }}>
+                          Your Attachments for this Swap ({creatorAttachments.length})
+                        </h4>
+                        <button
+                          type="button"
+                          className="as-btn as-btn--secondary"
+                          style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}
+                          onClick={() => setShowCreatorAttachments((prev) => !prev)}
+                        >
+                          {showCreatorAttachments ? 'Hide Attachments ▲' : 'Show Attachments ▼'}
+                        </button>
                       </div>
+                      {showCreatorAttachments && (
+                        <div className="attachment-list" style={{ marginTop: '0.5rem' }}>
+                          {creatorAttachments.map((att) => {
+                            const isDownloading = downloadingFileId === att.id;
+                            return (
+                              <div key={att.id} className="attachment-card" style={{ flexWrap: 'wrap' }}>
+                                <div className="attachment-info">
+                                  <span style={{ fontSize: '1.2rem', marginRight: '0.25rem' }}>📎</span>
+                                  <div className="attachment-details">
+                                    <span className="attachment-name" title={att.fileName}>{att.fileName}</span>
+                                    {att.fileSize ? (
+                                      <span className="attachment-size">{(att.fileSize / 1024).toFixed(1)} KB</span>
+                                    ) : null}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="as-btn as-btn--secondary"
+                                  style={{ padding: '0.35rem 0.85rem', fontSize: '0.825rem' }}
+                                  disabled={isDownloading}
+                                  onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false)}
+                                >
+                                  {isDownloading ? 'Downloading...' : 'Download'}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ) : null}
 
