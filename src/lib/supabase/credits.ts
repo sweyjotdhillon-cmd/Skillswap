@@ -762,7 +762,7 @@ export async function getSwapAttachments(swapId: string): Promise<{ data: SwapAt
 
   try {
     const { data, error } = await supabase
-      .from('swap_attachments')
+      .from('swap_attachment_files')
       .select('*')
       .eq('swap_id', swapId)
       .order('created_at', { ascending: true });
@@ -816,7 +816,7 @@ export async function uploadSwapAttachments(
         await supabase.rpc('unregister_swap_attachment', { p_attachment_id: attId });
       } catch {
         // Fallback table deletion if RPC is unavailable
-        await supabase.from('swap_attachments').delete().eq('id', attId).eq('uploaded_by', user.id);
+        await supabase.from('swap_attachment_files').delete().eq('id', attId).eq('uploaded_by', user.id);
       }
     }
     // Delete files from swap-attachments bucket
@@ -875,7 +875,7 @@ export async function uploadSwapAttachments(
     } else {
       // Fallback direct table insert if RPC is unavailable
       const { data: dbData, error: dbErr } = await supabase
-        .from('swap_attachments')
+        .from('swap_attachment_files')
         .insert({
           swap_id: swapId,
           uploaded_by: user.id,

@@ -65,6 +65,14 @@ export async function runCreditSystemTests() {
     AS $$
       SELECT string_to_array(name, '/');
     $$;
+
+    CREATE OR REPLACE FUNCTION storage.filename(name text)
+    RETURNS text
+    LANGUAGE sql
+    IMMUTABLE
+    AS $$
+      SELECT (string_to_array(name, '/'))[array_length(string_to_array(name, '/'), 1)];
+    $$;
   `);
 
   // Helper to switch current auth user in DB
@@ -107,16 +115,23 @@ export async function runCreditSystemTests() {
     '014_chat_and_submission_security_hardening.sql',
     '015_swap_expiry_and_submission_review_timeout.sql',
     '016_chat_rls_and_submission_fixes.sql',
+    '017_realtime_broadcast_security.sql',
     '018_submission_delivery_and_validation_fixes.sql',
     '019_final_submission_flow_alignment.sql',
     '020_swap_creator_attachments.sql',
     '021_creator_attachment_contract_alignment.sql',
+    '022_creator_attachment_schema_and_security_hardening.sql',
   ];
 
   for (const file of migrationFiles) {
     const filePath = path.join(process.cwd(), 'supabase', 'migrations', file);
     const sql = fs.readFileSync(filePath, 'utf8');
-    await db.exec(sql);
+    try {
+      await db.exec(sql);
+    } catch (mErr) {
+      console.error(`Error applying migration ${file}:`, (mErr as Error).message);
+      throw mErr;
+    }
   }
   console.log(`✓ Applied all ${migrationFiles.length} schema migrations cleanly into PostgreSQL engine.`);
 
@@ -1109,12 +1124,18 @@ export async function runCreditSystemTests() {
   }
   assert(anonRpcDenied, 'Anonymous user permission denied on register_swap_attachment RPC');
 
-  // User A (creator) can read creator attachments
+  // User A (creator) can read creator attachments from primary table public.swap_attachment_files
   await setAuthUser(userA);
   const attRows = await db.query<{ file_name: string }>(`
+    SELECT file_name FROM public.swap_attachment_files WHERE swap_id = '${swapAttId}';
+  `);
+  assert(attRows.rows.length === 1 && attRows.rows[0].file_name === 'script.py', 'Creator (User A) can view creator attachments in swap_attachment_files');
+
+  // Verify compatibility view public.swap_attachments maps to public.swap_attachment_files
+  const attViewRows = await db.query<{ file_name: string }>(`
     SELECT file_name FROM public.swap_attachments WHERE swap_id = '${swapAttId}';
   `);
-  assert(attRows.rows.length === 1 && attRows.rows[0].file_name === 'script.py', 'Creator (User A) can view creator attachments');
+  assert(attViewRows.rows.length === 1 && attViewRows.rows[0].file_name === 'script.py', 'Compatibility view swap_attachments returns attachment');
 
   // User B (not yet participant) attempts to read creator attachments on open swap -> returns 0 rows due to RLS
   await setAuthUser(userB);
@@ -1147,7 +1168,8 @@ export async function runCreditSystemTests() {
 // Execute tests if executed directly
 if (import.meta.url.endsWith('credits.test.ts') || process.argv[1]?.endsWith('credits.test.ts')) {
   runCreditSystemTests().catch((err) => {
-    console.error('Integration test failure:', err);
+    console.error('Integration test failure MESSAGE:', err.message);
+    console.error('Integration test failure STACK:', err.stack);
     process.exit(1);
   });
 }
