@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Allow: /faq
+Allow: /about
+Allow: /how-it-works
+Allow: /explore
+Disallow: /profile
+Disallow: /create-swap
+Disallow: /swap-requests
+Disallow: /active-swaps
+Disallow: /change-password
+Disallow: /onboarding
+Disallow: /login
+
+Sitemap: https://skillswap.sweyjotdhillon.workers.dev/sitemap.xml
