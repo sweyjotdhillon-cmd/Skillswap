@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getSupabaseBrowserClient } from '../../lib/supabase/client';
+import {
+  getChatPermissionStatus,
+  requestChatAccess,
+  sendSwapMessage,
+  type ChatPermissionStatusResult,
+} from '../../lib/supabase/credits';
 import type { Swap, SwapMessage } from '../../types/swap';
 import { generateUUID } from '../../lib/uuid';
 
@@ -67,6 +73,10 @@ export function SwapChatModal({
   const [messages, setMessages] = useState<ChatMessagePayload[]>([]);
   const [input, setInput] = useState<string>('');
   const [sending, setSending] = useState<boolean>(false);
+  const [permStatus, setPermStatus] = useState<ChatPermissionStatusResult | null>(null);
+  const [permLoading, setPermLoading] = useState<boolean>(true);
+  const [requestingPerm, setRequestingPerm] = useState<boolean>(false);
+  const [chatError, setChatError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -109,10 +119,27 @@ export function SwapChatModal({
     });
   }, [swap.id]);
 
-  // Initial load from localStorage (No Postgres database fetch)
+  // Load chat permission status and local messages
   useEffect(() => {
+    let active = true;
+    setPermLoading(true);
+    setChatError(null);
+
+    async function loadPermission() {
+      const res = await getChatPermissionStatus(swap.id);
+      if (active) {
+        setPermStatus(res);
+        setPermLoading(false);
+      }
+    }
+
+    void loadPermission();
     const initial = loadLocalMessages(swap.id);
     setMessages(initial);
+
+    return () => {
+      active = false;
+    };
   }, [swap.id]);
 
   // Periodic expiration cleanup while modal is open (every 30 seconds)
@@ -168,19 +195,49 @@ export function SwapChatModal({
     }
   }, [messages]);
 
+  const handleRequestAccess = async () => {
+    setRequestingPerm(true);
+    setChatError(null);
+    const res = await requestChatAccess(swap.id);
+    setRequestingPerm(false);
+    if (!res.success) {
+      setChatError(res.error || 'Failed to request chat access.');
+      return;
+    }
+    const updated = await getChatPermissionStatus(swap.id);
+    setPermStatus(updated);
+  };
+
+  const isAuthorizedToChat =
+    permStatus?.status === 'allowed' || permStatus?.status === 'accepted';
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanText = input.trim();
     if (!cleanText || sending || !user || !recipientId) return;
 
+    if (!isAuthorizedToChat) {
+      setChatError('You are not authorized to send messages for this swap.');
+      return;
+    }
+
     setSending(true);
+    setChatError(null);
+
+    // Persist via DB RPC/RLS
+    const dbRes = await sendSwapMessage(swap.id, recipientId, cleanText);
+    if (!dbRes.success) {
+      setChatError(dbRes.error || 'Failed to send message.');
+      setSending(false);
+      return;
+    }
 
     const now = Date.now();
     const createdAtIso = new Date(now).toISOString();
     const expiresAtTimestamp = now + TWENTY_FOUR_HOURS_MS;
 
     const newMessage: ChatMessagePayload = {
-      id: `msg_${generateUUID()}`,
+      id: dbRes.message?.id || `msg_${generateUUID()}`,
       swapId: swap.id,
       senderId: user.id,
       recipientId: recipientId,
@@ -261,19 +318,63 @@ export function SwapChatModal({
           <div ref={messagesEndRef} />
         </div>
 
-        <form onSubmit={handleSendMessage} className="chat-input-form">
-          <input
-            type="text"
-            className="chat-input"
-            placeholder="Write a message..."
-            value={input}
-            disabled={sending || !recipientId}
-            onChange={(e) => setInput(e.target.value)}
-          />
-          <button type="submit" className="chat-send-btn" disabled={sending || !input.trim() || !recipientId}>
-            {sending ? 'Sending...' : 'Send'}
-          </button>
-        </form>
+        {chatError && (
+          <div style={{ color: 'var(--error-color, #ef4444)', padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
+            {chatError}
+          </div>
+        )}
+
+        {permLoading ? (
+          <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+            Checking chat permissions...
+          </div>
+        ) : !isAuthorizedToChat ? (
+          <div style={{ padding: '1rem', textAlign: 'center', background: 'var(--bg-secondary, #f8fafc)', borderTop: '1px solid var(--border-color, #e2e8f0)' }}>
+            {permStatus?.status === 'required' && (
+              <div>
+                <p style={{ margin: '0 0 0.5rem 0', fontWeight: 600, color: 'var(--text-primary)' }}>Chat permission required</p>
+                <button
+                  type="button"
+                  className="as-btn as-btn--primary"
+                  disabled={requestingPerm}
+                  onClick={handleRequestAccess}
+                >
+                  {requestingPerm ? 'Submitting request...' : 'Request Chat Access'}
+                </button>
+              </div>
+            )}
+            {permStatus?.status === 'pending' && (
+              <div>
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Chat access requested</p>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  Waiting for the requester to approve your request.
+                </p>
+              </div>
+            )}
+            {permStatus?.status === 'declined' && (
+              <div>
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--error-color, #ef4444)' }}>Chat access declined</p>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  The swap requester declined chat access for this swap.
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <form onSubmit={handleSendMessage} className="chat-input-form">
+            <input
+              type="text"
+              className="chat-input"
+              placeholder="Write a message..."
+              value={input}
+              disabled={sending || !recipientId}
+              onChange={(e) => setInput(e.target.value)}
+            />
+            <button type="submit" className="chat-send-btn" disabled={sending || !input.trim() || !recipientId}>
+              {sending ? 'Sending...' : 'Send'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
