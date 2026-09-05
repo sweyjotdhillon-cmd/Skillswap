@@ -148,7 +148,7 @@ export function formatFriendlyErrorMessage(error: unknown): string {
     return 'This skill has already been added.';
   }
 
-  // 5.5. Credit System Errors
+  // 5.5. Credit System & Swap Errors
   if (
     lower.includes('insufficient credit balance') ||
     lower.includes('chk_min_balance') ||
@@ -164,6 +164,12 @@ export function formatFriendlyErrorMessage(error: unknown): string {
   }
   if (lower.includes('unauthorized credit addition') || lower.includes('unauthorized credit release')) {
     return 'Unauthorized credit operation.';
+  }
+  if (lower.includes('at least one swap tag is required')) {
+    return 'At least one swap tag is required.';
+  }
+  if (lower.includes('invalid swap tag')) {
+    return 'Please select valid tags from the predefined options.';
   }
 
   // 6. Authentication / Session Expiry

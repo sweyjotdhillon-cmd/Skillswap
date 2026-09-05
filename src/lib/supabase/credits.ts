@@ -106,7 +106,19 @@ export async function createCreditSwap(input: CreateCreditSwapInput): Promise<{ 
     p_additional_message: input.additionalMessage || null,
     p_idempotency_key: idempotencyKey,
   });
-  if (error || !data) return { success: false, error: formatFriendlyErrorMessage(error ?? new Error('Swap creation returned no ID.')) };
+  if (error || !data) {
+    console.error('[createCreditSwap] RPC create_credit_swap failed:', {
+      error,
+      input: {
+        topic: input.topic,
+        chatPermission: input.chatPermission,
+        creditAmount: input.creditAmount,
+        tags: input.tags,
+        idempotencyKey,
+      },
+    });
+    return { success: false, error: formatFriendlyErrorMessage(error ?? new Error('Swap creation returned no ID.')) };
+  }
   return { success: true, swapId: data as string };
 }
 
