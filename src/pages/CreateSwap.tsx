@@ -251,7 +251,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       setIsSubmitting(false);
     } else {
       // Scroll to first error
-      const firstErrorEl = document.querySelector('.error-message, .input-error, .permission-card--error');
+      const firstErrorEl = document.querySelector('.error-message, .input-error');
       if (firstErrorEl) {
         firstErrorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }

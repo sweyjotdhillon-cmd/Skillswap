@@ -1,4 +1,5 @@
 import { CreateSwapFormState } from '../../pages/CreateSwap';
+import { getTagLabel } from '../../constants/tags';
 
 type SwapPreviewCardProps = {
   formState: CreateSwapFormState;
@@ -64,7 +65,7 @@ export function SwapPreviewCard({ formState }: SwapPreviewCardProps) {
         <div className="swap-tags-row">
           {formState.tags && formState.tags.length > 0 ? (
             formState.tags.map((tag) => (
-              <span key={tag} className="swap-tag">#{tag}</span>
+              <span key={tag} className="swap-tag">#{getTagLabel(tag)}</span>
             ))
           ) : (
             <span className="swap-tag" style={{ opacity: 0.6 }}>#NoTagsSelected</span>
