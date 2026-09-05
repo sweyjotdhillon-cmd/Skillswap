@@ -80,7 +80,7 @@ Skills → Swaps → SkillCredits → Skills
 - **Interactive Credit History Modal**: Real-time modal accessible from the navigation bar detailing current available and reserved balances, lifetime totals, and expandable transaction history cards.
 
 ### 4. Swap Creation, Draft Persistence & Attachments
-- **User-Scoped Draft Auto-Saving**: Form state (topic, description, attachments, chat permission, credit value, completion terms, extra note) automatically persists in `localStorage` under `skillswap_create_swap_draft_<userId>`. Drafts are automatically purged upon logout.
+- **User-Scoped Draft Auto-Saving**: Form state (topic, description, attachments, credit value, completion terms, extra note) automatically persists in `localStorage` under `skillswap_create_swap_draft_<userId>`. Drafts are automatically purged upon logout.
 - **Creator Attachment Support**: Swap creators can attach reference files (up to 5 files, 25MB max per file) during swap creation, stored securely in the private `swap-attachments` bucket (`swap_attachment_files`).
 - **Dynamic Business Idempotency Keys**: Generates unique idempotency keys (`swap_create:<uuid>`) per submission attempt. Retries reuse the same key to guarantee atomic, non-duplicative database creation and credit escrow.
 - **Sanitized Input & Error Formatting**: User inputs are validated client-side and server-side, with raw PostgreSQL/PostgREST errors translated into friendly user messages via `formatFriendlyErrorMessage`.

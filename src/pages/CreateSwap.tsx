@@ -5,7 +5,6 @@ import { TopicField } from '../components/create-swap/TopicField';
 import { TagSelectionField } from '../components/create-swap/TagSelectionField';
 import { DescriptionField } from '../components/create-swap/DescriptionField';
 import { AttachmentUploader, AttachmentItem } from '../components/create-swap/AttachmentUploader';
-import { ChatPermissionSelector, ChatPermissionValue } from '../components/create-swap/ChatPermissionSelector';
 import { CreditsInput } from '../components/create-swap/CreditsInput';
 import { RequirementsField } from '../components/create-swap/RequirementsField';
 import { AdditionalMessageField } from '../components/create-swap/AdditionalMessageField';
@@ -20,7 +19,6 @@ export interface CreateSwapFormState {
   tags: string[];
   description: string;
   attachments: AttachmentItem[];
-  chatPermission: ChatPermissionValue;
   credits: string;
   requirements: string;
   additionalMessage: string;
@@ -30,7 +28,6 @@ export interface FormErrors {
   topic?: string;
   tags?: string;
   description?: string;
-  chatPermission?: string;
   credits?: string;
   requirements?: string;
 }
@@ -53,7 +50,6 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
           tags: Array.isArray(parsed.tags) ? parsed.tags : [],
           description: parsed.description || '',
           attachments: [],
-          chatPermission: parsed.chatPermission || null,
           credits: parsed.credits || '',
           requirements: parsed.requirements || '',
           additionalMessage: parsed.additionalMessage || '',
@@ -67,7 +63,6 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       tags: [],
       description: '',
       attachments: [],
-      chatPermission: null,
       credits: '',
       requirements: '',
       additionalMessage: '',
@@ -88,8 +83,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
           (parsed.description && parsed.description.trim()) ||
           (parsed.credits && parsed.credits.trim()) ||
           (parsed.requirements && parsed.requirements.trim()) ||
-          (parsed.additionalMessage && parsed.additionalMessage.trim()) ||
-          parsed.chatPermission !== null
+          (parsed.additionalMessage && parsed.additionalMessage.trim())
         );
         if (hasContent) {
           return { type: 'info', text: 'Restored your previously saved draft.' };
@@ -126,10 +120,6 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       newErrors.description = 'Please describe your swap.';
     }
 
-    if (formState.chatPermission === null) {
-      newErrors.chatPermission = 'Choose who can start the conversation.';
-    }
-
     if (!formState.credits.trim()) {
       newErrors.credits = "Enter the number of credits you're offering.";
     } else {
@@ -155,7 +145,6 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         topic: formState.topic.trim(),
         tags: formState.tags,
         description: formState.description.trim(),
-        chatPermission: formState.chatPermission,
         credits: formState.credits.trim(),
         requirements: formState.requirements.trim(),
         additionalMessage: formState.additionalMessage.trim(),
@@ -183,7 +172,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       return;
     }
 
-    if (validate() && formState.chatPermission) {
+    if (validate()) {
       setIsSubmitting(true);
       if (!activeIdempotencyKeyRef.current) {
         activeIdempotencyKeyRef.current = `swap_create:${generateUUID()}`;
@@ -194,7 +183,6 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         topic: topicTitle,
         description: formState.description.trim(),
         requirements: formState.requirements.trim(),
-        chatPermission: formState.chatPermission === 'permission' ? 'requester' : 'anyone',
         creditAmount: amount,
         tags: formState.tags,
         additionalMessage: formState.additionalMessage.trim(),
@@ -246,7 +234,6 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         tags: [],
         description: '',
         attachments: [],
-        chatPermission: null,
         credits: '',
         requirements: '',
         additionalMessage: '',
@@ -381,15 +368,6 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
                 attachments={formState.attachments}
                 onAddAttachments={handleAddAttachments}
                 onRemoveAttachment={handleRemoveAttachment}
-              />
-
-              <ChatPermissionSelector
-                value={formState.chatPermission}
-                onChange={(val) => {
-                  setFormState((prev) => ({ ...prev, chatPermission: val }));
-                  if (errors.chatPermission) setErrors((prev) => ({ ...prev, chatPermission: undefined }));
-                }}
-                error={errors.chatPermission}
               />
 
               <CreditsInput
