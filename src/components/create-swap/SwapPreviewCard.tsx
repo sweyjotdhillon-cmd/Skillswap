@@ -62,6 +62,13 @@ export function SwapPreviewCard({ formState }: SwapPreviewCardProps) {
         )}
 
         <div className="swap-tags-row">
+          {formState.tags && formState.tags.length > 0 ? (
+            formState.tags.map((tag) => (
+              <span key={tag} className="swap-tag">#{tag}</span>
+            ))
+          ) : (
+            <span className="swap-tag" style={{ opacity: 0.6 }}>#NoTagsSelected</span>
+          )}
           <span className="swap-tag">
             {formState.chatPermission === 'anyone' ? 'Open Chat' : formState.chatPermission === 'permission' ? 'Approval Required' : 'Chat Setting'}
           </span>

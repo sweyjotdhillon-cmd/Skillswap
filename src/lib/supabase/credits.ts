@@ -47,6 +47,7 @@ export interface SwapRecord {
   additional_message: string | null;
   chat_permission: 'requester' | 'participant' | 'anyone';
   credit_amount: number;
+  tags?: string[];
   status: 'open' | 'accepted' | 'submitted' | 'completed' | 'cancelled' | 'declined' | 'withdrawn' | 'expired';
   idempotency_key?: string | null;
   submitted_at: string | null;
@@ -72,6 +73,7 @@ export interface CreateCreditSwapInput {
   requirements: string;
   chatPermission: 'requester' | 'participant' | 'anyone';
   creditAmount: number;
+  tags: string[];
   additionalMessage?: string;
   idempotencyKey?: string;
 }
@@ -100,6 +102,7 @@ export async function createCreditSwap(input: CreateCreditSwapInput): Promise<{ 
     p_requirements: input.requirements,
     p_chat_permission: input.chatPermission,
     p_credit_amount: input.creditAmount,
+    p_tags: input.tags,
     p_additional_message: input.additionalMessage || null,
     p_idempotency_key: idempotencyKey,
   });
