@@ -9,6 +9,7 @@ const navItems = [
   { label: 'Active Swaps', path: '/active-swaps' },
   { label: 'How It Works', path: '/how-it-works' },
   { label: 'About', path: '/about' },
+  { label: 'FAQ', path: '/faq' },
 ];
 
 type NavbarProps = {
@@ -47,6 +48,10 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, itemPath: string) => {
     setMobileMenuOpen(false);
+    if (itemPath === '/faq') {
+      window.location.href = '/faq';
+      return;
+    }
     if (onNavigate) {
       e.preventDefault();
       onNavigate(itemPath);

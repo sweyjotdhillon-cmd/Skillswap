@@ -192,6 +192,11 @@ function AppContent() {
     return <HowItWorksPage onNavigate={navigate} />;
   }
 
+  if (path === '/faq' || path === '/faq/') {
+    window.location.href = '/faq';
+    return null;
+  }
+
   return <Home onNavigate={navigate} />;
 }
 
