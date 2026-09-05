@@ -127,6 +127,7 @@ export async function runCreditSystemTests() {
     '023_fix_creator_attachment_registration.sql',
     '024_fix_nul_character_in_register_swap_attachment.sql',
     '025_add_tags_to_swaps.sql',
+    '026_submission_and_chat_permissions.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -359,28 +360,39 @@ export async function runCreditSystemTests() {
   const fileRecord = await db.query<{ file_name: string }>(`SELECT file_name FROM public.swap_submission_files WHERE submission_id = '${submitRes.rows[0].submit_swap_work.submission_id}';`);
   assert(fileRecord.rows[0].file_name === 'code.zip', 'File metadata persisted');
 
-  // Attempt duplicate submission on same swap -> Must be rejected!
-  errorCaught = false;
-  try {
-    await db.query(`
-      SELECT public.submit_swap_work(
-        '${swap2Id}'::uuid,
-        'Duplicate submission attempt',
-        '[]'::jsonb
-      );
-    `);
-  } catch (err: unknown) {
-    errorCaught = true;
-    assert((err as Error).message.includes('not eligible for submission'), 'Duplicate submission attempt rejected');
-  }
-  assert(errorCaught, 'Duplicate submission on submitted swap rejected');
+  // Re-submission / retry on submitted swap updates submission idempotently
+  const resubmitRes = await db.query<{ submit_swap_work: { success: boolean } }>(`
+    SELECT public.submit_swap_work(
+      '${swap2Id}'::uuid,
+      'Finished TS mentoring session and code sample repo (updated).',
+      '[{"storage_path": "submissions/${swap2Id}/${userB}/code.zip", "file_name": "code.zip", "mime_type": "application/zip", "file_size": 10240}]'::jsonb
+    );
+  `);
+  assert(resubmitRes.rows[0].submit_swap_work.success === true, 'Re-submission on submitted swap succeeded idempotently');
 
-  // User A completes Swap 2 now that submission exists
+  // Check User A (Payer) Account before completing or completed
   await setAuthUser(userA);
   await db.query(`SELECT public.complete_credit_swap('${swap2Id}'::uuid);`);
 
   // Check User A (Payer) Account
   res = await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userA}';`);
+
+  // Attempt submission on completed swap by User B -> Must be rejected!
+  await setAuthUser(userB);
+  errorCaught = false;
+  try {
+    await db.query(`
+      SELECT public.submit_swap_work(
+        '${swap2Id}'::uuid,
+        'Attempting submission on completed swap',
+        '[]'::jsonb
+      );
+    `);
+  } catch (err: unknown) {
+    errorCaught = true;
+    assert((err as Error).message.includes('not eligible for submission'), 'Submission attempt on completed swap rejected');
+  }
+  assert(errorCaught, 'Submission on completed swap rejected');
   assert(res.rows[0].credits_balance === 80, 'Payer balance remains 80');
   assert(res.rows[0].credits_reserved === 0, 'Payer reserved credits cleared');
   assert(res.rows[0].credits_spent === 20, 'Payer credits_spent updated to 20');
@@ -1343,6 +1355,200 @@ export async function runCreditSystemTests() {
   assert(attRowsC.rows.length === 0, 'Unrelated User C cannot view creator attachments due to RLS');
 
   console.log('  -> Swap creator attachments & RLS policy verified cleanly!');
+
+  // =========================================================================
+  // TEST 17: Submission Flow Idempotency & Rollback Verification
+  // =========================================================================
+  console.log('Test 17: Submission Flow Idempotency & Rollback Verification...');
+  // User A creates Swap 9
+  await setAuthUser(userA);
+  swapRes = await db.query<{ swap_id: string }>(`
+    SELECT public.create_credit_swap('Idempotent Submission Swap', 'Desc', 'Reqs', 'anyone', 10, ARRAY['Coding']::text[], NULL, 'swap_create:op_idempotent_sub') AS swap_id;
+  `);
+  const swapIdempotentSubId = swapRes.rows[0].swap_id;
+
+  // User B accepts Swap 9
+  await setAuthUser(userB);
+  await db.query(`SELECT public.accept_credit_swap('${swapIdempotentSubId}'::uuid);`);
+
+  // First submission by User B
+  const path1 = `submissions/${swapIdempotentSubId}/${userB}/uuid1-file1.pdf`;
+  let idempSubRes = await db.query<{ submit_swap_work: { success: boolean; submission_id: string } }>(`
+    SELECT public.submit_swap_work(
+      '${swapIdempotentSubId}'::uuid,
+      'First submission notes.',
+      '[{"storage_path": "${path1}", "file_name": "file1.pdf", "mime_type": "application/pdf", "file_size": 1024}]'::jsonb
+    );
+  `);
+  assert(idempSubRes.rows[0].submit_swap_work.success === true, 'First submission succeeded');
+
+  // Second submission (re-submission / retry) by User B when swap status is 'submitted'
+  const path2 = `submissions/${swapIdempotentSubId}/${userB}/uuid2-file2.pdf`;
+  idempSubRes = await db.query<{ submit_swap_work: { success: boolean; submission_id: string } }>(`
+    SELECT public.submit_swap_work(
+      '${swapIdempotentSubId}'::uuid,
+      'Updated submission notes.',
+      '[{"storage_path": "${path2}", "file_name": "file2.pdf", "mime_type": "application/pdf", "file_size": 2048}]'::jsonb
+    );
+  `);
+  assert(idempSubRes.rows[0].submit_swap_work.success === true, 'Re-submission/retry on submitted swap succeeded');
+
+  const updatedNotes = (await db.query<{ notes: string }>(`SELECT notes FROM public.swap_submissions WHERE swap_id = '${swapIdempotentSubId}';`)).rows[0].notes;
+  assert(updatedNotes === 'Updated submission notes.', 'Notes updated cleanly on re-submission');
+
+  const updatedFiles = await db.query<{ file_name: string; storage_path: string }>(`SELECT file_name, storage_path FROM public.swap_submission_files WHERE submission_id = '${idempSubRes.rows[0].submit_swap_work.submission_id}';`);
+  assert(updatedFiles.rows.length === 1, 'Single file metadata record exists after re-submission');
+  assert(updatedFiles.rows[0].file_name === 'file2.pdf', 'Updated file metadata replaced previous file metadata');
+  assert(updatedFiles.rows[0].storage_path === path2, 'Storage path matches updated file');
+
+  console.log('  -> Submission Flow Idempotency & Rollback verified cleanly!');
+
+  // =========================================================================
+  // TEST 18: Chat Permission Workflow & Database RLS Enforcement
+  // =========================================================================
+  console.log('Test 18: Chat Permission Workflow & Database RLS Enforcement...');
+
+  await setSuperuser();
+  await db.exec(`UPDATE public.accounts SET credits_balance = credits_balance + 100, credits_earned = credits_earned + 100 WHERE user_id = '${userA}';`);
+
+  // 18a: Restrictive chat permission mode ('requester' / 'permission')
+  await setAuthUser(userA);
+  swapRes = await db.query<{ swap_id: string }>(`
+    SELECT public.create_credit_swap('Restrictive Chat Swap', 'Desc', 'Reqs', 'requester', 15, ARRAY['Coding']::text[], NULL, 'swap_create:op_restrictive_chat') AS swap_id;
+  `);
+  const restSwapId = swapRes.rows[0].swap_id;
+
+  // User B accepts swap
+  await setAuthUser(userB);
+  await db.query(`SELECT public.accept_credit_swap('${restSwapId}'::uuid);`);
+
+  // Check chat permission status for User B -> MUST BE 'required' (NOT allowed immediately)
+  const statusRes1 = await db.query<{ get_chat_permission_status: { status: string; chat_permission: string } }>(`
+    SELECT public.get_chat_permission_status('${restSwapId}'::uuid);
+  `);
+  assert(statusRes1.rows[0].get_chat_permission_status.status === 'required', 'Participant chat permission is "required" immediately after acceptance');
+
+  // User B attempts to send message BEFORE requesting permission -> MUST FAIL RLS CHECK!
+  errorCaught = false;
+  try {
+    await db.query(`
+      INSERT INTO public.swap_messages (swap_id, sender_id, recipient_id, body)
+      VALUES ('${restSwapId}'::uuid, '${userB}'::uuid, '${userA}'::uuid, 'Unauthorized chat message attempt');
+    `);
+  } catch (err: unknown) {
+    errorCaught = (err as Error).message.includes('permission denied') || (err as Error).message.includes('row-level security');
+  }
+  assert(errorCaught, 'Unauthorized chat message before permission approval blocked by RLS check');
+
+  // User B requests chat access
+  const reqAccessRes = await db.query<{ request_chat_access: { success: boolean; status: string } }>(`
+    SELECT public.request_chat_access('${restSwapId}'::uuid);
+  `);
+  assert(reqAccessRes.rows[0].request_chat_access.success === true, 'request_chat_access succeeded');
+  assert(reqAccessRes.rows[0].request_chat_access.status === 'pending', 'Status is pending');
+
+  // Check status for User B now -> MUST BE 'pending'
+  const statusRes2 = await db.query<{ get_chat_permission_status: { status: string } }>(`
+    SELECT public.get_chat_permission_status('${restSwapId}'::uuid);
+  `);
+  assert(statusRes2.rows[0].get_chat_permission_status.status === 'pending', 'Status updated to pending');
+
+  // User B attempts duplicate request while pending -> MUST BE REJECTED!
+  errorCaught = false;
+  try {
+    await db.query(`SELECT public.request_chat_access('${restSwapId}'::uuid);`);
+  } catch (err: unknown) {
+    errorCaught = (err as Error).message.includes('already pending');
+  }
+  assert(errorCaught, 'Duplicate pending chat access request rejected');
+
+  // User B STILL cannot send message while request is pending
+  errorCaught = false;
+  try {
+    await db.query(`
+      INSERT INTO public.swap_messages (swap_id, sender_id, recipient_id, body)
+      VALUES ('${restSwapId}'::uuid, '${userB}'::uuid, '${userA}'::uuid, 'Message while pending');
+    `);
+  } catch (err: unknown) {
+    errorCaught = (err as Error).message.includes('permission denied') || (err as Error).message.includes('row-level security');
+  }
+  assert(errorCaught, 'Message attempt while pending blocked by RLS check');
+
+  // Requester (User A) checks status
+  await setAuthUser(userA);
+  const statusRes3 = await db.query<{ get_chat_permission_status: { status: string; is_requester: boolean } }>(`
+    SELECT public.get_chat_permission_status('${restSwapId}'::uuid);
+  `);
+  assert(statusRes3.rows[0].get_chat_permission_status.is_requester === true, 'User A identified as requester');
+  assert(statusRes3.rows[0].get_chat_permission_status.status === 'allowed', 'Requester always has status allowed');
+
+  // Requester User A accepts User B's chat access request
+  const respondRes = await db.query<{ respond_chat_request: { success: boolean; status: string } }>(`
+    SELECT public.respond_chat_request('${restSwapId}'::uuid, 'accept');
+  `);
+  assert(respondRes.rows[0].respond_chat_request.success === true, 'respond_chat_request accept succeeded');
+  assert(respondRes.rows[0].respond_chat_request.status === 'accepted', 'Request status updated to accepted');
+
+  // User B checks status -> MUST BE 'accepted'
+  await setAuthUser(userB);
+  const statusRes4 = await db.query<{ get_chat_permission_status: { status: string } }>(`
+    SELECT public.get_chat_permission_status('${restSwapId}'::uuid);
+  `);
+  assert(statusRes4.rows[0].get_chat_permission_status.status === 'accepted', 'Participant status updated to accepted');
+
+  // User B sends message NOW -> MUST SUCCEED!
+  await db.query(`
+    INSERT INTO public.swap_messages (swap_id, sender_id, recipient_id, body)
+    VALUES ('${restSwapId}'::uuid, '${userB}'::uuid, '${userA}'::uuid, 'Authorized chat message after approval!');
+  `);
+  const appMsg = await db.query<{ body: string }>(`SELECT body FROM public.swap_messages WHERE swap_id = '${restSwapId}';`);
+  assert(appMsg.rows[0].body.includes('Authorized chat message'), 'Authorized message persisted successfully');
+
+  // 18b: Testing Decline Workflow
+  // User A creates Swap 10 with restrictive chat permission
+  await setAuthUser(userA);
+  swapRes = await db.query<{ swap_id: string }>(`
+    SELECT public.create_credit_swap('Decline Test Swap', 'Desc', 'Reqs', 'requester', 10, ARRAY['Coding']::text[], NULL, 'swap_create:op_decline_chat') AS swap_id;
+  `);
+  const declineSwapId = swapRes.rows[0].swap_id;
+
+  await setAuthUser(userB);
+  await db.query(`SELECT public.accept_credit_swap('${declineSwapId}'::uuid);`);
+  await db.query(`SELECT public.request_chat_access('${declineSwapId}'::uuid);`);
+
+  // User A declines request
+  await setAuthUser(userA);
+  await db.query(`SELECT public.respond_chat_request('${declineSwapId}'::uuid, 'decline');`);
+
+  // User B checks status -> MUST BE 'declined'
+  await setAuthUser(userB);
+  const statusRes5 = await db.query<{ get_chat_permission_status: { status: string } }>(`
+    SELECT public.get_chat_permission_status('${declineSwapId}'::uuid);
+  `);
+  assert(statusRes5.rows[0].get_chat_permission_status.status === 'declined', 'Status is declined');
+
+  // User B attempts to send message after decline -> MUST BE BLOCKED BY RLS!
+  errorCaught = false;
+  try {
+    await db.query(`
+      INSERT INTO public.swap_messages (swap_id, sender_id, recipient_id, body)
+      VALUES ('${declineSwapId}'::uuid, '${userB}'::uuid, '${userA}'::uuid, 'Message after decline');
+    `);
+  } catch (err: unknown) {
+    errorCaught = (err as Error).message.includes('permission denied') || (err as Error).message.includes('row-level security');
+  }
+  assert(errorCaught, 'Message attempt after decline blocked by RLS check');
+
+  // User B attempts to re-request after decline -> MUST BE REJECTED!
+  errorCaught = false;
+  try {
+    await db.query(`SELECT public.request_chat_access('${declineSwapId}'::uuid);`);
+  } catch (err: unknown) {
+    errorCaught = (err as Error).message.includes('declined by the requester');
+  }
+  assert(errorCaught, 'Duplicate request after decline rejected');
+
+  console.log('  -> Chat Permission Workflow & Database RLS Enforcement verified cleanly!');
 
   console.log('--- ALL SKILLSWAP CREDIT INTEGRATION & SECURITY TESTS PASSED PERFECTLY! ---');
 }
