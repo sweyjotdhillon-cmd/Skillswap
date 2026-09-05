@@ -176,7 +176,7 @@ function AppContent() {
     return <SwapRequestsPage onNavigate={navigate} />;
   }
 
-  if (path === '/create-swap') {
+  if (path === '/create-swap' || path === '/create-swap-preview') {
     return <CreateSwapPage onNavigate={navigate} />;
   }
 

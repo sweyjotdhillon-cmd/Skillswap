@@ -11,12 +11,8 @@ import {
   getSubmissionFileSignedUrl,
   getSwapAttachmentSignedUrl,
   downloadFileFromSignedUrl,
-  getChatPermissionStatus,
-  requestChatAccess,
-  respondChatRequest,
   type SwapRecord,
   type SwapAttachment,
-  type ChatPermissionStatusResult,
 } from '../lib/supabase/credits';
 import { mapSwapRecordToSwap, type Swap, type SwapSubmission } from '../types/swap';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
@@ -58,15 +54,12 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
   const [isMutating, setIsMutating] = useState(false);
 
-  // Selected swap submission, creator attachment & chat permission state
+  // Selected swap submission & creator attachment state
   const [currentSubmission, setCurrentSubmission] = useState<SwapSubmission | null>(null);
   const [submissionLoading, setSubmissionLoading] = useState(false);
   const [creatorAttachments, setCreatorAttachments] = useState<SwapAttachment[]>([]);
   const [creatorAttachmentsLoading, setCreatorAttachmentsLoading] = useState(false);
   const [showCreatorAttachments, setShowCreatorAttachments] = useState(true);
-  const [chatPermStatus, setChatPermStatus] = useState<ChatPermissionStatusResult | null>(null);
-  const [chatPermLoading, setChatPermLoading] = useState(false);
-  const [chatActionLoading, setChatActionLoading] = useState(false);
 
   // Download state
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
@@ -186,9 +179,6 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'swap_attachment_files' }, () => {
         void loadRealActiveSwaps();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'swap_chat_requests' }, () => {
-        void loadRealActiveSwaps();
-      })
       .subscribe();
 
     return () => {
@@ -212,12 +202,11 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   const currentSelectedSwapId = currentSelectedItem?.swap.id;
   const currentSelectedSwapStatus = currentSelectedItem?.swap.status;
 
-  // Load submission, creator attachments, and chat permission status whenever the selected swap ID or status changes
+  // Load submission and creator attachments whenever the selected swap ID or status changes
   useEffect(() => {
     let active = true;
     setCurrentSubmission(null);
     setCreatorAttachments([]);
-    setChatPermStatus(null);
     setDownloadError(null);
 
     if (!currentSelectedSwapId) return;
@@ -225,19 +214,16 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     const fetchDetailsData = async () => {
       setSubmissionLoading(true);
       setCreatorAttachmentsLoading(true);
-      setChatPermLoading(true);
 
-      const [subRes, attRes, permRes] = await Promise.all([
+      const [subRes, attRes] = await Promise.all([
         getSwapSubmission(currentSelectedSwapId),
         getSwapAttachments(currentSelectedSwapId),
-        getChatPermissionStatus(currentSelectedSwapId),
       ]);
 
       if (!active) return;
 
       setSubmissionLoading(false);
       setCreatorAttachmentsLoading(false);
-      setChatPermLoading(false);
 
       if (subRes.data) {
         setCurrentSubmission(subRes.data);
@@ -250,8 +236,6 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
       } else {
         setCreatorAttachments([]);
       }
-
-      setChatPermStatus(permRes);
     };
 
     void fetchDetailsData();
@@ -259,32 +243,6 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
       active = false;
     };
   }, [currentSelectedSwapId, currentSelectedSwapStatus]);
-
-  const handleRequestChatPermission = async (swapId: string) => {
-    setChatActionLoading(true);
-    const res = await requestChatAccess(swapId);
-    setChatActionLoading(false);
-    if (!res.success) {
-      setSubmitSuccessToast(res.error || 'Failed to request chat permission.');
-      return;
-    }
-    const updated = await getChatPermissionStatus(swapId);
-    setChatPermStatus(updated);
-    setSubmitSuccessToast('Chat access requested! Waiting for the requester to approve.');
-  };
-
-  const handleRespondChatPermission = async (swapId: string, action: 'accept' | 'decline') => {
-    setChatActionLoading(true);
-    const res = await respondChatRequest(swapId, action);
-    setChatActionLoading(false);
-    if (!res.success) {
-      setSubmitSuccessToast(res.error || 'Failed to respond to chat request.');
-      return;
-    }
-    const updated = await getChatPermissionStatus(swapId);
-    setChatPermStatus(updated);
-    setSubmitSuccessToast(`Chat access request ${action === 'accept' ? 'accepted' : 'declined'}.`);
-  };
 
   const handleOpenChat = (item: ActiveSwapItem) => {
     setActiveChatSwap(item);
@@ -795,47 +753,6 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     )}
                   </div>
 
-                  {/* CHAT PERMISSION WORKFLOW SECTION FOR PARTICIPANT */}
-                  <div className="as-detail-section" style={{ background: 'var(--bg-secondary, #f8fafc)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color, #e2e8f0)', marginBottom: '1.25rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-                      <div>
-                        <h4 className="as-section-subheading" style={{ margin: 0 }}>Chat Authorization</h4>
-                        <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                          {chatPermLoading
-                            ? 'Checking permissions...'
-                            : chatPermStatus?.status === 'allowed' || chatPermStatus?.status === 'accepted'
-                            ? 'Chat available'
-                            : chatPermStatus?.status === 'required'
-                            ? 'Chat permission required'
-                            : chatPermStatus?.status === 'pending'
-                            ? 'Chat access requested'
-                            : 'Chat access declined'}
-                        </p>
-                        {chatPermStatus?.status === 'pending' && (
-                          <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            Waiting for the requester to approve your request.
-                          </p>
-                        )}
-                        {chatPermStatus?.status === 'declined' && (
-                          <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: 'var(--error-color, #ef4444)' }}>
-                            The requester declined chat access for this swap.
-                          </p>
-                        )}
-                      </div>
-
-                      {chatPermStatus?.status === 'required' && (
-                        <button
-                          type="button"
-                          className="as-btn as-btn--primary"
-                          disabled={chatActionLoading}
-                          onClick={() => handleRequestChatPermission(currentAcceptedItem.swap.id)}
-                        >
-                          {chatActionLoading ? 'Requesting...' : 'Request Chat Access'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
                   {/* MAJOR ACTION BUTTONS */}
                   <div className="as-detail-actions-row">
                     {currentAcceptedItem.swap.status === 'accepted' && (
@@ -866,16 +783,6 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     <button
                       type="button"
                       className="as-btn as-btn--secondary"
-                      disabled={chatPermStatus?.status !== 'allowed' && chatPermStatus?.status !== 'accepted'}
-                      title={
-                        chatPermStatus?.status === 'required'
-                          ? 'Request Chat Access first'
-                          : chatPermStatus?.status === 'pending'
-                          ? 'Waiting for requester approval'
-                          : chatPermStatus?.status === 'declined'
-                          ? 'Chat access declined'
-                          : 'Open Chat'
-                      }
                       onClick={() => handleOpenChat(currentAcceptedItem)}
                     >
                       Chat
@@ -1048,49 +955,6 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     ) : (
                       <p className="as-section-body-text">No submission record found.</p>
                     )}
-                  </div>
-
-                  {/* CHAT PERMISSION WORKFLOW SECTION FOR REQUESTER */}
-                  <div className="as-detail-section" style={{ background: 'var(--bg-secondary, #f8fafc)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color, #e2e8f0)', marginBottom: '1.25rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-                      <div>
-                        <h4 className="as-section-subheading" style={{ margin: 0 }}>Participant Chat Access</h4>
-                        <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                          {chatPermLoading
-                            ? 'Checking status...'
-                            : chatPermStatus?.status === 'pending'
-                            ? 'Chat access request pending from participant'
-                            : chatPermStatus?.status === 'accepted'
-                            ? 'Chat access approved'
-                            : chatPermStatus?.status === 'declined'
-                            ? 'Chat access declined'
-                            : 'Chat available'}
-                        </p>
-                      </div>
-
-                      {chatPermStatus?.status === 'pending' && (
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button
-                            type="button"
-                            className="as-btn as-btn--primary"
-                            style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
-                            disabled={chatActionLoading}
-                            onClick={() => handleRespondChatPermission(currentGivenItem.swap.id, 'accept')}
-                          >
-                            {chatActionLoading ? 'Updating...' : 'Accept'}
-                          </button>
-                          <button
-                            type="button"
-                            className="as-btn as-btn--secondary"
-                            style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
-                            disabled={chatActionLoading}
-                            onClick={() => handleRespondChatPermission(currentGivenItem.swap.id, 'decline')}
-                          >
-                            {chatActionLoading ? 'Updating...' : 'Decline'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
                   </div>
 
                   {/* ABOUT THIS SWAP */}

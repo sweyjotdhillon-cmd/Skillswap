@@ -145,7 +145,6 @@ button:disabled,
 [data-theme='dark'] .mobile-drawer,
 [data-theme='dark'] .auth-card-container,
 [data-theme='dark'] .attachment-card,
-[data-theme='dark'] .permission-card,
 [data-theme='dark'] .swaps-empty-state,
 [data-theme='dark'] .sr-credits-card,
 [data-theme='dark'] .sr-quote-container,
@@ -186,7 +185,6 @@ button:disabled,
 [data-theme='dark'] .form-label,
 [data-theme='dark'] .dropzone-add-text,
 [data-theme='dark'] .attachment-name,
-[data-theme='dark'] .permission-title,
 [data-theme='dark'] .available-swaps-title,
 [data-theme='dark'] .swap-author-name,
 [data-theme='dark'] .swap-need-title,
@@ -233,7 +231,6 @@ button:disabled,
 [data-theme='dark'] .auth-footer-text,
 [data-theme='dark'] .form-helper-text,
 [data-theme='dark'] .dropzone-subtext,
-[data-theme='dark'] .permission-description,
 [data-theme='dark'] .available-swaps-subtitle,
 [data-theme='dark'] .as-section-body-text,
 [data-theme='dark'] .sr-quote-text,
@@ -442,11 +439,6 @@ button:disabled,
 [data-theme='dark'] .dropzone:hover {
   background: rgba(214, 166, 74, 0.1);
   border-color: #d6a64a;
-}
-
-[data-theme='dark'] .permission-card--selected {
-  border-color: #d6a64a;
-  background: rgba(214, 166, 74, 0.1);
 }
 
 [data-theme='dark'] .credits-stepper {
@@ -1896,88 +1888,6 @@ h1 span { color: #a8781d; }
 .attachment-remove-btn svg {
   width: 16px;
   height: 16px;
-}
-
-/* Chat Permission Cards */
-.permission-cards-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-.permission-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.85rem;
-  padding: 1.25rem;
-  background: #ffffff;
-  border: 1.5px solid rgba(17, 22, 28, 0.12);
-  border-radius: 16px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-}
-
-.permission-card:hover, .permission-card:focus-visible {
-  border-color: rgba(17, 22, 28, 0.3);
-  outline: none;
-}
-
-.permission-card--selected {
-  border-color: #11161c;
-  background: #ffffff;
-  box-shadow: 0 4px 16px rgba(17, 22, 28, 0.06);
-}
-
-.permission-card--error {
-  border-color: #dc2626;
-}
-
-.permission-radio-indicator {
-  padding-top: 2px;
-  flex-shrink: 0;
-}
-
-.radio-circle {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 2px solid rgba(17, 22, 28, 0.3);
-  display: grid;
-  place-items: center;
-  transition: border-color 0.2s ease;
-}
-
-.radio-circle--checked {
-  border-color: #11161c;
-}
-
-.radio-circle--checked::after {
-  content: '';
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #11161c;
-}
-
-.permission-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.permission-title {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #11161c;
-}
-
-.permission-description {
-  margin: 0;
-  font-size: 0.85rem;
-  color: rgba(17, 22, 28, 0.6);
-  line-height: 1.4;
 }
 
 /* Credits Stepper */
@@ -4691,10 +4601,6 @@ h1 span { color: #a8781d; }
 }
 
 @media (max-width: 768px) {
-  .permission-cards-grid {
-    grid-template-columns: 1fr;
-  }
-
   .attachment-list {
     grid-template-columns: 1fr;
   }

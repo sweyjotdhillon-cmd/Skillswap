@@ -45,7 +45,6 @@ export interface SwapRecord {
   description: string;
   requirements: string;
   additional_message: string | null;
-  chat_permission: 'requester' | 'participant' | 'anyone';
   credit_amount: number;
   tags?: string[];
   status: 'open' | 'accepted' | 'submitted' | 'completed' | 'cancelled' | 'declined' | 'withdrawn' | 'expired';
@@ -71,7 +70,6 @@ export interface CreateCreditSwapInput {
   topic: string;
   description: string;
   requirements: string;
-  chatPermission: 'requester' | 'participant' | 'anyone';
   creditAmount: number;
   tags: string[];
   additionalMessage?: string;
@@ -100,7 +98,6 @@ export async function createCreditSwap(input: CreateCreditSwapInput): Promise<{ 
     p_topic: input.topic,
     p_description: input.description,
     p_requirements: input.requirements,
-    p_chat_permission: input.chatPermission,
     p_credit_amount: input.creditAmount,
     p_tags: input.tags,
     p_additional_message: input.additionalMessage || null,
@@ -111,7 +108,6 @@ export async function createCreditSwap(input: CreateCreditSwapInput): Promise<{ 
       error,
       input: {
         topic: input.topic,
-        chatPermission: input.chatPermission,
         creditAmount: input.creditAmount,
         tags: input.tags,
         idempotencyKey,
@@ -669,85 +665,6 @@ export async function getSwapMessages(swapId: string): Promise<{ data: SwapMessa
   }
 }
 
-export interface ChatPermissionStatusResult {
-  success: boolean;
-  swapId?: string;
-  chatPermission?: 'requester' | 'participant' | 'anyone';
-  status?: 'allowed' | 'required' | 'pending' | 'accepted' | 'declined';
-  isRequester?: boolean;
-  isParticipant?: boolean;
-  error?: string;
-}
-
-/** Requests chat access for a restrictive swap. */
-export async function requestChatAccess(swapId: string): Promise<{ success: boolean; status?: 'pending' | 'accepted' | 'declined'; error?: string }> {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
-
-  try {
-    const { data, error } = await supabase.rpc('request_chat_access', { p_swap_id: swapId });
-    if (error || !data) {
-      console.error('[requestChatAccess] RPC error:', error);
-      return { success: false, error: formatFriendlyErrorMessage(error ?? new Error('Failed to request chat access.')) };
-    }
-    const res = data as { success?: boolean; status?: 'pending' | 'accepted' | 'declined'; error?: string };
-    if (!res.success) {
-      return { success: false, error: res.error || 'Failed to request chat access.' };
-    }
-    return { success: true, status: res.status };
-  } catch (err) {
-    console.error('[requestChatAccess] exception:', err);
-    return { success: false, error: err instanceof Error ? err.message : 'Unexpected chat access request error.' };
-  }
-}
-
-/** Accepts or declines a participant chat access request. */
-export async function respondChatRequest(swapId: string, action: 'accept' | 'decline'): Promise<{ success: boolean; status?: 'accepted' | 'declined'; error?: string }> {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
-
-  try {
-    const { data, error } = await supabase.rpc('respond_chat_request', { p_swap_id: swapId, p_action: action });
-    if (error || !data) {
-      console.error('[respondChatRequest] RPC error:', error);
-      return { success: false, error: formatFriendlyErrorMessage(error ?? new Error('Failed to respond to chat request.')) };
-    }
-    const res = data as { success?: boolean; status?: 'accepted' | 'declined'; error?: string };
-    if (!res.success) {
-      return { success: false, error: res.error || 'Failed to respond to chat request.' };
-    }
-    return { success: true, status: res.status };
-  } catch (err) {
-    console.error('[respondChatRequest] exception:', err);
-    return { success: false, error: err instanceof Error ? err.message : 'Unexpected chat request response error.' };
-  }
-}
-
-/** Fetches current chat permission authorization state for a swap. */
-export async function getChatPermissionStatus(swapId: string): Promise<ChatPermissionStatusResult> {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
-
-  try {
-    const { data, error } = await supabase.rpc('get_chat_permission_status', { p_swap_id: swapId });
-    if (error || !data) {
-      console.error('[getChatPermissionStatus] RPC error:', error);
-      return { success: false, error: formatFriendlyErrorMessage(error ?? new Error('Failed to fetch chat permission status.')) };
-    }
-    const res = data as Record<string, unknown>;
-    return {
-      success: Boolean(res.success),
-      swapId: typeof res.swap_id === 'string' ? res.swap_id : swapId,
-      chatPermission: res.chat_permission as 'requester' | 'participant' | 'anyone',
-      status: res.status as 'allowed' | 'required' | 'pending' | 'accepted' | 'declined',
-      isRequester: Boolean(res.is_requester),
-      isParticipant: Boolean(res.is_participant),
-    };
-  } catch (err) {
-    console.error('[getChatPermissionStatus] exception:', err);
-    return { success: false, error: err instanceof Error ? err.message : 'Unexpected chat permission error.' };
-  }
-}
 
 export async function sendSwapMessage(
   swapId: string,

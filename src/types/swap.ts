@@ -10,8 +10,6 @@ export type SwapStatus =
   | 'withdrawn'
   | 'expired';
 
-export type ChatPermission = 'requester' | 'participant' | 'anyone';
-
 export interface SwapProfile {
   fullName: string;
   username: string;
@@ -26,7 +24,6 @@ export interface Swap {
   description: string;
   requirements: string;
   additionalMessage: string | null;
-  chatPermission: ChatPermission;
   creditAmount: number;
   tags: string[];
   status: SwapStatus;
@@ -85,7 +82,6 @@ export function mapSwapRecordToSwap(record: SwapRecord): Swap {
     description: record.description,
     requirements: record.requirements,
     additionalMessage: record.additional_message,
-    chatPermission: record.chat_permission,
     creditAmount: record.credit_amount,
     tags: Array.isArray(record.tags) ? record.tags : [],
     status: record.status,
