@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { CreateSwapHeader } from '../components/create-swap/CreateSwapHeader';
 import { TopicField } from '../components/create-swap/TopicField';
+import { TagSelectionField } from '../components/create-swap/TagSelectionField';
 import { DescriptionField } from '../components/create-swap/DescriptionField';
 import { AttachmentUploader, AttachmentItem } from '../components/create-swap/AttachmentUploader';
 import { ChatPermissionSelector, ChatPermissionValue } from '../components/create-swap/ChatPermissionSelector';
@@ -16,6 +17,7 @@ import { generateUUID } from '../lib/uuid';
 
 export interface CreateSwapFormState {
   topic: string;
+  tags: string[];
   description: string;
   attachments: AttachmentItem[];
   chatPermission: ChatPermissionValue;
@@ -26,6 +28,7 @@ export interface CreateSwapFormState {
 
 export interface FormErrors {
   topic?: string;
+  tags?: string;
   description?: string;
   chatPermission?: string;
   credits?: string;
@@ -47,6 +50,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         const parsed = JSON.parse(saved);
         return {
           topic: parsed.topic || '',
+          tags: Array.isArray(parsed.tags) ? parsed.tags : [],
           description: parsed.description || '',
           attachments: [],
           chatPermission: parsed.chatPermission || null,
@@ -60,6 +64,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
     }
     return {
       topic: '',
+      tags: [],
       description: '',
       attachments: [],
       chatPermission: null,
@@ -113,6 +118,10 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       newErrors.topic = 'Please add a topic.';
     }
 
+    if (!formState.tags || formState.tags.length === 0) {
+      newErrors.tags = 'Please select at least one tag.';
+    }
+
     if (!formState.description.trim()) {
       newErrors.description = 'Please describe your swap.';
     }
@@ -144,6 +153,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
     try {
       const draftData = {
         topic: formState.topic.trim(),
+        tags: formState.tags,
         description: formState.description.trim(),
         chatPermission: formState.chatPermission,
         credits: formState.credits.trim(),
@@ -186,6 +196,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         requirements: formState.requirements.trim(),
         chatPermission: formState.chatPermission === 'permission' ? 'requester' : 'anyone',
         creditAmount: amount,
+        tags: formState.tags,
         additionalMessage: formState.additionalMessage.trim(),
         idempotencyKey: activeIdempotencyKeyRef.current,
       });
@@ -232,6 +243,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       // Reset form state to clear draft
       setFormState({
         topic: '',
+        tags: [],
         description: '',
         attachments: [],
         chatPermission: null,
@@ -345,6 +357,15 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
                   if (errors.topic) setErrors((prev) => ({ ...prev, topic: undefined }));
                 }}
                 error={errors.topic}
+              />
+
+              <TagSelectionField
+                selectedTags={formState.tags}
+                onChange={(tags) => {
+                  setFormState((prev) => ({ ...prev, tags }));
+                  if (errors.tags) setErrors((prev) => ({ ...prev, tags: undefined }));
+                }}
+                error={errors.tags}
               />
 
               <DescriptionField

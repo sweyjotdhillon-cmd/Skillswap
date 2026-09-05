@@ -7,23 +7,12 @@ import {
   acceptCreditSwap,
 } from '../lib/supabase/credits';
 import { mapSwapRecordToSwap, type Swap } from '../types/swap';
+import { ALLOWED_SWAP_TAGS } from '../constants/tags';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 
-const CATEGORIES = [
-  'All',
-  'Design',
-  'Coding',
-  'Writing',
-  'Photography',
-  'Video Editing',
-  'Marketing',
-  'Music',
-  'Languages',
-  'Career',
-  'Fitness',
-];
+const CATEGORIES = ['All', ...ALLOWED_SWAP_TAGS];
 
 type ExploreSwapsPageProps = {
   onNavigate?: (path: string) => void;
@@ -75,10 +64,19 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
   const filteredSwaps = swaps.filter((swap) => {
     const categoryLower = selectedCategory.toLowerCase();
-    const matchesCategory =
-      selectedCategory === 'All' ||
-      swap.topic.toLowerCase().includes(categoryLower) ||
-      swap.description.toLowerCase().includes(categoryLower);
+    const hasTags = Array.isArray(swap.tags) && swap.tags.length > 0;
+
+    let matchesTag = selectedCategory === 'All';
+    if (!matchesTag) {
+      if (hasTags) {
+        matchesTag = swap.tags.some((t) => t.toLowerCase() === categoryLower);
+      } else {
+        // Fallback for legacy swaps that do not have tags
+        matchesTag =
+          swap.topic.toLowerCase().includes(categoryLower) ||
+          swap.description.toLowerCase().includes(categoryLower);
+      }
+    }
 
     const query = searchTerm.toLowerCase().trim();
     const requesterName = (swap.requesterProfile?.fullName || swap.requesterProfile?.username || '').toLowerCase();
@@ -86,9 +84,10 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
       !query ||
       swap.topic.toLowerCase().includes(query) ||
       swap.description.toLowerCase().includes(query) ||
-      requesterName.includes(query);
+      requesterName.includes(query) ||
+      (Array.isArray(swap.tags) && swap.tags.some((t) => t.toLowerCase().includes(query)));
 
-    return matchesCategory && matchesSearch;
+    return matchesTag && matchesSearch;
   });
 
   const handleOpenChat = (swap: Swap) => {
@@ -174,7 +173,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                 className={`category-pill ${selectedCategory === category ? 'category-pill--active' : ''}`}
                 onClick={() => setSelectedCategory(category)}
               >
-                {category}
+                {category === 'All' ? 'All Swaps' : `#${category}`}
               </button>
             ))}
           </div>
@@ -223,6 +222,27 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                         <div className="swap-need-details">
                           <h3 className="swap-need-title">{swap.topic}</h3>
                           <p className="swap-description">{swap.description}</p>
+
+                          {swap.tags && swap.tags.length > 0 && (
+                            <div className="swap-tags-row" style={{ marginTop: '0.5rem' }}>
+                              {swap.tags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className={`swap-tag ${selectedCategory === tag ? 'swap-tag--active' : ''}`}
+                                  style={{
+                                    cursor: 'pointer',
+                                    fontWeight: selectedCategory === tag ? 600 : 400,
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedCategory(tag);
+                                  }}
+                                >
+                                  #{tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
 

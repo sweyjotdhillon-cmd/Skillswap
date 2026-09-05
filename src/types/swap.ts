@@ -28,6 +28,7 @@ export interface Swap {
   additionalMessage: string | null;
   chatPermission: ChatPermission;
   creditAmount: number;
+  tags: string[];
   status: SwapStatus;
   idempotencyKey?: string | null;
   submittedAt: string | null;
@@ -86,6 +87,7 @@ export function mapSwapRecordToSwap(record: SwapRecord): Swap {
     additionalMessage: record.additional_message,
     chatPermission: record.chat_permission,
     creditAmount: record.credit_amount,
+    tags: Array.isArray(record.tags) ? record.tags : [],
     status: record.status,
     idempotencyKey: record.idempotency_key ?? null,
     submittedAt: record.submitted_at,
