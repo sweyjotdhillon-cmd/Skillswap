@@ -126,6 +126,7 @@ export async function runCreditSystemTests() {
     '023_storage_bucket_mime_type_configuration.sql',
     '023_fix_creator_attachment_registration.sql',
     '024_fix_nul_character_in_register_swap_attachment.sql',
+    '025_add_tags_to_swaps.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -192,7 +193,7 @@ export async function runCreditSystemTests() {
   let swapRes = await db.query<{ swap_id: string }>(`
     SELECT public.create_credit_swap(
       'React Consulting', 'Provide React code review', 'Need React expert',
-      'anyone', 20, 'Looking forward', '${swapKey1}'
+      'anyone', 20, ARRAY['Coding']::text[], 'Looking forward', '${swapKey1}'
     ) AS swap_id;
   `);
   const swap1Id = swapRes.rows[0].swap_id;
@@ -210,7 +211,7 @@ export async function runCreditSystemTests() {
   swapRes = await db.query<{ swap_id: string }>(`
     SELECT public.create_credit_swap(
       'React Consulting', 'Provide React code review', 'Need React expert',
-      'anyone', 20, 'Looking forward', '${swapKey1}'
+      'anyone', 20, ARRAY['Coding']::text[], 'Looking forward', '${swapKey1}'
     ) AS swap_id;
   `);
   const duplicateSwapId = swapRes.rows[0].swap_id;
@@ -236,7 +237,7 @@ export async function runCreditSystemTests() {
     await db.query(`
       SELECT public.create_credit_swap(
         'Huge Task', 'Needs 200 credits', 'Requirements',
-        'anyone', 200, NULL, 'swap_create:op_excessive'
+        'anyone', 200, ARRAY['Coding']::text[], NULL, 'swap_create:op_excessive'
       );
     `);
   } catch (err: unknown) {
@@ -284,7 +285,7 @@ export async function runCreditSystemTests() {
   swapRes = await db.query<{ swap_id: string }>(`
     SELECT public.create_credit_swap(
       'TypeScript Mentoring', 'Provide TS guidance', 'Beginner friendly',
-      'anyone', 20, NULL, 'swap_create:op_test_2'
+      'anyone', 20, ARRAY['Coding']::text[], NULL, 'swap_create:op_test_2'
     ) AS swap_id;
   `);
   const swap2Id = swapRes.rows[0].swap_id;
@@ -456,12 +457,12 @@ export async function runCreditSystemTests() {
   const [cRes1, cRes2] = await Promise.all([
     db.query<{ swap_id: string }>(`
       SELECT public.create_credit_swap(
-        'Concurrent Topic 1', 'Desc', 'Reqs', 'anyone', 15, NULL, '${concKey1}'
+        'Concurrent Topic 1', 'Desc', 'Reqs', 'anyone', 15, ARRAY['Coding']::text[], NULL, '${concKey1}'
       ) AS swap_id;
     `),
     db.query<{ swap_id: string }>(`
       SELECT public.create_credit_swap(
-        'Concurrent Topic 1', 'Desc', 'Reqs', 'anyone', 15, NULL, '${concKey1}'
+        'Concurrent Topic 1', 'Desc', 'Reqs', 'anyone', 15, ARRAY['Coding']::text[], NULL, '${concKey1}'
       ) AS swap_id;
     `),
   ]);
@@ -478,10 +479,10 @@ export async function runCreditSystemTests() {
   // User A currently has 65 available. Attempting two simultaneous creations of 50 credits each.
   const concResults = await Promise.allSettled([
     db.query<{ swap_id: string }>(`
-      SELECT public.create_credit_swap('Concurrent A', 'Desc', 'Reqs', 'anyone', 50, NULL, 'swap_create:op_conc_a') AS swap_id;
+      SELECT public.create_credit_swap('Concurrent A', 'Desc', 'Reqs', 'anyone', 50, ARRAY['Coding']::text[], NULL, 'swap_create:op_conc_a') AS swap_id;
     `),
     db.query<{ swap_id: string }>(`
-      SELECT public.create_credit_swap('Concurrent B', 'Desc', 'Reqs', 'anyone', 50, NULL, 'swap_create:op_conc_b') AS swap_id;
+      SELECT public.create_credit_swap('Concurrent B', 'Desc', 'Reqs', 'anyone', 50, ARRAY['Coding']::text[], NULL, 'swap_create:op_conc_b') AS swap_id;
     `),
   ]);
 
@@ -498,7 +499,7 @@ export async function runCreditSystemTests() {
   // Create Swap 3 (10 credits), User B accepts and submits, User A completes concurrently
   swapRes = await db.query<{ swap_id: string }>(`
     SELECT public.create_credit_swap(
-      'Concurrent Settlement Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_conc_settle'
+      'Concurrent Settlement Swap', 'Desc', 'Reqs', 'anyone', 10, ARRAY['Coding']::text[], NULL, 'swap_create:op_conc_settle'
     ) AS swap_id;
   `);
   const swap3Id = swapRes.rows[0].swap_id;
@@ -541,7 +542,7 @@ export async function runCreditSystemTests() {
   await setAuthUser(userA);
   swapRes = await db.query<{ swap_id: string }>(`
     SELECT public.create_credit_swap(
-      'Concurrent Cancel Swap', 'Desc', 'Reqs', 'anyone', 5, NULL, 'swap_create:op_conc_cancel'
+      'Concurrent Cancel Swap', 'Desc', 'Reqs', 'anyone', 5, ARRAY['Coding']::text[], NULL, 'swap_create:op_conc_cancel'
     ) AS swap_id;
   `);
   const swap4Id = swapRes.rows[0].swap_id;
@@ -623,7 +624,7 @@ export async function runCreditSystemTests() {
   await setAuthUser(userA);
   swapRes = await db.query<{ swap_id: string }>(`
     SELECT public.create_credit_swap(
-      'Abandoned Swap', 'Desc', 'Reqs', 'anyone', 15, NULL, 'swap_create:op_test_expire'
+      'Abandoned Swap', 'Desc', 'Reqs', 'anyone', 15, ARRAY['Coding']::text[], NULL, 'swap_create:op_test_expire'
     ) AS swap_id;
   `);
   const expireSwapId = swapRes.rows[0].swap_id;
@@ -635,7 +636,7 @@ export async function runCreditSystemTests() {
   // 12a-1: Verify that supplying p_swap_id on a FRESH swap (created 1 day ago) DOES NOT bypass the 30-day cutoff
   await setAuthUser(userA);
   const freshSwapRes = await db.query<{ swap_id: string }>(`
-    SELECT public.create_credit_swap('Fresh Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_fresh_expire') AS swap_id;
+    SELECT public.create_credit_swap('Fresh Swap', 'Desc', 'Reqs', 'anyone', 10, ARRAY['Coding']::text[], NULL, 'swap_create:op_fresh_expire') AS swap_id;
   `);
   const freshSwapId = freshSwapRes.rows[0].swap_id;
   await setSuperuser();
@@ -670,7 +671,7 @@ export async function runCreditSystemTests() {
   await setAuthUser(userA);
   swapRes = await db.query<{ swap_id: string }>(`
     SELECT public.create_credit_swap(
-      'Review Timeout Swap', 'Desc', 'Reqs', 'anyone', 20, NULL, 'swap_create:op_test_timeout'
+      'Review Timeout Swap', 'Desc', 'Reqs', 'anyone', 20, ARRAY['Coding']::text[], NULL, 'swap_create:op_test_timeout'
     ) AS swap_id;
   `);
   const timeoutSwapId = swapRes.rows[0].swap_id;
@@ -890,7 +891,7 @@ export async function runCreditSystemTests() {
   // Create Swap 5 for User A, accepted by User B
   await setAuthUser(userA);
   swapRes = await db.query<{ swap_id: string }>(`
-    SELECT public.create_credit_swap('Text Only Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_sub_text') AS swap_id;
+    SELECT public.create_credit_swap('Text Only Swap', 'Desc', 'Reqs', 'anyone', 10, ARRAY['Coding']::text[], NULL, 'swap_create:op_sub_text') AS swap_id;
   `);
   const swapSubTextId = swapRes.rows[0].swap_id;
 
@@ -918,7 +919,7 @@ export async function runCreditSystemTests() {
   // Create Swap 6 for User A, accepted by User B (testing JPG file upload)
   await setAuthUser(userA);
   swapRes = await db.query<{ swap_id: string }>(`
-    SELECT public.create_credit_swap('JPG Image Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_sub_jpg') AS swap_id;
+    SELECT public.create_credit_swap('JPG Image Swap', 'Desc', 'Reqs', 'anyone', 10, ARRAY['Coding']::text[], NULL, 'swap_create:op_sub_jpg') AS swap_id;
   `);
   const swapSubJpgId = swapRes.rows[0].swap_id;
 
@@ -959,7 +960,7 @@ export async function runCreditSystemTests() {
   // Create Swap 6b for User A, accepted by User B (testing Document PDF file upload)
   await setAuthUser(userA);
   swapRes = await db.query<{ swap_id: string }>(`
-    SELECT public.create_credit_swap('PDF Document Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_sub_pdf') AS swap_id;
+    SELECT public.create_credit_swap('PDF Document Swap', 'Desc', 'Reqs', 'anyone', 10, ARRAY['Coding']::text[], NULL, 'swap_create:op_sub_pdf') AS swap_id;
   `);
   const swapSubPdfId = swapRes.rows[0].swap_id;
 
@@ -1000,7 +1001,7 @@ export async function runCreditSystemTests() {
   // Create Swap 7 for User A, accepted by User B
   await setAuthUser(userA);
   swapRes = await db.query<{ swap_id: string }>(`
-    SELECT public.create_credit_swap('Empty Sub Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_sub_empty') AS swap_id;
+    SELECT public.create_credit_swap('Empty Sub Swap', 'Desc', 'Reqs', 'anyone', 10, ARRAY['Coding']::text[], NULL, 'swap_create:op_sub_empty') AS swap_id;
   `);
   const swapSubEmptyId = swapRes.rows[0].swap_id;
 
@@ -1119,7 +1120,7 @@ export async function runCreditSystemTests() {
   // User A creates Swap 8
   await setAuthUser(userA);
   swapRes = await db.query<{ swap_id: string }>(`
-    SELECT public.create_credit_swap('Creator Attachments Swap', 'Desc', 'Reqs', 'anyone', 10, NULL, 'swap_create:op_creator_att') AS swap_id;
+    SELECT public.create_credit_swap('Creator Attachments Swap', 'Desc', 'Reqs', 'anyone', 10, ARRAY['Coding']::text[], NULL, 'swap_create:op_creator_att') AS swap_id;
   `);
   const swapAttId = swapRes.rows[0].swap_id;
 
