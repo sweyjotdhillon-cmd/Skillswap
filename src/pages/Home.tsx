@@ -106,7 +106,7 @@ export function Home({ onNavigate }: HomeProps) {
             </div>
             <h3 className="step-title">Exchange & Collaborate</h3>
             <p className="step-body">
-              Connect with talented peers across design, engineering, and writing. Chat directly or with permission to execute the work.
+              Connect with talented peers across design, engineering, and writing. Chat directly to execute the work.
             </p>
           </div>
 

@@ -37,6 +37,7 @@ DECLARE
   v_op_key text;
   v_tag text;
   v_allowed_tags text[] := ARRAY[
+    -- Display Labels
     'Design',
     'Coding',
     'Writing',
@@ -47,7 +48,19 @@ DECLARE
     'Languages',
     'Career',
     'Fitness',
-    'Other'
+    'Other',
+    -- Canonical Slugs
+    'design',
+    'coding',
+    'writing',
+    'photography',
+    'video-editing',
+    'marketing',
+    'music',
+    'languages',
+    'career',
+    'fitness',
+    'other'
   ];
 BEGIN
   IF v_user IS NULL THEN
@@ -143,7 +156,6 @@ $$;
 REVOKE ALL ON FUNCTION public.create_credit_swap(text, text, text, integer, text[], text, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.create_credit_swap(text, text, text, integer, text[], text, text) TO authenticated, service_role;
 
--- 6. Update Realtime RLS policy on realtime.messages
 -- 6. Update RLS policy on public.swap_messages
 DROP POLICY IF EXISTS "Participants can send swap messages" ON public.swap_messages;
 CREATE POLICY "Participants can send swap messages" ON public.swap_messages

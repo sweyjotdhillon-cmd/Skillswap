@@ -7,12 +7,12 @@ import {
   acceptCreditSwap,
 } from '../lib/supabase/credits';
 import { mapSwapRecordToSwap, type Swap } from '../types/swap';
-import { ALLOWED_SWAP_TAGS } from '../constants/tags';
+import { SWAP_TAG_OPTIONS, getTagLabel, getTagSlug } from '../constants/tags';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 
-const CATEGORIES = ['All', ...ALLOWED_SWAP_TAGS];
+const CATEGORIES = ['All', ...SWAP_TAG_OPTIONS.map((t) => t.label)];
 
 type ExploreSwapsPageProps = {
   onNavigate?: (path: string) => void;
@@ -63,18 +63,19 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   }, [loadRealOpenSwaps]);
 
   const filteredSwaps = swaps.filter((swap) => {
-    const categoryLower = selectedCategory.toLowerCase();
+    const selectedSlug = getTagSlug(selectedCategory);
     const hasTags = Array.isArray(swap.tags) && swap.tags.length > 0;
 
     let matchesTag = selectedCategory === 'All';
     if (!matchesTag) {
       if (hasTags) {
-        matchesTag = swap.tags.some((t) => t.toLowerCase() === categoryLower);
+        matchesTag = swap.tags.some((t) => getTagSlug(t) === selectedSlug);
       } else {
         // Fallback for legacy swaps that do not have tags
+        const catLower = selectedCategory.toLowerCase();
         matchesTag =
-          swap.topic.toLowerCase().includes(categoryLower) ||
-          swap.description.toLowerCase().includes(categoryLower);
+          swap.topic.toLowerCase().includes(catLower) ||
+          swap.description.toLowerCase().includes(catLower);
       }
     }
 
@@ -85,7 +86,8 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
       swap.topic.toLowerCase().includes(query) ||
       swap.description.toLowerCase().includes(query) ||
       requesterName.includes(query) ||
-      (Array.isArray(swap.tags) && swap.tags.some((t) => t.toLowerCase().includes(query)));
+      (Array.isArray(swap.tags) &&
+        swap.tags.some((t) => t.toLowerCase().includes(query) || getTagLabel(t).toLowerCase().includes(query)));
 
     return matchesTag && matchesSearch;
   });
@@ -195,7 +197,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
             <div className="swaps-empty-state">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="empty-icon">
                 <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12" />
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
               <h3>Unable to load open swaps</h3>
@@ -225,22 +227,26 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
                           {swap.tags && swap.tags.length > 0 && (
                             <div className="swap-tags-row" style={{ marginTop: '0.5rem' }}>
-                              {swap.tags.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className={`swap-tag ${selectedCategory === tag ? 'swap-tag--active' : ''}`}
-                                  style={{
-                                    cursor: 'pointer',
-                                    fontWeight: selectedCategory === tag ? 600 : 400,
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedCategory(tag);
-                                  }}
-                                >
-                                  #{tag}
-                                </span>
-                              ))}
+                              {swap.tags.map((tag) => {
+                                const label = getTagLabel(tag);
+                                const isSelected = getTagSlug(selectedCategory) === getTagSlug(tag);
+                                return (
+                                  <span
+                                    key={tag}
+                                    className={`swap-tag ${isSelected ? 'swap-tag--active' : ''}`}
+                                    style={{
+                                      cursor: 'pointer',
+                                      fontWeight: isSelected ? 600 : 400,
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedCategory(label);
+                                    }}
+                                  >
+                                    #{label}
+                                  </span>
+                                );
+                              })}
                             </div>
                           )}
                         </div>

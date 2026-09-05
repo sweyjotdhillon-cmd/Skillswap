@@ -354,6 +354,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     setSubmitError(null);
     setIsMutating(true);
 
+    let submitSuccess = false;
     try {
       const res = await submitSwapWorkWithFiles({
         swapId: currentAcceptedItem.swap.id,
@@ -366,8 +367,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         return;
       }
 
-      await refreshAccount();
-      await loadRealActiveSwaps();
+      submitSuccess = true;
 
       setIsSubmitWorkModalOpen(false);
       setSubmitWorkNotes('');
@@ -385,6 +385,15 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
       setSubmitError(errorMessage);
     } finally {
       setIsMutating(false);
+    }
+
+    if (submitSuccess) {
+      try {
+        await refreshAccount();
+        await loadRealActiveSwaps();
+      } catch (refreshErr) {
+        console.warn('[SUBMISSION] Best-effort post-submission UI refresh failed:', refreshErr);
+      }
     }
   };
 

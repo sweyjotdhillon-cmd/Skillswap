@@ -485,12 +485,29 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
     return { success: false, error: formatSubmissionErrorMessage(error ?? new Error('Failed to submit swap work.')) };
   }
 
-  const result = data as { success?: boolean; submission_id?: string; error?: string };
-  if (!result.success) {
+  const resultObj = data as Record<string, unknown> | null;
+  let isSuccess = false;
+  let submissionId: string | undefined;
+
+  if (resultObj) {
+    if (typeof resultObj.success === 'boolean') {
+      isSuccess = resultObj.success;
+      submissionId = typeof resultObj.submission_id === 'string'
+        ? resultObj.submission_id
+        : (typeof resultObj.id === 'string' ? resultObj.id : undefined);
+    } else if (typeof resultObj.id === 'string' || typeof resultObj.submission_id === 'string') {
+      isSuccess = true;
+      submissionId = typeof resultObj.submission_id === 'string'
+        ? (resultObj.submission_id as string)
+        : (resultObj.id as string);
+    }
+  }
+
+  if (!isSuccess) {
     console.error('[SUBMISSION] submission RPC returned unsuccessful status', {
       operationName: 'rpc.submit_swap_work',
       swapId: input.swapId,
-      resultError: result.error,
+      resultError: resultObj?.error,
       returnedData: data,
     });
 
@@ -512,11 +529,11 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
         });
       }
     }
-    return { success: false, error: result.error || 'Failed to record submission.' };
+    return { success: false, error: (resultObj?.error as string) || 'Failed to record submission.' };
   }
 
-  console.log('[SUBMISSION] submission RPC completed', { submissionId: result.submission_id });
-  return { success: true, submissionId: result.submission_id };
+  console.log('[SUBMISSION] submission RPC completed', { submissionId });
+  return { success: true, submissionId };
 }
 
 /**

@@ -1,4 +1,4 @@
-import { ALLOWED_SWAP_TAGS, type SwapTag } from '../../constants/tags';
+import { SWAP_TAG_OPTIONS } from '../../constants/tags';
 
 type TagSelectionFieldProps = {
   selectedTags: string[];
@@ -7,11 +7,11 @@ type TagSelectionFieldProps = {
 };
 
 export function TagSelectionField({ selectedTags, onChange, error }: TagSelectionFieldProps) {
-  const toggleTag = (tag: SwapTag) => {
-    if (selectedTags.includes(tag)) {
-      onChange(selectedTags.filter((t) => t !== tag));
+  const toggleTag = (slug: string) => {
+    if (selectedTags.includes(slug)) {
+      onChange(selectedTags.filter((s) => s !== slug));
     } else {
-      onChange([...selectedTags, tag]);
+      onChange([...selectedTags, slug]);
     }
   };
 
@@ -33,11 +33,11 @@ export function TagSelectionField({ selectedTags, onChange, error }: TagSelectio
         role="group"
         aria-label="Select swap tags"
       >
-        {ALLOWED_SWAP_TAGS.map((tag) => {
-          const isSelected = selectedTags.includes(tag);
+        {SWAP_TAG_OPTIONS.map(({ label, slug }) => {
+          const isSelected = selectedTags.includes(slug) || selectedTags.includes(label);
           return (
             <button
-              key={tag}
+              key={slug}
               type="button"
               className={`category-pill ${isSelected ? 'category-pill--active' : ''}`}
               style={{
@@ -50,10 +50,10 @@ export function TagSelectionField({ selectedTags, onChange, error }: TagSelectio
                 alignItems: 'center',
                 gap: '0.25rem',
               }}
-              onClick={() => toggleTag(tag)}
+              onClick={() => toggleTag(slug)}
               aria-pressed={isSelected}
             >
-              <span>#{tag}</span>
+              <span>#{label}</span>
               {isSelected && <span style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>✓</span>}
             </button>
           );
