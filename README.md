@@ -169,8 +169,7 @@ skillswap/
 │   │   ├── Profile.tsx      # User profile & skills view
 │   │   ├── ResetPassword.tsx# Password reset token verification
 │   │   ├── Signup.tsx       # Sign-up view
-│   │   ├── SwapRequests.tsx # Incoming and outgoing request manager
-│   │   └── VerifyEmail.tsx  # Email verification prompt
+│   │   ├── ActiveSwaps.tsx  # Active swaps management, open listings & work submissions
 │   ├── styles/              # Global CSS foundation and theme variables
 │   ├── types/               # Canonical TypeScript interfaces (Swap, Profile, etc.)
 │   ├── App.tsx              # Router composition and route guards

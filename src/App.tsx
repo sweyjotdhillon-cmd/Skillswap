@@ -5,7 +5,6 @@ import { CreateSwapPage } from './pages/CreateSwap';
 import { ExploreSwapsPage } from './pages/ExploreSwaps';
 import { AboutPage } from './pages/About';
 import { HowItWorksPage } from './pages/HowItWorks';
-import { SwapRequestsPage } from './pages/SwapRequests';
 import { ActiveSwapsPage } from './pages/ActiveSwaps';
 import { LoginPage } from './pages/Login';
 import { SignupPage } from './pages/Signup';
@@ -17,7 +16,7 @@ import { OnboardingPage } from './pages/Onboarding';
 import { ProfilePage } from './pages/Profile';
 import { ThemeToggle } from './components/ui/ThemeToggle';
 
-const PROTECTED_ROUTES = ['/profile', '/create-swap', '/swap-requests', '/active-swaps', '/change-password'];
+const PROTECTED_ROUTES = ['/profile', '/create-swap', '/active-swaps', '/change-password'];
 
 function AppContent() {
   const [path, setPath] = useState(window.location.pathname);
@@ -43,10 +42,8 @@ function AppContent() {
       document.title = 'My Profile — SkillSwap';
     } else if (path === '/onboarding') {
       document.title = 'Complete Profile — SkillSwap';
-    } else if (path === '/active-swaps') {
+    } else if (path === '/active-swaps' || path === '/swap-requests') {
       document.title = 'Active Swaps — SkillSwap';
-    } else if (path === '/swap-requests') {
-      document.title = 'Swap Requests — SkillSwap';
     } else if (path === '/create-swap') {
       document.title = 'Create Swap — Skillswap';
     } else if (path === '/explore') {
@@ -174,7 +171,8 @@ function AppContent() {
   }
 
   if (path === '/swap-requests') {
-    return <SwapRequestsPage onNavigate={navigate} />;
+    window.history.replaceState({}, '', '/active-swaps');
+    return <ActiveSwapsPage onNavigate={navigate} />;
   }
 
   if (path === '/create-swap' || path === '/create-swap-preview') {

@@ -8,12 +8,14 @@ import {
   getSwapAttachments,
   submitSwapWorkWithFiles,
   completeCreditSwap,
+  cancelCreditSwap,
   getSubmissionFileSignedUrl,
   getSwapAttachmentSignedUrl,
   downloadFileFromSignedUrl,
   type SwapRecord,
   type SwapAttachment,
 } from '../lib/supabase/credits';
+import { getTagLabel } from '../constants/tags';
 import { mapSwapRecordToSwap, type Swap, type SwapSubmission } from '../types/swap';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
 
@@ -42,15 +44,17 @@ type ActiveSwapsPageProps = {
 
 export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   const { user, refreshAccount } = useAuth();
-  const [activeTab, setActiveTab] = useState<'accepted' | 'given'>('accepted');
+  const [activeTab, setActiveTab] = useState<'accepted' | 'given' | 'open'>('accepted');
 
   const [acceptedSwaps, setAcceptedSwaps] = useState<ActiveSwapItem[]>([]);
   const [givenSwaps, setGivenSwaps] = useState<ActiveSwapItem[]>([]);
+  const [openSwaps, setOpenSwaps] = useState<ActiveSwapItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [selectedAcceptedId, setSelectedAcceptedId] = useState<string>('');
   const [selectedGivenId, setSelectedGivenId] = useState<string>('');
+  const [selectedOpenId, setSelectedOpenId] = useState<string>('');
 
   const [isMutating, setIsMutating] = useState(false);
 
@@ -100,12 +104,37 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
       const accepted: ActiveSwapItem[] = [];
       const given: ActiveSwapItem[] = [];
+      const open: ActiveSwapItem[] = [];
 
       canonicalSwaps.forEach((swap) => {
-        if (['open', 'cancelled', 'declined', 'withdrawn', 'expired'].includes(swap.status)) return;
-
         const isRequester = swap.requesterId === user.id;
         const isParticipant = swap.participantId === user.id;
+
+        const createdDate = new Date(swap.createdAt).toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
+
+        // Open swaps created by the current user
+        if (isRequester && swap.status === 'open') {
+          open.push({
+            swap,
+            partner: {
+              userId: user.id,
+              name: 'You (Creator)',
+              username: '',
+              location: 'Open Listing',
+              avatar: DEFAULT_AVATAR,
+            },
+            isRequester: true,
+            isParticipant: false,
+            formattedDate: createdDate,
+          });
+          return;
+        }
+
+        if (['open', 'cancelled', 'declined', 'withdrawn', 'expired'].includes(swap.status)) return;
         if (!isRequester && !isParticipant) return;
 
         const partnerProfile = isRequester ? swap.participantProfile : swap.requesterProfile;
@@ -114,12 +143,6 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         const partnerUsername = partnerProfile?.username || '';
         const partnerAvatar = partnerProfile?.avatarUrl || DEFAULT_AVATAR;
         const partnerLocation = partnerUsername ? `@${partnerUsername}` : 'SkillSwap Network';
-
-        const createdDate = new Date(swap.createdAt).toLocaleDateString(undefined, {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        });
 
         const item: ActiveSwapItem = {
           swap,
@@ -148,6 +171,9 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
       setGivenSwaps(given);
       setSelectedGivenId((prev) => (prev && given.some((g) => g.swap.id === prev) ? prev : given[0]?.swap.id || ''));
+
+      setOpenSwaps(open);
+      setSelectedOpenId((prev) => (prev && open.some((o) => o.swap.id === prev) ? prev : open[0]?.swap.id || ''));
     } catch (err) {
       console.error('Error loading real active swaps:', err);
       setFetchError('Failed to load active swaps.');
@@ -197,7 +223,8 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   // Currently selected item getters
   const currentAcceptedItem = acceptedSwaps.find((s) => s.swap.id === selectedAcceptedId) || acceptedSwaps[0] || null;
   const currentGivenItem = givenSwaps.find((s) => s.swap.id === selectedGivenId) || givenSwaps[0] || null;
-  const currentSelectedItem = activeTab === 'accepted' ? currentAcceptedItem : currentGivenItem;
+  const currentOpenItem = openSwaps.find((s) => s.swap.id === selectedOpenId) || openSwaps[0] || null;
+  const currentSelectedItem = activeTab === 'accepted' ? currentAcceptedItem : activeTab === 'given' ? currentGivenItem : currentOpenItem;
 
   const currentSelectedSwapId = currentSelectedItem?.swap.id;
   const currentSelectedSwapStatus = currentSelectedItem?.swap.status;
@@ -419,6 +446,28 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     }, 5000);
   };
 
+  const handleCancelOpenSwap = async (item: ActiveSwapItem) => {
+    if (isMutating) return;
+
+    setIsMutating(true);
+    const res = await cancelCreditSwap(item.swap.id);
+    setIsMutating(false);
+
+    if (!res.success) {
+      setSubmitSuccessToast(res.error || 'Failed to cancel swap listing.');
+      return;
+    }
+
+    await refreshAccount();
+    await loadRealActiveSwaps();
+    setSubmitSuccessToast(`Swap listing "${item.swap.topic}" cancelled and reserved credits refunded.`);
+
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      if (isMountedRef.current) setSubmitSuccessToast(null);
+    }, 5000);
+  };
+
   return (
     <div className="page-shell active-swaps-shell">
       <Navbar onNavigate={onNavigate} showUserHeader={true} currentPath="/active-swaps" />
@@ -470,14 +519,24 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
               >
                 Given Swaps <span className="as-tab-count">{givenSwaps.length}</span>
               </button>
+
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'open'}
+                className={`as-tab-btn ${activeTab === 'open' ? 'as-tab-btn--active' : ''}`}
+                onClick={() => setActiveTab('open')}
+              >
+                My Open Swaps <span className="as-tab-count">{openSwaps.length}</span>
+              </button>
             </div>
 
             {/* SWAP CARDS LIST */}
             <div className="as-list-container">
               {isLoading ? (
-                <div className="sr-empty-state"><p>Loading active swaps...</p></div>
+                <div className="as-empty-state"><p>Loading active swaps...</p></div>
               ) : fetchError ? (
-                <div className="sr-empty-state">
+                <div className="as-empty-state">
                   <p style={{ color: 'var(--error-color, #ef4444)' }}>{fetchError}</p>
                   <button type="button" className="as-btn as-btn--secondary" onClick={loadRealActiveSwaps} style={{ marginTop: '0.5rem' }}>
                     Retry
@@ -485,7 +544,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                 </div>
               ) : activeTab === 'accepted' ? (
                 acceptedSwaps.length === 0 ? (
-                  <div className="sr-empty-state"><p>No accepted swaps found.</p></div>
+                  <div className="as-empty-state"><p>No accepted swaps found.</p></div>
                 ) : (
                   acceptedSwaps.map((item) => {
                     const isSelected = item.swap.id === selectedAcceptedId;
@@ -529,9 +588,9 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     );
                   })
                 )
-              ) : (
+              ) : activeTab === 'given' ? (
                 givenSwaps.length === 0 ? (
-                  <div className="sr-empty-state"><p>No given swaps found.</p></div>
+                  <div className="as-empty-state"><p>No given swaps found.</p></div>
                 ) : (
                   givenSwaps.map((item) => {
                     const isSelected = item.swap.id === selectedGivenId;
@@ -570,6 +629,49 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                             <span className="as-status-badge as-status-badge--waiting">
                               ● {submissionStatus}
                             </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )
+              ) : (
+                openSwaps.length === 0 ? (
+                  <div className="as-empty-state"><p>No open swap listings created.</p></div>
+                ) : (
+                  openSwaps.map((item) => {
+                    const isSelected = item.swap.id === selectedOpenId;
+
+                    return (
+                      <div
+                        key={item.swap.id}
+                        tabIndex={0}
+                        role="button"
+                        aria-pressed={isSelected}
+                        className={`as-list-card ${isSelected ? 'as-list-card--selected' : ''}`}
+                        onClick={() => setSelectedOpenId(item.swap.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedOpenId(item.swap.id);
+                          }
+                        }}
+                      >
+                        <div className="as-card-header-row">
+                          <div className="as-card-user">
+                            <div className="as-card-user-meta">
+                              <span className="as-card-user-name">{item.swap.topic}</span>
+                              <span className="as-card-time">{item.formattedDate}</span>
+                            </div>
+                          </div>
+                          <span className="as-status-badge as-status-badge--open">
+                            ● Open
+                          </span>
+                        </div>
+
+                        <div className="as-card-body">
+                          <div className="as-card-meta-row">
+                            <span className="as-card-credits">{item.swap.creditAmount} SkillCredits</span>
                           </div>
                         </div>
                       </div>
@@ -803,7 +905,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                   <p style={{ color: 'var(--text-secondary)' }}>No accepted swaps available.</p>
                 </div>
               )
-            ) : (
+            ) : activeTab === 'given' ? (
               currentGivenItem ? (
                 <div className="as-detail-card">
                   {/* PARTICIPANT HEADER */}
@@ -1024,6 +1126,135 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                   <p style={{ color: 'var(--text-secondary)' }}>No given swaps available.</p>
                 </div>
               )
+            ) : (
+              currentOpenItem ? (
+                <div className="as-detail-card">
+                  {/* OPEN SWAP HEADER */}
+                  <div className="as-detail-participant-header">
+                    <div>
+                      <h2 className="as-detail-user-name" style={{ fontSize: '1.4rem' }}>{currentOpenItem.swap.topic}</h2>
+                      <p className="as-detail-user-location">Created on {currentOpenItem.formattedDate}</p>
+                    </div>
+
+                    <span className="as-status-badge as-status-badge--large as-status-badge--open">
+                      ● Open Listing
+                    </span>
+                  </div>
+
+                  {/* SWAP DESCRIPTION */}
+                  <div className="as-detail-title-section">
+                    <p className="as-detail-swap-desc">{currentOpenItem.swap.description}</p>
+                  </div>
+
+                  {/* TAGS */}
+                  {currentOpenItem.swap.tags.length > 0 && (
+                    <div className="as-detail-section" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                      <h4 className="as-section-subheading">Tags</h4>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
+                        {currentOpenItem.swap.tags.map((tag) => (
+                          <span key={tag} className="swap-tag" style={{ cursor: 'default' }}>
+                            {getTagLabel(tag)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* HORIZONTAL STATS ROW */}
+                  <div className="as-stats-row">
+                    <div className="as-stat-item">
+                      <span className="as-stat-label">Credits Offsets / Escrow</span>
+                      <strong className="as-stat-value">{currentOpenItem.swap.creditAmount} SkillCredits</strong>
+                    </div>
+                    <div className="as-stat-item">
+                      <span className="as-stat-label">Created Date</span>
+                      <strong className="as-stat-value">{currentOpenItem.formattedDate}</strong>
+                    </div>
+                    <div className="as-stat-item">
+                      <span className="as-stat-label">Status</span>
+                      <strong className="as-stat-value">Available on Explore</strong>
+                    </div>
+                  </div>
+
+                  {/* REQUIREMENTS */}
+                  {currentOpenItem.swap.requirements && (
+                    <div className="as-detail-section">
+                      <h4 className="as-section-subheading">Requirements & Guidelines</h4>
+                      <p className="as-section-body-text">{currentOpenItem.swap.requirements}</p>
+                    </div>
+                  )}
+
+                  {/* CREATOR ATTACHMENTS (if present) */}
+                  {creatorAttachmentsLoading ? (
+                    <div className="as-detail-section">
+                      <h4 className="as-section-subheading">Listing Attachments</h4>
+                      <p className="as-section-body-text">Loading attachments...</p>
+                    </div>
+                  ) : creatorAttachments.length > 0 ? (
+                    <div className="as-detail-section">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <h4 className="as-section-subheading" style={{ margin: 0 }}>
+                          Your Attachments ({creatorAttachments.length})
+                        </h4>
+                        <button
+                          type="button"
+                          className="as-btn as-btn--secondary"
+                          style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}
+                          onClick={() => setShowCreatorAttachments((prev) => !prev)}
+                        >
+                          {showCreatorAttachments ? 'Hide Attachments ▲' : 'Show Attachments ▼'}
+                        </button>
+                      </div>
+                      {showCreatorAttachments && (
+                        <div className="attachment-list" style={{ marginTop: '0.5rem' }}>
+                          {creatorAttachments.map((att) => {
+                            const isDownloading = downloadingFileId === att.id;
+                            return (
+                              <div key={att.id} className="attachment-card" style={{ flexWrap: 'wrap' }}>
+                                <div className="attachment-info">
+                                  <span style={{ fontSize: '1.2rem', marginRight: '0.25rem' }}>📎</span>
+                                  <div className="attachment-details">
+                                    <span className="attachment-name" title={att.fileName}>{att.fileName}</span>
+                                    {att.fileSize ? (
+                                      <span className="attachment-size">{(att.fileSize / 1024).toFixed(1)} KB</span>
+                                    ) : null}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="as-btn as-btn--secondary"
+                                  style={{ padding: '0.35rem 0.85rem', fontSize: '0.825rem' }}
+                                  disabled={isDownloading}
+                                  onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false)}
+                                >
+                                  {isDownloading ? 'Downloading...' : 'Download'}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {/* MAJOR ACTION BUTTONS */}
+                  <div className="as-detail-actions-row">
+                    <button
+                      type="button"
+                      className="as-btn as-btn--secondary"
+                      disabled={isMutating}
+                      style={{ color: 'var(--error-color, #ef4444)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                      onClick={() => handleCancelOpenSwap(currentOpenItem)}
+                    >
+                      {isMutating ? 'Cancelling...' : 'Cancel Listing'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="as-detail-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
+                  <p style={{ color: 'var(--text-secondary)' }}>No open swaps available.</p>
+                </div>
+              )
             )}
           </section>
         </div>
@@ -1162,12 +1393,12 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
       {/* VIEW PROFILE MODAL */}
       {selectedProfileModal && (
         <div className="modal-overlay" onClick={() => setSelectedProfileModal(null)}>
-          <div className="modal-content sr-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="sr-profile-modal-header">
-              <img src={selectedProfileModal.avatar} alt={selectedProfileModal.name} className="sr-modal-avatar" />
+          <div className="modal-content as-profile-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="as-profile-modal-header">
+              <img src={selectedProfileModal.avatar} alt={selectedProfileModal.name} className="as-modal-avatar" />
               <div>
-                <h3 className="sr-modal-title">{selectedProfileModal.name}</h3>
-                <p className="sr-modal-subtitle">{selectedProfileModal.location}</p>
+                <h3 className="as-modal-title">{selectedProfileModal.name}</h3>
+                <p className="as-modal-subtitle">{selectedProfileModal.location}</p>
               </div>
               <button
                 type="button"
@@ -1178,8 +1409,8 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
               </button>
             </div>
 
-            <div className="sr-modal-body">
-              <p className="sr-modal-bio">{selectedProfileModal.bio || 'Active SkillSwap participant.'}</p>
+            <div className="as-modal-body">
+              <p className="as-modal-bio">{selectedProfileModal.bio || 'Active SkillSwap participant.'}</p>
             </div>
 
             <div className="modal-actions">
@@ -1198,7 +1429,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
       {/* VIEW DETAILS MODAL FOR GIVEN SWAP */}
       {selectedGivenDetailsModal && (
         <div className="modal-overlay" onClick={() => setSelectedGivenDetailsModal(null)}>
-          <div className="modal-content sr-modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content as-profile-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="chat-modal-header">
               <h3 className="chat-title">Given Swap Details</h3>
               <button
@@ -1210,24 +1441,24 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
               </button>
             </div>
 
-            <div className="sr-details-modal-body">
-              <div className="sr-detail-row">
+            <div className="as-details-modal-body">
+              <div className="as-detail-row">
                 <span>Participant:</span>
                 <strong>{selectedGivenDetailsModal.partner.name} ({selectedGivenDetailsModal.partner.location})</strong>
               </div>
-              <div className="sr-detail-row">
+              <div className="as-detail-row">
                 <span>Skill Topic:</span>
                 <strong>{selectedGivenDetailsModal.swap.topic}</strong>
               </div>
-              <div className="sr-detail-row">
+              <div className="as-detail-row">
                 <span>Credits Offered:</span>
                 <strong>{selectedGivenDetailsModal.swap.creditAmount} SkillCredits</strong>
               </div>
-              <div className="sr-detail-row">
+              <div className="as-detail-row">
                 <span>Accepted Date:</span>
                 <strong>{selectedGivenDetailsModal.formattedDate}</strong>
               </div>
-              <div className="sr-detail-row">
+              <div className="as-detail-row">
                 <span>Current Status:</span>
                 <span className={`as-status-badge as-status-badge--${selectedGivenDetailsModal.swap.status}`}>
                   ● {selectedGivenDetailsModal.swap.status}
