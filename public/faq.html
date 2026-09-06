@@ -182,23 +182,20 @@
       color: var(--text-color);
       text-decoration: none;
       flex-shrink: 0;
+      line-height: 1;
     }
 
-    .brand-mark {
-      width: 34px;
-      height: 34px;
-      fill: none;
-      stroke: #d6a64a;
-      stroke-width: 4;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      flex-shrink: 0;
+    .brand-logo-img {
+      display: block;
+      height: clamp(30px, 4vw, 38px);
+      width: auto;
+      max-width: 100%;
+      object-fit: contain;
+      transition: opacity 0.2s ease;
     }
 
-    .wordmark {
-      font-family: 'Playfair Display', Georgia, serif;
-      font-size: clamp(1.5rem, 2vw, 2.25rem);
-      color: var(--text-color);
+    .brand:hover .brand-logo-img {
+      opacity: 0.9;
     }
 
     .main-nav {

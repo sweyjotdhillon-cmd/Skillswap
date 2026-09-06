@@ -48,7 +48,12 @@ button:disabled,
 .sr-btn:disabled,
 .btn-save-draft:disabled,
 .modal-btn:disabled,
-.btn-request-swap:disabled {
+.btn-request-swap:disabled,
+.credit-retry-btn:disabled,
+.credit-close-action-btn:disabled,
+.chat-send-btn:disabled,
+.inline-add-custom-btn:disabled,
+.add-custom-skill-secondary-btn:disabled {
   cursor: not-allowed !important;
   transform: none !important;
   box-shadow: none !important;
@@ -73,7 +78,27 @@ button:disabled,
 .mobile-drawer-cta,
 .profile-edit-btn,
 .profile-manage-skills-btn,
-.onboarding-btn {
+.onboarding-btn,
+.btn-signout,
+.header-icon-btn,
+.nav-credit-indicator-btn,
+.credit-modal-close-btn,
+.credit-retry-btn,
+.credit-close-action-btn,
+.chat-send-btn,
+.chat-close-btn,
+.search-clear-btn,
+.attachment-remove-btn,
+.stepper-btn,
+.profile-empty-action-btn,
+.inline-add-custom-btn,
+.add-custom-skill-secondary-btn,
+.catalog-skill-card,
+.popular-skill-chip,
+.category-filter-chip,
+.as-tab-btn,
+.sr-tab-btn,
+.mobile-hamburger {
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
 }
 
@@ -94,7 +119,18 @@ button:disabled,
 .mobile-drawer-cta:active:not(:disabled),
 .profile-edit-btn:active:not(:disabled),
 .profile-manage-skills-btn:active:not(:disabled),
-.onboarding-btn:active:not(:disabled) {
+.onboarding-btn:active:not(:disabled),
+.btn-signout:active:not(:disabled),
+.header-icon-btn:active:not(:disabled),
+.nav-credit-indicator-btn:active:not(:disabled),
+.credit-modal-close-btn:active:not(:disabled),
+.credit-retry-btn:active:not(:disabled),
+.credit-close-action-btn:active:not(:disabled),
+.chat-send-btn:active:not(:disabled),
+.inline-add-custom-btn:active:not(:disabled),
+.add-custom-skill-secondary-btn:active:not(:disabled),
+.popular-skill-chip:active:not(:disabled),
+.category-filter-chip:active:not(:disabled) {
   transform: translateY(0) scale(0.98) !important;
 }
 
