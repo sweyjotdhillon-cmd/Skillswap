@@ -239,17 +239,7 @@ export function SwapChatModal({
           </button>
         </div>
 
-        <div
-          className="chat-messages-container"
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem',
-            overflowY: 'auto',
-            maxHeight: '400px',
-            padding: '1rem',
-          }}
-        >
+        <div className="chat-messages-container">
           {messages.length === 0 ? (
             <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
               No messages yet. Send a message to start conversing!
