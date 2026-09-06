@@ -971,8 +971,11 @@ button:disabled,
 .brand-mark { width: 34px; height: 34px; fill: none; stroke: #d6a64a; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
 .wordmark { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(1.5rem, 2vw, 2.25rem); }
 .main-nav { gap: clamp(1.5rem, 4vw, 4.5rem); margin-left: auto; font-size: .95rem; font-weight: 700; }
-.main-nav a { transition: color .2s ease; }
+.main-nav a { transition: color .2s ease, border-color .2s ease; padding: 0.25rem 0; border-bottom: 2px solid transparent; }
 .main-nav a:hover { color: #a8781d; }
+.main-nav a.nav-link--active { color: #a8781d; border-bottom-color: #a8781d; }
+[data-theme='dark'] .main-nav a:hover,
+[data-theme='dark'] .main-nav a.nav-link--active { color: #d6a64a; border-bottom-color: #d6a64a; }
 .header-cta { border-radius: 999px; background: #11161c; color: #fff; padding: .9rem 1.55rem; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); transition: transform .2s ease, background .2s ease; }
 .header-cta:hover { transform: translateY(-2px); background: #202832; }
 
@@ -1503,6 +1506,22 @@ h1 span { color: #a8781d; }
   font-size: 0.78rem;
   font-weight: 600;
   color: rgba(17, 22, 28, 0.7);
+}
+
+.swap-tag--active {
+  background: rgba(214, 166, 74, 0.18);
+  color: #a8781d;
+  font-weight: 700;
+}
+
+[data-theme='dark'] .swap-tag {
+  background: rgba(240, 246, 252, 0.08);
+  color: rgba(240, 246, 252, 0.8);
+}
+
+[data-theme='dark'] .swap-tag--active {
+  background: rgba(214, 166, 74, 0.25);
+  color: #d6a64a;
 }
 
 .swap-card-footer {
@@ -2475,6 +2494,8 @@ h1 span { color: #a8781d; }
   font-size: 1.5rem;
   font-weight: 700;
   color: #11161c;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .modal-swap-details {
@@ -2674,6 +2695,8 @@ h1 span { color: #a8781d; }
   margin: 0;
   font-size: 0.925rem;
   line-height: 1.4;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .chat-message-time {
@@ -3145,6 +3168,8 @@ h1 span { color: #a8781d; }
   font-weight: 700;
   color: #11161c;
   line-height: 1.2;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .as-detail-swap-desc {
@@ -3152,6 +3177,8 @@ h1 span { color: #a8781d; }
   font-size: 1.05rem;
   line-height: 1.55;
   color: rgba(17, 22, 28, 0.7);
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* Stats Horizontal Row */
