@@ -7,9 +7,10 @@ const DEFAULT_SUPABASE_URL = 'https://czpcaffwtmlxvplpanon.supabase.co';
 export function getSupabaseBrowserClient(): SupabaseClient | null {
   if (browserClient) return browserClient;
 
-  const rawUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  const env = (import.meta as unknown as { env?: Record<string, string> })?.env || {};
+  const rawUrl = env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
   const supabaseAnonKey =
-    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+    env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_anon_key';
 
   if (!rawUrl || !supabaseAnonKey) {
     return null;

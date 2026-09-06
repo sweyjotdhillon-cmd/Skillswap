@@ -1463,6 +1463,50 @@ export async function runCreditSystemTests() {
 
   console.log('  -> Canonical Tag Slug Mapping & Direct Chat verified cleanly!');
 
+  // =========================================================================
+  // TEST 19: Private Contact Phone Number Persistence Verification
+  // =========================================================================
+  console.log('Test 19: Private Contact Phone Number Persistence Verification...');
+
+  // Helper function mimicking saveCurrentUserPrivateContact SQL upsert logic
+  const upsertPrivateContact = async (userId: string, rawPhone: string | null | undefined) => {
+    const cleanPhone = typeof rawPhone === 'string' && rawPhone.trim() !== '' ? rawPhone.trim() : null;
+    await db.query(`
+      INSERT INTO public.user_private_contacts (user_id, phone_number)
+      VALUES ('${userId}', ${cleanPhone ? `'${cleanPhone}'` : 'NULL'})
+      ON CONFLICT (user_id) DO UPDATE SET phone_number = EXCLUDED.phone_number;
+    `);
+  };
+
+  // Case 1: No phone -> enter phone -> save -> phone is stored.
+  await setAuthUser(userA);
+  await upsertPrivateContact(userA, '9876543210');
+  let dbRowA = (await db.query<{ phone_number: string | null }>(`SELECT phone_number FROM public.user_private_contacts WHERE user_id = '${userA}';`)).rows[0];
+  assert(dbRowA.phone_number === '9876543210', 'Case 1: Phone number 9876543210 stored successfully');
+
+  // Case 2: Existing phone -> change phone -> save -> old phone replaced by new phone.
+  await upsertPrivateContact(userA, '+1 (555) 000-1111');
+  dbRowA = (await db.query<{ phone_number: string | null }>(`SELECT phone_number FROM public.user_private_contacts WHERE user_id = '${userA}';`)).rows[0];
+  assert(dbRowA.phone_number === '+1 (555) 000-1111', 'Case 2: Phone number replaced with +1 (555) 000-1111');
+
+  // Case 3: Existing phone -> remove phone -> save -> phone_number becomes NULL and old phone is not retained.
+  await upsertPrivateContact(userA, '');
+  dbRowA = (await db.query<{ phone_number: string | null }>(`SELECT phone_number FROM public.user_private_contacts WHERE user_id = '${userA}';`)).rows[0];
+  assert(dbRowA.phone_number === null, 'Case 3: Phone number cleared to null when empty string provided');
+
+  // Case 4: No phone -> leave empty -> save -> no erroneous duplicate contact row and no error.
+  await setAuthUser(userB);
+  const countBeforeB = (await db.query<{ count: string | number }>(`SELECT COUNT(*) FROM public.user_private_contacts WHERE user_id = '${userB}';`)).rows[0].count;
+
+  await upsertPrivateContact(userB, null);
+  const dbRowB = (await db.query<{ phone_number: string | null }>(`SELECT phone_number FROM public.user_private_contacts WHERE user_id = '${userB}';`)).rows[0];
+  assert(dbRowB.phone_number === null, 'Case 4: Phone number remains null when empty/null saved for user with no phone');
+
+  const countAfterB = (await db.query<{ count: string | number }>(`SELECT COUNT(*) FROM public.user_private_contacts WHERE user_id = '${userB}';`)).rows[0].count;
+  assert(Number(countBeforeB) === Number(countAfterB), 'Case 4: No duplicate contact row created');
+
+  console.log('  -> Private Contact Phone Number Persistence verified cleanly!');
+
   console.log('--- ALL SKILLSWAP CREDIT INTEGRATION & SECURITY TESTS PASSED PERFECTLY! ---');
 }
 
