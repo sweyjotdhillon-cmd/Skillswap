@@ -16,8 +16,8 @@ export function Logo({ onNavigate }: LogoProps) {
         src="/logo-full.png"
         alt="Skillswap"
         className="brand-logo-img"
-        width={1140}
-        height={888}
+        width={1152}
+        height={220}
         loading="eager"
         decoding="async"
       />
