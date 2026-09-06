@@ -17,7 +17,7 @@ try {
   console.log('Running test suite...');
   execSync('npm test', { stdio: 'inherit' });
   console.log('✓ Test suite passed cleanly.');
-} catch (err) {
+} catch {
   console.error('FAILED Gateway Check: Test suite failure');
   process.exit(1);
 }
@@ -27,7 +27,7 @@ try {
   console.log('Running build verification...');
   execSync('npm run build', { stdio: 'inherit' });
   console.log('✓ Production build passed cleanly.');
-} catch (err) {
+} catch {
   console.error('FAILED Gateway Check: Build failure');
   process.exit(1);
 }
