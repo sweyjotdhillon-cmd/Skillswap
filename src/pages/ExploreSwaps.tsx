@@ -68,15 +68,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
     let matchesTag = selectedCategory === 'All';
     if (!matchesTag) {
-      if (hasTags) {
-        matchesTag = swap.tags.some((t) => getTagSlug(t) === selectedSlug);
-      } else {
-        // Fallback for legacy swaps that do not have tags
-        const catLower = selectedCategory.toLowerCase();
-        matchesTag =
-          swap.topic.toLowerCase().includes(catLower) ||
-          swap.description.toLowerCase().includes(catLower);
-      }
+      matchesTag = hasTags && swap.tags.some((t) => getTagSlug(t) === selectedSlug);
     }
 
     const query = searchTerm.toLowerCase().trim();
@@ -87,7 +79,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
       swap.description.toLowerCase().includes(query) ||
       requesterName.includes(query) ||
       (Array.isArray(swap.tags) &&
-        swap.tags.some((t) => t.toLowerCase().includes(query) || getTagLabel(t).toLowerCase().includes(query)));
+        swap.tags.some((t) => t.toLowerCase().includes(query) || getTagLabel(t).toLowerCase().includes(query) || getTagSlug(t).includes(query)));
 
     return matchesTag && matchesSearch;
   });

@@ -1,4 +1,4 @@
-import type { SwapRecord } from '../lib/supabase/credits';
+import { extractSwapTagSlugs, type SwapRecord } from '../lib/supabase/credits';
 
 export type SwapStatus =
   | 'open'
@@ -83,7 +83,7 @@ export function mapSwapRecordToSwap(record: SwapRecord): Swap {
     requirements: record.requirements,
     additionalMessage: record.additional_message,
     creditAmount: record.credit_amount,
-    tags: Array.isArray(record.tags) ? record.tags : [],
+    tags: extractSwapTagSlugs(record),
     status: record.status,
     idempotencyKey: record.idempotency_key ?? null,
     submittedAt: record.submitted_at,

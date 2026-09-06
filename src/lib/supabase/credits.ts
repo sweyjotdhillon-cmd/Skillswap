@@ -1,6 +1,7 @@
 import { getSupabaseBrowserClient } from './client';
 import { formatFriendlyErrorMessage } from './profile';
 import { generateUUID } from '../uuid';
+import { getTagSlug } from '../../constants/tags';
 import type { SwapMessage, SwapSubmission, SwapSubmissionFile } from '../../types/swap';
 
 export interface Account {
@@ -47,6 +48,11 @@ export interface SwapRecord {
   additional_message: string | null;
   credit_amount: number;
   tags?: string[];
+  swap_tag_links?: Array<{
+    tag?: {
+      slug: string;
+    } | null;
+  }> | null;
   status: 'open' | 'accepted' | 'submitted' | 'completed' | 'cancelled' | 'declined' | 'withdrawn' | 'expired';
   idempotency_key?: string | null;
   submitted_at: string | null;
@@ -64,6 +70,46 @@ export interface SwapRecord {
     username: string;
     avatar_url?: string;
   } | null;
+}
+
+/**
+ * Extracts canonical tag slugs from a database SwapRecord.
+ * Inspects relational `swap_tag_links` as well as legacy `tags` array if present.
+ * Normalizes, deduplicates, and validates tag slugs.
+ */
+export function extractSwapTagSlugs(record: Partial<SwapRecord> | null | undefined): string[] {
+  if (!record) return [];
+
+  const rawSlugs: string[] = [];
+
+  // 1. Relational swap_tag_links
+  if (Array.isArray(record.swap_tag_links)) {
+    for (const link of record.swap_tag_links) {
+      if (link && link.tag && typeof link.tag.slug === 'string') {
+        rawSlugs.push(link.tag.slug);
+      }
+    }
+  }
+
+  // 2. Legacy or fallback tags array
+  if (Array.isArray(record.tags)) {
+    for (const tag of record.tags) {
+      if (typeof tag === 'string') {
+        rawSlugs.push(tag);
+      }
+    }
+  }
+
+  const canonicalSlugs: string[] = [];
+  for (const item of rawSlugs) {
+    if (!item) continue;
+    const slug = getTagSlug(item);
+    if (slug && !canonicalSlugs.includes(slug)) {
+      canonicalSlugs.push(slug);
+    }
+  }
+
+  return canonicalSlugs;
 }
 
 export interface CreateCreditSwapInput {
@@ -603,6 +649,9 @@ export async function getOpenSwaps(): Promise<GetOpenSwapsResult> {
       .from('swaps')
       .select(`
         *,
+        swap_tag_links(
+          tag:swap_tags(slug)
+        ),
         requester_profile:profiles!swaps_requester_id_fkey(full_name, username, avatar_url)
       `)
       .eq('status', 'open')
@@ -628,6 +677,9 @@ export async function getUserSwaps(userId: string): Promise<GetUserSwapsResult> 
       .from('swaps')
       .select(`
         *,
+        swap_tag_links(
+          tag:swap_tags(slug)
+        ),
         requester_profile:profiles!swaps_requester_id_fkey(full_name, username, avatar_url),
         participant_profile:profiles!swaps_participant_id_fkey(full_name, username, avatar_url)
       `)

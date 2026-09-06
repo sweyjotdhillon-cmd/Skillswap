@@ -12,6 +12,7 @@ import { CreateSwapActions } from '../components/create-swap/CreateSwapActions';
 import { SwapPreviewCard } from '../components/create-swap/SwapPreviewCard';
 import { useAuth } from '../context/AuthContext';
 import { createCreditSwap, uploadSwapAttachments, cancelCreditSwap } from '../lib/supabase/credits';
+import { getTagSlug, isValidSwapTag } from '../constants/tags';
 import { generateUUID } from '../lib/uuid';
 
 export interface CreateSwapFormState {
@@ -45,9 +46,15 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       const saved = localStorage.getItem(draftKey);
       if (saved) {
         const parsed = JSON.parse(saved);
+        const restoredTagsRaw = Array.isArray(parsed.tags) ? parsed.tags : [];
+        const canonicalRestoredTags = restoredTagsRaw
+          .map((t: string) => getTagSlug(t))
+          .filter((t: string) => Boolean(t) && isValidSwapTag(t))
+          .filter((t: string, i: number, a: string[]) => a.indexOf(t) === i);
+
         return {
           topic: parsed.topic || '',
-          tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+          tags: canonicalRestoredTags,
           description: parsed.description || '',
           attachments: [],
           credits: parsed.credits || '',
@@ -179,12 +186,28 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       }
       const amount = parseInt(formState.credits, 10);
       const topicTitle = formState.topic.trim();
+
+      // Defensive pre-submission tag canonicalization & validation
+      const canonicalTags = (formState.tags || [])
+        .map((t) => getTagSlug(t))
+        .filter((t) => Boolean(t) && isValidSwapTag(t))
+        .filter((t, i, a) => a.indexOf(t) === i);
+
+      if (canonicalTags.length === 0) {
+        setErrors((prev) => ({
+          ...prev,
+          tags: 'Please select at least one valid tag from the available options.',
+        }));
+        setIsSubmitting(false);
+        return;
+      }
+
       const res = await createCreditSwap({
         topic: topicTitle,
         description: formState.description.trim(),
         requirements: formState.requirements.trim(),
         creditAmount: amount,
-        tags: formState.tags,
+        tags: canonicalTags,
         additionalMessage: formState.additionalMessage.trim(),
         idempotencyKey: activeIdempotencyKeyRef.current,
       });
