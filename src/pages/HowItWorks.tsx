@@ -222,7 +222,7 @@ export function HowItWorksPage({ onNavigate }: HowItWorksPageProps) {
                 «Start teaching, start learning, and grow together. Share what you know, learn something new, and turn knowledge into meaningful connections.»
               </p>
               <div className="hiw-currency-banner">
-                <span>Your skill becomes your currency.</span>
+                <span>Skills are your currency.</span>
               </div>
             </div>
           </div>
