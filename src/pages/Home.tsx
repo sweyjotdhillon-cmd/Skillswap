@@ -75,7 +75,7 @@ export function Home({ onNavigate }: HomeProps) {
           <span className="section-eyebrow">Reciprocal Ecosystem</span>
           <h2 id="how-it-works-heading" className="section-title">How Skillswap Works</h2>
           <p className="section-description">
-            A frictionless, currency-free paradigm where knowledge is traded directly through mutual trust and SkillCredits.
+            A frictionless, money-free paradigm where knowledge is traded directly through mutual trust and SkillCredits.
           </p>
         </div>
 
@@ -200,7 +200,7 @@ export function Home({ onNavigate }: HomeProps) {
           <span className="section-eyebrow">Our Philosophy</span>
           <h2 id="about-heading" className="section-title">Why Skills, Not Money?</h2>
           <p className="about-text">
-            Traditional marketplaces reduce human skill and creativity to transactional invoices. Skillswap restores authentic human reciprocity. By placing SkillCredits at the core of our exchange engine, we create a ecosystem where every hour spent helping others expands your own potential.
+            Traditional marketplaces reduce human skill and creativity to transactional invoices. Skillswap restores authentic human reciprocity. By placing SkillCredits at the core of our exchange engine, we create an ecosystem where every hour spent helping others expands your own potential.
           </p>
 
           <div className="about-metrics">
