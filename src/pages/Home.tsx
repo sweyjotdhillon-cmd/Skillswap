@@ -219,10 +219,6 @@ export function Home({ onNavigate }: HomeProps) {
           </div>
         </div>
       </section>
-
-      <section className="mvp-note" id="current-mvp" aria-label="Current MVP status">
-        <p>Homepage preview only. Swaps, accounts, and SkillCredit transactions arrive in future milestones.</p>
-      </section>
     </div>
   );
 }
