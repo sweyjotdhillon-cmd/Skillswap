@@ -304,15 +304,17 @@ export async function saveCurrentUserOnboardingProfile(input: OnboardingProfileI
 }
 
 /** Saves an optional phone number in the owner's private-contact row only. */
-export async function saveCurrentUserPrivateContact(phoneNumber: string): Promise<void> {
+export async function saveCurrentUserPrivateContact(phoneNumber: string | null | undefined): Promise<void> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) throw new Error('We couldn’t save your profile right now. Please try again.');
 
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData.user) throw new Error('Your session has expired. Please sign in again.');
 
+  const cleanPhone = typeof phoneNumber === 'string' && phoneNumber.trim() !== '' ? phoneNumber.trim() : null;
+
   const { error } = await supabase.from('user_private_contacts').upsert(
-    { user_id: authData.user.id, phone_number: phoneNumber.trim() },
+    { user_id: authData.user.id, phone_number: cleanPhone },
     { onConflict: 'user_id' },
   );
   if (error) throw new Error(formatFriendlyErrorMessage(error));

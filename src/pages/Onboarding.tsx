@@ -358,9 +358,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
       avatarUrl: data.avatarUrl || null,
     });
 
-    if (data.phoneNumber.trim()) {
-      await saveCurrentUserPrivateContact(data.phoneNumber);
-    }
+    await saveCurrentUserPrivateContact(data.phoneNumber);
 
     for (const item of data.selectedSkills) {
       const result = item.isCustom
