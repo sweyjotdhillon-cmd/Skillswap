@@ -90,7 +90,7 @@ export function Home({ onNavigate }: HomeProps) {
             </div>
             <h3 className="step-title">Create a Swap</h3>
             <p className="step-body">
-              Detail what help or expertise you need, specify completion criteria, and allocate SkillCredits to reward your collaborator.
+              Detail the expertise you need or offer, set clear completion goals, and allocate SkillCredits to facilitate the exchange.
             </p>
           </div>
 
@@ -106,7 +106,7 @@ export function Home({ onNavigate }: HomeProps) {
             </div>
             <h3 className="step-title">Exchange & Collaborate</h3>
             <p className="step-body">
-              Connect with talented peers across design, engineering, and writing. Chat directly to execute the work.
+              Connect with peers across design, engineering, and creative fields. Collaborate directly to learn, teach, and execute the exchange.
             </p>
           </div>
 
@@ -119,9 +119,9 @@ export function Home({ onNavigate }: HomeProps) {
                 <line x1="12" y1="6" x2="12" y2="18" />
               </svg>
             </div>
-            <h3 className="step-title">Earn & Reinvest SkillCredits</h3>
+            <h3 className="step-title">Exchange Knowledge & Reinvest SkillCredits</h3>
             <p className="step-body">
-              Upon successful completion, SkillCredits transfer seamlessly into your balance—ready to be spent on your next endeavor.
+              Upon completing a swap, SkillCredits transfer seamlessly into your balance—ready to facilitate your next learning exchange while building real expertise.
             </p>
           </div>
         </div>
@@ -200,7 +200,7 @@ export function Home({ onNavigate }: HomeProps) {
           <span className="section-eyebrow">Our Philosophy</span>
           <h2 id="about-heading" className="section-title">Why Skills, Not Money?</h2>
           <p className="about-text">
-            Traditional marketplaces reduce human skill and creativity to transactional invoices. Skillswap restores authentic human reciprocity. By placing SkillCredits at the core of our exchange engine, we create an ecosystem where every hour spent helping others expands your own potential.
+            Traditional marketplaces reduce human skill and creativity to transactional invoices. Skillswap restores authentic human reciprocity. By using SkillCredits to enable fair exchange, we create an ecosystem where every hour spent helping others builds competence and expands your own potential.
           </p>
 
           <div className="about-metrics">
