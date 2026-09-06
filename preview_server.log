@@ -1,13 +1,17 @@
 
 > skillswap@0.1.0 preview
-> vite preview --host 0.0.0.0
+> vite preview --host 0.0.0.0 --port 3000
 
-(node:96294) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(node:129641) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
-  ➜  Local:   http://localhost:4173/
-  ➜  Network: http://192.168.0.2:4173/  eth0
-  ➜  Debug:   http://localhost:4173/__debug
-GET / 200 OK (9ms)
-GET /assets/index-BB2qCvKu.js 200 OK (3ms)
-GET /assets/index-CFZzNO4e.css 200 OK (2ms)
+  ➜  Local:   http://localhost:3000/
+  ➜  Network: http://192.168.0.2:3000/  eth0
+  ➜  Debug:   http://localhost:3000/__debug
+GET /explore 200 OK (17ms)
+GET /assets/index-PH8oivYS.js 200 OK (3ms)
+GET /assets/index-DyhmoaIF.css 200 OK (2ms)
+GET /assets/skillcredits-hero-BO8MSqde.png 200 OK (4ms)
+GET /explore 200 OK (10ms)
+GET /assets/index-PH8oivYS.js 200 OK (2ms)
+GET /assets/index-DyhmoaIF.css 200 OK (2ms)
 GET /assets/skillcredits-hero-BO8MSqde.png 200 OK (3ms)

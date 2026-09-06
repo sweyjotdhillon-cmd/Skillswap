@@ -1,4 +1,4 @@
-import { SWAP_TAG_OPTIONS } from '../../constants/tags';
+import { SWAP_TAG_OPTIONS, getTagSlug } from '../../constants/tags';
 
 type TagSelectionFieldProps = {
   selectedTags: string[];
@@ -7,11 +7,15 @@ type TagSelectionFieldProps = {
 };
 
 export function TagSelectionField({ selectedTags, onChange, error }: TagSelectionFieldProps) {
-  const toggleTag = (slug: string) => {
-    if (selectedTags.includes(slug)) {
-      onChange(selectedTags.filter((s) => s !== slug));
+  // Always work with canonicalized slugs
+  const canonicalSelected = (selectedTags || []).map(getTagSlug).filter((s, i, a) => a.indexOf(s) === i);
+
+  const toggleTag = (targetTagOrSlug: string) => {
+    const targetSlug = getTagSlug(targetTagOrSlug);
+    if (canonicalSelected.includes(targetSlug)) {
+      onChange(canonicalSelected.filter((s) => s !== targetSlug));
     } else {
-      onChange([...selectedTags, slug]);
+      onChange([...canonicalSelected, targetSlug]);
     }
   };
 
@@ -34,7 +38,7 @@ export function TagSelectionField({ selectedTags, onChange, error }: TagSelectio
         aria-label="Select swap tags"
       >
         {SWAP_TAG_OPTIONS.map(({ label, slug }) => {
-          const isSelected = selectedTags.includes(slug) || selectedTags.includes(label);
+          const isSelected = canonicalSelected.includes(slug);
           return (
             <button
               key={slug}
