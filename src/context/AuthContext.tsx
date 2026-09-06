@@ -14,6 +14,8 @@ interface AuthContextType {
   accountLoading: boolean;
   isVerified: boolean;
   isGoogleUser: boolean;
+  isGitHubUser: boolean;
+  connectedProviders: string[];
   isAnonymous: boolean;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<Session | null>;
@@ -31,6 +33,8 @@ const AuthContext = createContext<AuthContextType>({
   accountLoading: true,
   isVerified: false,
   isGoogleUser: false,
+  isGitHubUser: false,
+  connectedProviders: [],
   isAnonymous: false,
   signOut: async () => {},
   refreshSession: async () => null,
@@ -247,10 +251,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         (Array.isArray(user.identities) && user.identities.some((id) => id.provider === 'google')))
   );
 
+  const isGitHubUser = Boolean(
+    user &&
+      (user.app_metadata?.provider === 'github' ||
+        (Array.isArray(user.app_metadata?.providers) && user.app_metadata.providers.includes('github')) ||
+        (Array.isArray(user.identities) && user.identities.some((id) => id.provider === 'github')))
+  );
+
+  const connectedProviders = React.useMemo(() => {
+    if (!user) return [];
+    const providersSet = new Set<string>();
+
+    if (user.app_metadata?.provider) {
+      providersSet.add(user.app_metadata.provider);
+    }
+    if (Array.isArray(user.app_metadata?.providers)) {
+      user.app_metadata.providers.forEach((p) => {
+        if (typeof p === 'string' && p.trim()) providersSet.add(p.trim());
+      });
+    }
+    if (Array.isArray(user.identities)) {
+      user.identities.forEach((id) => {
+        if (id.provider) providersSet.add(id.provider);
+      });
+    }
+
+    return Array.from(providersSet);
+  }, [user]);
+
   const isAnonymous = Boolean(user && user.is_anonymous);
 
   const isVerified = Boolean(
-    user && !isAnonymous && (Boolean(user.email_confirmed_at) || isGoogleUser)
+    user && !isAnonymous && (Boolean(user.email_confirmed_at) || isGoogleUser || isGitHubUser)
   );
 
   return (
@@ -265,6 +297,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         accountLoading,
         isVerified,
         isGoogleUser,
+        isGitHubUser,
+        connectedProviders,
         isAnonymous,
         signOut,
         refreshSession,
