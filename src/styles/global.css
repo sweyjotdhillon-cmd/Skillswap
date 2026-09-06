@@ -1002,9 +1002,27 @@ button:disabled,
 @media (max-width: 860px) {
   .mobile-hamburger { display: flex; }
 }
-.brand { gap: .75rem; font-weight: 700; }
-.brand-mark { width: 34px; height: 34px; fill: none; stroke: #d6a64a; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
-.wordmark { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(1.5rem, 2vw, 2.25rem); }
+.brand {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  font-weight: 700;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.brand-logo-img {
+  display: block;
+  height: clamp(64px, 7.5vw, 88px);
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  transition: opacity 0.2s ease;
+}
+
+.brand:hover .brand-logo-img {
+  opacity: 0.9;
+}
 .main-nav { gap: clamp(1.5rem, 4vw, 4.5rem); margin-left: auto; font-size: .95rem; font-weight: 700; }
 .main-nav a { transition: color .2s ease, border-color .2s ease; padding: 0.25rem 0; border-bottom: 2px solid transparent; }
 .main-nav a:hover { color: #a8781d; }
