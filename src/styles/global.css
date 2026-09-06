@@ -1090,7 +1090,6 @@ h1 span { color: #a8781d; }
 .quote--bottom { left: -115px; top: 42px; text-align: left; }
 
 .person--left { left: 16%; top: 44.5%; }
-.mvp-note { max-width: 760px; margin: -2.5rem auto 0; text-align: center; color: rgba(17,22,28,.7); font-size: .95rem; }
 
 @keyframes float { 50% { transform: translateY(-9px) rotate(1deg); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; scroll-behavior: auto !important; transition: none !important; } }
@@ -1108,7 +1107,6 @@ h1 span { color: #a8781d; }
   .ecosystem--image { transform: none; min-height: 0; margin-bottom: 0; padding: 0 4%; }
   .ecosystem-image { max-width: 460px; margin: 0 auto; }
   .person--two em { left: -84px; top: 72px; }
-  .mvp-note { margin-top: 0; }
 }
 @media (max-width: 440px) {
   .wordmark { font-size: 1.45rem; }
@@ -3336,6 +3334,7 @@ h1 span { color: #a8781d; }
 .as-detail-actions-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 1rem;
   padding-top: 0.5rem;
 }
