@@ -5,7 +5,6 @@ import { CreditHistoryModal } from '../credits/CreditHistoryModal';
 
 const navItems = [
   { label: 'Explore Swaps', path: '/explore' },
-  { label: 'Swap Requests', path: '/swap-requests' },
   { label: 'Active Swaps', path: '/active-swaps' },
   { label: 'How It Works', path: '/how-it-works' },
   { label: 'About', path: '/about' },
@@ -161,7 +160,7 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                       type="button"
                       className="header-icon-btn"
                       aria-label="Notifications"
-                      onClick={() => onNavigate && onNavigate('/swap-requests')}
+                      onClick={() => onNavigate && onNavigate('/active-swaps')}
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav-icon">
                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -172,7 +171,7 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                       type="button"
                       className="header-icon-btn"
                       aria-label="Messages"
-                      onClick={() => onNavigate && onNavigate('/swap-requests')}
+                      onClick={() => onNavigate && onNavigate('/active-swaps')}
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav-icon">
                         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
@@ -291,12 +290,12 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                   </a>
                   {showUserHeader && (
                     <a
-                      href="/swap-requests"
+                      href="/active-swaps"
                       className="mobile-drawer-link"
                       onClick={(e) => {
                         e.preventDefault();
                         setMobileMenuOpen(false);
-                        if (onNavigate) onNavigate('/swap-requests');
+                        if (onNavigate) onNavigate('/active-swaps');
                       }}
                     >
                       Notifications &amp; Messages

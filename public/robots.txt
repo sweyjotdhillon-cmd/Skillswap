@@ -6,7 +6,6 @@ Allow: /how-it-works
 Allow: /explore
 Disallow: /profile
 Disallow: /create-swap
-Disallow: /swap-requests
 Disallow: /active-swaps
 Disallow: /change-password
 Disallow: /onboarding
