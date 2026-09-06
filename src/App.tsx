@@ -21,7 +21,8 @@ const PROTECTED_ROUTES = ['/profile', '/create-swap', '/swap-requests', '/active
 
 function AppContent() {
   const [path, setPath] = useState(window.location.pathname);
-  const { user, profile, loading, profileLoading, isVerified, isGoogleUser } = useAuth();
+  const { user, profile, loading, profileLoading, isVerified, isGoogleUser, isGitHubUser } = useAuth();
+  const isOAuthUser = isGoogleUser || isGitHubUser;
 
   useEffect(() => {
     const handlePopState = () => {
@@ -80,12 +81,12 @@ function AppContent() {
       if (!user) {
         const loginUrl = `/login?redirectTo=${encodeURIComponent(path)}`;
         window.history.replaceState({}, '', loginUrl);
-      } else if (!isVerified && !isGoogleUser) {
+      } else if (!isVerified && !isOAuthUser) {
         const verifyUrl = `/verify-email?email=${encodeURIComponent(user.email || '')}&redirectTo=${encodeURIComponent(path)}`;
         window.history.replaceState({}, '', verifyUrl);
       }
     }
-  }, [loading, user, isVerified, isGoogleUser, path]);
+  }, [loading, user, isVerified, isOAuthUser, path]);
 
   // Onboarding enforcement:
   // If user is authenticated & verified (or google user), but profile is missing or incomplete (profile === null || profile.profile_completed === false),
@@ -98,7 +99,7 @@ function AppContent() {
     path === '/reset-password';
 
   // Smooth loading state on initial boot or profile fetch to prevent opening lag & layout shifts
-  if (loading || (user && (isVerified || isGoogleUser) && !isAuthPage && profileLoading && !profile)) {
+  if (loading || (user && (isVerified || isOAuthUser) && !isAuthPage && profileLoading && !profile)) {
     return (
       <div className="page-shell" style={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', padding: '3rem 1rem' }}>
@@ -111,7 +112,7 @@ function AppContent() {
     );
   }
 
-  if (user && (isVerified || isGoogleUser) && !isAuthPage) {
+  if (user && (isVerified || isOAuthUser) && !isAuthPage) {
     if (!profile || profile.profile_completed === false) {
       return <OnboardingPage onNavigate={navigate} redirectTo={path !== '/onboarding' ? path : undefined} />;
     }
@@ -135,7 +136,7 @@ function AppContent() {
       return <LoginPage onNavigate={navigate} redirectTo={path} />;
     }
 
-    if (!isVerified && !isGoogleUser) {
+    if (!isVerified && !isOAuthUser) {
       return <VerifyEmailPage onNavigate={navigate} redirectTo={path} email={user.email || undefined} />;
     }
   }

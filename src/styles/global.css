@@ -69,6 +69,7 @@ button:disabled,
 .btn-request-swap,
 .reset-filter-btn,
 .auth-google-btn,
+.auth-github-btn,
 .mobile-drawer-cta,
 .profile-edit-btn,
 .profile-manage-skills-btn,
@@ -89,6 +90,7 @@ button:disabled,
 .btn-request-swap:active:not(:disabled),
 .reset-filter-btn:active:not(:disabled),
 .auth-google-btn:active:not(:disabled),
+.auth-github-btn:active:not(:disabled),
 .mobile-drawer-cta:active:not(:disabled),
 .profile-edit-btn:active:not(:disabled),
 .profile-manage-skills-btn:active:not(:disabled),
@@ -256,13 +258,15 @@ button:disabled,
   color: var(--text-muted);
 }
 
-[data-theme='dark'] .auth-google-btn {
+[data-theme='dark'] .auth-google-btn,
+[data-theme='dark'] .auth-github-btn {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(240, 246, 252, 0.2);
   color: var(--text-color);
 }
 
-[data-theme='dark'] .auth-google-btn:hover {
+[data-theme='dark'] .auth-google-btn:hover,
+[data-theme='dark'] .auth-github-btn:hover {
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(240, 246, 252, 0.35);
 }
@@ -5932,7 +5936,8 @@ h1 span { color: #a8781d; }
   margin: 0;
 }
 
-.auth-google-btn {
+.auth-google-btn,
+.auth-github-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5947,22 +5952,139 @@ h1 span { color: #a8781d; }
   font-weight: 600;
   transition: all 0.2s ease;
   cursor: pointer;
-  margin-bottom: 1.5rem;
 }
 
-.auth-google-btn:hover {
+.auth-google-btn:hover,
+.auth-github-btn:hover {
   background: rgba(17, 22, 28, 0.02);
   border-color: rgba(17, 22, 28, 0.3);
 }
 
-.auth-google-btn:focus-visible {
+.auth-google-btn:focus-visible,
+.auth-github-btn:focus-visible {
   outline: 3px solid #d6a64a;
   outline-offset: 2px;
 }
 
-.auth-google-btn svg {
+.auth-google-btn svg,
+.auth-github-btn svg {
   width: 20px;
   height: 20px;
+}
+
+/* Connected Accounts Section in Profile */
+.profile-providers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.profile-provider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: rgba(247, 245, 240, 0.5);
+  border: 1px solid var(--card-border, rgba(17, 22, 28, 0.08));
+  border-radius: 16px;
+}
+
+[data-theme='dark'] .profile-provider-row {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.profile-provider-info {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.profile-provider-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: rgba(17, 22, 28, 0.06);
+  color: var(--text-color, #11161c);
+}
+
+.profile-provider-icon--github {
+  background: #24292e;
+  color: #ffffff;
+}
+
+[data-theme='dark'] .profile-provider-icon--github {
+  background: #30363d;
+  color: #f0f6fc;
+}
+
+.profile-provider-icon--google {
+  background: #ffffff;
+  border: 1px solid rgba(17, 22, 28, 0.1);
+}
+
+[data-theme='dark'] .profile-provider-icon--google {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(240, 246, 252, 0.15);
+}
+
+.profile-provider-icon--email {
+  background: rgba(214, 166, 74, 0.15);
+  color: #a8781d;
+}
+
+[data-theme='dark'] .profile-provider-icon--email {
+  color: #d6a64a;
+}
+
+.profile-provider-name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-color, #11161c);
+}
+
+.profile-provider-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted, rgba(17, 22, 28, 0.55));
+}
+
+.profile-provider-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.profile-provider-badge--connected {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+[data-theme='dark'] .profile-provider-badge--connected {
+  background: rgba(22, 101, 52, 0.25);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.profile-provider-badge--disconnected {
+  background: rgba(17, 22, 28, 0.05);
+  color: var(--text-muted, rgba(17, 22, 28, 0.5));
+  border: 1px solid rgba(17, 22, 28, 0.1);
+}
+
+[data-theme='dark'] .profile-provider-badge--disconnected {
+  background: rgba(240, 246, 252, 0.05);
+  color: rgba(240, 246, 252, 0.4);
+  border-color: rgba(240, 246, 252, 0.12);
 }
 
 .auth-divider {
