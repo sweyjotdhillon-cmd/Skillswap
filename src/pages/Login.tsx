@@ -188,7 +188,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
         <section className="auth-hero-section">
           <h1 className="auth-hero-branding">Skills are your currency.</h1>
           <p className="auth-hero-subtext">
-            Welcome back to the community where value flows through people, not money. Continue trading expertise, managing swaps, and earning SkillCredits.
+            Welcome back to the community where value flows through people, not money. Continue sharing expertise, learning new skills, and managing your exchanges.
           </p>
         </section>
 

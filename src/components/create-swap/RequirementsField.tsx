@@ -16,13 +16,13 @@ export function RequirementsField({ value, onChange, error }: RequirementsFieldP
         <span className="badge-required">Required</span>
       </div>
       <p className="form-helper-text">
-        Tell people exactly what they need to do to receive all the credits.
+        Tell people exactly what needs to be completed for a successful skill exchange.
       </p>
       <div className="input-wrapper">
         <textarea
           id="requirements-textarea"
           className={`form-textarea requirements-textarea ${error ? 'input-error' : ''}`}
-          placeholder="Describe what participants need to complete to earn all the credits..."
+          placeholder="Describe what needs to be completed for a successful skill exchange..."
           value={value}
           maxLength={maxLength}
           rows={4}

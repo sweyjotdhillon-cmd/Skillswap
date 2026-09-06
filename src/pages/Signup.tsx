@@ -175,7 +175,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
         <section className="auth-hero-section">
           <h1 className="auth-hero-branding">Skills are your currency.</h1>
           <p className="auth-hero-subtext">
-            Join the community where value flows through people, not money. Exchange digital skills directly, earn SkillCredits, and connect with peers.
+            Join the community where value flows through people, not money. Share your expertise, learn new skills, and connect through reciprocal exchange.
           </p>
         </section>
 
