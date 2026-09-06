@@ -1013,7 +1013,7 @@ button:disabled,
 
 .brand-logo-img {
   display: block;
-  height: clamp(64px, 7.5vw, 88px);
+  height: clamp(30px, 4vw, 38px);
   width: auto;
   max-width: 100%;
   object-fit: contain;
