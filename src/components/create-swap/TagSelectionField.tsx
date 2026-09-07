@@ -57,7 +57,7 @@ export function TagSelectionField({ selectedTags, onChange, error }: TagSelectio
               onClick={() => toggleTag(slug)}
               aria-pressed={isSelected}
             >
-              <span>#{label}</span>
+              <span>{label}</span>
               {isSelected && <span style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>✓</span>}
             </button>
           );

@@ -16,7 +16,7 @@ export function DescriptionField({ value, onChange, error }: DescriptionFieldPro
         <span className="badge-required">Required</span>
       </div>
       <p className="form-helper-text">
-        Provide context about your goals, current skill level, or what you want to achieve.
+        Explain your background, goals, and context for this skill exchange.
       </p>
       <div className="input-wrapper">
         <textarea

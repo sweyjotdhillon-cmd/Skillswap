@@ -730,7 +730,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                   {/* HORIZONTAL STATS ROW */}
                   <div className="as-stats-row">
                     <div className="as-stat-item">
-                      <span className="as-stat-label">Credits Reward</span>
+                      <span className="as-stat-label">SkillCredits Reward</span>
                       <strong className="as-stat-value">{currentAcceptedItem.swap.creditAmount} SkillCredits</strong>
                     </div>
                     <div className="as-stat-item">
@@ -810,28 +810,28 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
                   {/* JOURNEY STATUS & NEXT STEP GUIDANCE */}
                   <div className="as-detail-section">
-                    <h4 className="as-section-subheading">Exchange Journey &amp; Control</h4>
+                    <h4 className="as-section-subheading">Exchange Progress</h4>
                     <div className="as-callout-box" style={{ background: 'var(--card-bg, rgba(255, 255, 255, 0.03))', borderLeft: '3px solid var(--primary-color, #2563eb)', padding: '0.85rem 1rem' }}>
                       <div className="as-callout-title" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                         {currentAcceptedItem.swap.status === 'completed'
-                          ? 'Journey Step: Exchange Complete'
+                          ? 'Exchange Complete'
                           : currentAcceptedItem.swap.status === 'submitted'
-                          ? 'Journey Step: Awaiting Requester Review'
-                          : 'Journey Step: In Progress — Building Capability'}
+                          ? 'Awaiting Requester Review'
+                          : 'In Progress'}
                       </div>
                       <p className="as-callout-text" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.35rem 0 0 0' }}>
                         {currentAcceptedItem.swap.status === 'completed'
-                          ? 'You have successfully delivered expertise for this swap and earned SkillCredits to fund your next learning exchange.'
+                          ? 'Deliverables approved and SkillCredits transferred to your balance.'
                           : currentAcceptedItem.swap.status === 'submitted'
-                          ? 'Your work has been submitted. The swap requester will review your deliverables and settle the agreed SkillCredits.'
-                          : 'You are currently working on this skill exchange. Once your work or deliverables are ready, submit them below to complete the exchange.'}
+                          ? 'Work submitted for requester review and credit release.'
+                          : 'Complete your deliverables and submit work when ready.'}
                       </p>
                     </div>
                   </div>
 
                   {/* YOUR SUBMISSION / NEXT STEP */}
                   <div className="as-detail-section">
-                    <h4 className="as-section-subheading">Submitted Expertise &amp; Deliverables</h4>
+                    <h4 className="as-section-subheading">Submitted Work &amp; Deliverables</h4>
                     {submissionLoading ? (
                       <p className="as-section-body-text">Loading submission details...</p>
                     ) : currentSubmission ? (
@@ -874,13 +874,13 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                         )}
                         <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                           {currentAcceptedItem.swap.status === 'completed'
-                            ? '✓ Work approved by requester. SkillCredits have been added to your balance.'
-                            : 'Waiting for the requester to review your work.'}
+                            ? '✓ Work approved by requester. SkillCredits added to your balance.'
+                            : 'Waiting for requester to review your work.'}
                         </p>
                       </div>
                     ) : (
                       <p className="as-section-body-text">
-                        Complete your deliverables and click <strong>Submit Work</strong> to submit your notes and files for requester review.
+                        Submit your notes or files when your work is ready for review.
                       </p>
                     )}
                   </div>
@@ -966,7 +966,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                   {/* HORIZONTAL STATS ROW */}
                   <div className="as-stats-row">
                     <div className="as-stat-item">
-                      <span className="as-stat-label">Credits Reserved</span>
+                      <span className="as-stat-label">SkillCredits Reserved</span>
                       <strong className="as-stat-value">{currentGivenItem.swap.creditAmount} SkillCredits</strong>
                     </div>
                     <div className="as-stat-item">
@@ -1040,7 +1040,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                       <div className="as-callout-box">
                         <div className="as-callout-title">Waiting for submission</div>
                         <p className="as-callout-text">
-                          “{currentGivenItem.partner.name} has accepted your swap request. You are waiting for them to submit work before you can review and transfer credits.”
+                          {currentGivenItem.partner.name} has accepted this swap. You will be able to review deliverables and transfer SkillCredits once work is submitted.
                         </p>
                       </div>
                     ) : submissionLoading ? (
@@ -1184,7 +1184,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                   {/* HORIZONTAL STATS ROW */}
                   <div className="as-stats-row">
                     <div className="as-stat-item">
-                      <span className="as-stat-label">Credits Offsets / Escrow</span>
+                      <span className="as-stat-label">SkillCredits Reserved</span>
                       <strong className="as-stat-value">{currentOpenItem.swap.creditAmount} SkillCredits</strong>
                     </div>
                     <div className="as-stat-item">

@@ -16,7 +16,7 @@ export function TopicField({ value, onChange, error }: TopicFieldProps) {
         <span className="badge-required">Required</span>
       </div>
       <p className="form-helper-text">
-        Specify the exact skill or topic you want to learn or exchange.
+        Specify the skill or topic you want to learn or exchange.
       </p>
       <div className="input-wrapper">
         <input

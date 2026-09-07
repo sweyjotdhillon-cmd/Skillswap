@@ -43,12 +43,12 @@ export function CreditsInput({ value, onChange, error }: CreditsInputProps) {
     <div className="form-group">
       <div className="form-label-row">
         <label htmlFor="credits-input" className="form-label">
-          SkillCredits you're offering
+          SkillCredits Offered
         </label>
         <span className="badge-required">Required</span>
       </div>
       <p className="form-helper-text">
-        SkillCredits are awarded after the swap requirements are completed.
+        SkillCredits reserved from your balance and awarded to your partner upon work approval.
       </p>
 
       <div className="credits-stepper-row">
