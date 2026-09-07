@@ -31,7 +31,7 @@ export interface SelectedSkill {
 
 
 export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, account, refreshProfile } = useAuth();
   const bioHelpId = useId();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -627,16 +627,54 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
       <main className="onboarding-page-container">
         {/* Onboarding Shell Card */}
         <div className="onboarding-card">
-          {/* Top Header & Step Progress Bar */}
-          <div className="onboarding-progress-header">
-            <div className="onboarding-step-counter">
-              <span>Step {step} of 4</span>
+          {/* Top Header & Step Progress Bar (B1: Empowered Progress Effect & Endowment) */}
+          <div className="empowered-progress-header">
+            <div className="empowered-progress-top-row">
+              <span className="empowered-progress-tag">
+                YOUR JOURNEY IS UNDERWAY
+              </span>
+              <span className="empowered-progress-percent">
+                {25 + Math.round(((step - 1) / 3) * 75)}% COMPLETED
+              </span>
             </div>
             <div className="onboarding-progress-track">
               <div
-                className="onboarding-progress-fill"
-                style={{ width: `${(step / 4) * 100}%` }}
+                className="onboarding-progress-fill empowered-progress-fill"
+                style={{ width: `${25 + Math.round(((step - 1) / 3) * 75)}%` }}
               />
+            </div>
+          </div>
+
+          {/* Loss-Aversion / Endowment Grant Callout Banner */}
+          <div className="empowered-grant-banner">
+            <div className="empowered-grant-icon" aria-hidden="true">⚡</div>
+            <div className="empowered-grant-content">
+              <h4 className="empowered-grant-title">
+                {account?.credits_balance ?? 100} SkillCredits Welcome Grant Unlocked!
+              </h4>
+              <p className="empowered-grant-text">
+                Your welcome capital has been securely reserved in your escrow ledger. Complete the setup steps below to activate your profile and start trading skills immediately.
+              </p>
+            </div>
+          </div>
+
+          {/* Step Scaffolding Checklist */}
+          <div className="empowered-step-checklist">
+            <div className="empowered-step-item empowered-step-item--completed">
+              <span className="empowered-step-badge">✓</span>
+              <span className="empowered-step-label">Account Created &amp; 100 SkillCredits Granted (Endowed)</span>
+            </div>
+            <div className={`empowered-step-item ${step === 1 ? 'empowered-step-item--active' : step > 1 ? 'empowered-step-item--completed' : ''}`}>
+              <span className="empowered-step-badge">{step > 1 ? '✓' : '2'}</span>
+              <span className="empowered-step-label">Basic Info &amp; Bio</span>
+            </div>
+            <div className={`empowered-step-item ${step === 2 ? 'empowered-step-item--active' : step > 2 ? 'empowered-step-item--completed' : ''}`}>
+              <span className="empowered-step-badge">{step > 2 ? '✓' : '3'}</span>
+              <span className="empowered-step-label">Choose Unique @username</span>
+            </div>
+            <div className={`empowered-step-item ${step >= 3 ? 'empowered-step-item--active' : ''}`}>
+              <span className="empowered-step-badge">{step === 4 ? '✓' : '4'}</span>
+              <span className="empowered-step-label">Skills Selection &amp; Activation</span>
             </div>
           </div>
 

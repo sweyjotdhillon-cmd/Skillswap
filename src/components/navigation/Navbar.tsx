@@ -102,8 +102,8 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                 type="button"
                 className="nav-credit-indicator-btn mobile-credit-btn"
                 onClick={() => setCreditModalOpen(true)}
-                title="View Credit Account & History"
-                aria-label={`SkillCredit balance: ${displayedBalance}. Click to view history.`}
+                title="View SkillCredit Account & Available Trading Capital"
+                aria-label={`SkillCredit balance: ${displayedBalance}. Available trading capital for skill exchanges. Click to view history.`}
               >
                 <span className="nav-credit-content-group">
                   <span className="nav-credit-label">SkillCredits</span>
@@ -120,8 +120,8 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                   type="button"
                   className="nav-credit-indicator-btn"
                   onClick={() => setCreditModalOpen(true)}
-                  title="View Credit Account & History"
-                  aria-label={`SkillCredit balance: ${displayedBalance}. Click to view history.`}
+                  title="View SkillCredit Account & Available Trading Capital"
+                  aria-label={`SkillCredit balance: ${displayedBalance}. Available trading capital for skill exchanges. Click to view history.`}
                 >
                   <span className="nav-credit-content-group">
                     <span className="nav-credit-label">SkillCredits</span>

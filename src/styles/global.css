@@ -6377,25 +6377,42 @@ h1 span { color: #a8781d; }
   transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* Progress Indicator Bar & Counter */
-.onboarding-progress-header {
+/* Progress Indicator Bar & Counter (B1 Empowered Progress) */
+.empowered-progress-header {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  margin-bottom: 2rem;
+  gap: 0.65rem;
+  margin-bottom: 1.25rem;
 }
 
-.onboarding-step-counter {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #a8781d;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+.empowered-progress-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.empowered-progress-tag {
+  color: var(--primary-color, #2563eb);
+}
+
+[data-theme='dark'] .empowered-progress-tag {
+  color: #38bdf8;
+}
+
+.empowered-progress-percent {
+  color: var(--primary-color, #2563eb);
+}
+
+[data-theme='dark'] .empowered-progress-percent {
+  color: #38bdf8;
 }
 
 .onboarding-progress-track {
   width: 100%;
-  height: 4px;
+  height: 8px;
   background: rgba(17, 22, 28, 0.08);
   border-radius: 999px;
   overflow: hidden;
@@ -6407,9 +6424,172 @@ h1 span { color: #a8781d; }
 
 .onboarding-progress-fill {
   height: 100%;
-  background: #d6a64a;
+  background: linear-gradient(90deg, #d6a64a 0%, #10b981 100%);
   border-radius: 999px;
-  transition: width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Loss-Aversion / Endowment Callout Banner */
+.empowered-grant-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1rem 1.2rem;
+  border-radius: 14px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  margin-bottom: 1.25rem;
+}
+
+.empowered-grant-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.18);
+  color: #10b981;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.empowered-grant-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.empowered-grant-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.empowered-grant-text {
+  margin: 0;
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+/* Empowered Step Checklist */
+.empowered-step-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--card-border, rgba(17, 22, 28, 0.08));
+}
+
+.empowered-step-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+}
+
+.empowered-step-item--completed {
+  color: var(--text-color);
+}
+
+.empowered-step-item--completed .empowered-step-label {
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+
+.empowered-step-item--active {
+  color: var(--text-color);
+  font-weight: 700;
+}
+
+.empowered-step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  background: var(--card-bg, rgba(17, 22, 28, 0.04));
+  border: 1.5px solid var(--border-color, rgba(17, 22, 28, 0.15));
+  color: var(--text-muted);
+}
+
+.empowered-step-item--completed .empowered-step-badge {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.empowered-step-item--active .empowered-step-badge {
+  background: rgba(37, 99, 235, 0.15);
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+[data-theme='dark'] .empowered-step-item--active .empowered-step-badge {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+/* ActiveSwaps Journey Capital Banner */
+.as-journey-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(214, 166, 74, 0.12) 0%, rgba(56, 189, 248, 0.06) 100%);
+  border: 1px solid rgba(214, 166, 74, 0.25);
+  margin-bottom: 1.5rem;
+}
+
+.as-journey-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(214, 166, 74, 0.2);
+  color: #d6a64a;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.as-journey-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.as-journey-label {
+  font-size: 0.725rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #d6a64a;
+  text-transform: uppercase;
+}
+
+.as-journey-balance {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.as-journey-subtext {
+  margin: 0;
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
 }
 
 /* Onboarding Title & Headers */
