@@ -6682,6 +6682,67 @@ h1 span { color: #a8781d; }
 }
 
 /* ==========================================================================
+   Section C.3 — Visual Trust System & Social Proof
+   ========================================================================== */
+
+.swap-avatar-ring {
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  border: 2px solid #38bdf8 !important;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+}
+
+[data-theme='dark'] .swap-avatar-ring {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.35);
+}
+
+.swap-avatar-fallback {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(3, 105, 161, 0.12);
+  color: #0284c7;
+  font-size: 0.95rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .swap-avatar-fallback {
+  background: rgba(56, 189, 248, 0.18);
+  color: #38bdf8;
+}
+
+.verification-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: rgba(3, 105, 161, 0.08);
+  border: 1px solid rgba(3, 105, 161, 0.25);
+  color: #0284c7;
+  font-size: 0.725rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  line-height: 1;
+  user-select: none;
+}
+
+[data-theme='dark'] .verification-badge {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+}
+
+.trust-activity-tag {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ==========================================================================
    Profile Onboarding Flow Styles
    ========================================================================== */
 

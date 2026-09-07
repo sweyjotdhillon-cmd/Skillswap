@@ -6,6 +6,7 @@ import {
   getOpenSwaps,
   acceptCreditSwap,
   cancelCreditSwap,
+  getUserCompletedSwapsCount,
 } from '../lib/supabase/credits';
 import { mapSwapRecordToSwap, type Swap } from '../types/swap';
 import { SWAP_TAG_OPTIONS, getTagLabel, getTagSlug } from '../constants/tags';
@@ -25,6 +26,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   const [selectedCategory, setSelectedCategory] = useState('All');
 
   const [swaps, setSwaps] = useState<Swap[]>([]);
+  const [completedSwapsMap, setCompletedSwapsMap] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
@@ -51,6 +53,19 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
       } else if (res.data && res.data.length > 0) {
         const mappedReal: Swap[] = res.data.map(mapSwapRecordToSwap);
         setSwaps(mappedReal);
+
+        // Fetch completed swaps counts for all unique requesters
+        const requesterIds = Array.from(new Set(mappedReal.map((s) => s.requesterId)));
+        const countsPromises = requesterIds.map(async (id) => {
+          const count = await getUserCompletedSwapsCount(id);
+          return { id, count };
+        });
+        const countsResults = await Promise.all(countsPromises);
+        const map: Record<string, number> = {};
+        countsResults.forEach(({ id, count }) => {
+          map[id] = count;
+        });
+        setCompletedSwapsMap(map);
       } else {
         setSwaps([]);
       }
@@ -100,7 +115,18 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   };
 
   const getRequesterAvatar = (swap: Swap) => {
-    return swap.requesterProfile?.avatarUrl || DEFAULT_AVATAR;
+    return swap.requesterProfile?.avatarUrl || undefined;
+  };
+
+  const getRequesterInitials = (swap: Swap) => {
+    const name = swap.requesterProfile?.fullName || swap.requesterProfile?.username || 'SS';
+    return name
+      .split(' ')
+      .filter(Boolean)
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || 'SS';
   };
 
   return (
@@ -267,16 +293,61 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
               {filteredSwaps.map((swap) => {
                 const requesterName = getRequesterName(swap);
                 const requesterAvatar = getRequesterAvatar(swap);
+                const requesterInitials = getRequesterInitials(swap);
+                const isVerifiedProfile = Boolean(swap.requesterProfile?.profileCompleted);
+                const completedCount = completedSwapsMap[swap.requesterId] ?? 0;
 
                 return (
                   <div key={swap.id} className="swap-card">
                     <div className="swap-card-main">
                       <div className="swap-card-need-section">
-                        <img src={requesterAvatar} alt={requesterName} className="swap-avatar" />
+                        {/* HUMAN FACE PRESENTATION (FFA Eye-Contact Anchor) */}
+                        <div className="swap-avatar-wrapper" style={{ flexShrink: 0 }}>
+                          {requesterAvatar ? (
+                            <img
+                              src={requesterAvatar}
+                              alt={`Profile of ${requesterName}`}
+                              className="swap-avatar swap-avatar-ring"
+                            />
+                          ) : (
+                            <div className="swap-avatar-fallback swap-avatar-ring">
+                              {requesterInitials}
+                            </div>
+                          )}
+                        </div>
+
                         <div className="swap-need-details">
-                          <div className="swap-author-meta" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.2rem' }}>
-                            <span className="swap-user-name" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.85 }}>{requesterName}</span>
+                          {/* HUMAN IDENTITY & CREDIBILITY HEADER */}
+                          <div className="swap-author-meta" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.25rem' }}>
+                            <span className="swap-user-name" style={{ fontSize: '0.875rem', fontWeight: 700 }}>
+                              {requesterName}
+                            </span>
+                            {swap.requesterProfile?.username && (
+                              <span style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+                                @{swap.requesterProfile.username}
+                              </span>
+                            )}
+                            {isVerifiedProfile && (
+                              <span className="verification-badge" title="Verified Profile: Completed onboarding identity setup">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                Verified Profile
+                              </span>
+                            )}
                           </div>
+
+                          {/* SOCIAL PROOF SNAPSHOT (Real completed swaps count + Honest empty reviews state) */}
+                          <div className="swap-trust-snapshot-row" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
+                            <span className="trust-activity-tag">
+                              <strong>{completedCount}</strong> {completedCount === 1 ? 'swap completed' : 'swaps completed'}
+                            </span>
+                            <span style={{ opacity: 0.4 }}>•</span>
+                            <span className="trust-rating-text" style={{ color: 'var(--text-muted)' }}>
+                              No reviews yet
+                            </span>
+                          </div>
+
                           <h3 className="swap-need-title">{swap.topic}</h3>
                           <p className="swap-description">{swap.description}</p>
 
@@ -397,9 +468,36 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                     <span className="modal-label">Skill Topic</span>
                     <strong style={{ fontSize: '1.05rem' }}>{selectedSwapForAccept.topic}</strong>
                   </div>
-                  <div className="modal-detail-row">
-                    <span className="modal-label">Offered By</span>
-                    <span>{getRequesterName(selectedSwapForAccept)}</span>
+                  {/* COUNTERPART IDENTITY & CREDIBILITY CHECKPOINT */}
+                  <div className="modal-counterpart-card" style={{ background: 'var(--card-bg, rgba(255, 255, 255, 0.03))', border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))', padding: '0.75rem 0.9rem', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    {getRequesterAvatar(selectedSwapForAccept) ? (
+                      <img
+                        src={getRequesterAvatar(selectedSwapForAccept)!}
+                        alt={getRequesterName(selectedSwapForAccept)}
+                        className="swap-avatar swap-avatar-ring"
+                        style={{ width: '44px', height: '44px' }}
+                      />
+                    ) : (
+                      <div className="swap-avatar-fallback swap-avatar-ring" style={{ width: '44px', height: '44px', fontSize: '0.9rem' }}>
+                        {getRequesterInitials(selectedSwapForAccept)}
+                      </div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                        <strong style={{ fontSize: '0.925rem' }}>{getRequesterName(selectedSwapForAccept)}</strong>
+                        {selectedSwapForAccept.requesterProfile?.username && (
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>@{selectedSwapForAccept.requesterProfile.username}</span>
+                        )}
+                        {selectedSwapForAccept.requesterProfile?.profileCompleted && (
+                          <span className="verification-badge">✓ Verified</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                        <span>{completedSwapsMap[selectedSwapForAccept.requesterId] ?? 0} swaps completed</span>
+                        <span style={{ margin: '0 0.35rem', opacity: 0.5 }}>•</span>
+                        <span>No reviews yet</span>
+                      </div>
+                    </div>
                   </div>
                   <div className="modal-detail-row">
                     <span className="modal-label">SkillCredits Reward</span>
