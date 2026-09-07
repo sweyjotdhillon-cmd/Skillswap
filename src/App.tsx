@@ -74,7 +74,7 @@ function AppContent() {
   const redirectToParam = urlParams.get('redirectTo') || undefined;
 
   useEffect(() => {
-    if (!loading && PROTECTED_ROUTES.some((route) => path.startsWith(route))) {
+    if (!loading && PROTECTED_ROUTES.some((route) => path === route || path.startsWith(route + '/'))) {
       if (!user) {
         const loginUrl = `/login?redirectTo=${encodeURIComponent(path)}`;
         window.history.replaceState({}, '', loginUrl);
@@ -128,7 +128,7 @@ function AppContent() {
   }
 
   // Protected route enforcement
-  if (!loading && PROTECTED_ROUTES.some((route) => path.startsWith(route))) {
+  if (!loading && PROTECTED_ROUTES.some((route) => path === route || path.startsWith(route + '/'))) {
     if (!user) {
       return <LoginPage onNavigate={navigate} redirectTo={path} />;
     }

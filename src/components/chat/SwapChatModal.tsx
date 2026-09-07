@@ -4,8 +4,14 @@ import { getSupabaseBrowserClient } from '../../lib/supabase/client';
 import {
   getSwapMessages,
   sendSwapMessage,
+  getSwapSubmission,
+  getSwapAttachments,
+  getSubmissionFileSignedUrl,
+  getSwapAttachmentSignedUrl,
+  downloadFileFromSignedUrl,
+  type SwapAttachment,
 } from '../../lib/supabase/credits';
-import type { Swap, SwapMessage } from '../../types/swap';
+import type { Swap, SwapMessage, SwapSubmission } from '../../types/swap';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 
@@ -14,6 +20,9 @@ export interface SwapChatModalProps {
   partnerName?: string;
   partnerAvatar?: string;
   onClose: () => void;
+  onOpenSubmitWork?: () => void;
+  onApproveSwap?: () => Promise<void>;
+  isApproving?: boolean;
 }
 
 /** Helper to sort messages chronologically by createdAt, with ID as deterministic tie-breaker */
@@ -44,12 +53,20 @@ export function SwapChatModal({
   partnerName,
   partnerAvatar,
   onClose,
+  onOpenSubmitWork,
+  onApproveSwap,
+  isApproving = false,
 }: SwapChatModalProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<SwapMessage[]>([]);
   const [input, setInput] = useState<string>('');
   const [sending, setSending] = useState<boolean>(false);
   const [chatError, setChatError] = useState<string | null>(null);
+
+  // Workspace state: submission & creator attachments
+  const [submission, setSubmission] = useState<SwapSubmission | null>(null);
+  const [creatorAttachments, setCreatorAttachments] = useState<SwapAttachment[]>([]);
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const channelRef = useRef<ReturnType<NonNullable<ReturnType<typeof getSupabaseBrowserClient>>['channel']> | null>(null);
@@ -81,6 +98,25 @@ export function SwapChatModal({
       ? swap.participantProfile?.avatarUrl
       : swap.requesterProfile?.avatarUrl) ||
     DEFAULT_AVATAR;
+
+  // Load persisted submission and attachments for context
+  useEffect(() => {
+    let active = true;
+    const fetchWorkspaceDetails = async () => {
+      const [subRes, attRes] = await Promise.all([
+        getSwapSubmission(swap.id),
+        getSwapAttachments(swap.id),
+      ]);
+      if (!active) return;
+      if (subRes.data) setSubmission(subRes.data);
+      if (attRes.data) setCreatorAttachments(attRes.data);
+    };
+
+    void fetchWorkspaceDetails();
+    return () => {
+      active = false;
+    };
+  }, [swap.id, swap.status]);
 
   // Primary effect: Manage Realtime postgres_changes + Broadcast subscription & database initial fetch / reconnect catch-up
   useEffect(() => {
@@ -117,7 +153,6 @@ export function SwapChatModal({
     channelRef.current = channel;
 
     channel
-      // Low-latency broadcast listener
       .on('broadcast', { event: 'chat_message' }, (payload) => {
         if (!isMounted) return;
         const msg = payload.payload as SwapMessage;
@@ -125,7 +160,6 @@ export function SwapChatModal({
 
         setMessages((prev) => mergeAndDeduplicate(prev, [msg]));
       })
-      // Canonical database INSERT listener via postgres_changes
       .on(
         'postgres_changes',
         {
@@ -164,7 +198,6 @@ export function SwapChatModal({
       .subscribe((status, err) => {
         if (!isMounted) return;
         if (status === 'SUBSCRIBED') {
-          // Catch-up / race condition prevention: refetch persisted DB messages when channel confirms active status
           void fetchPersistedMessages();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.error(`[Realtime Chat] Channel subscription status: ${status}`, err);
@@ -207,7 +240,6 @@ export function SwapChatModal({
     setMessages((prev) => mergeAndDeduplicate(prev, [newMessage]));
     setInput('');
 
-    // Broadcast via Supabase Realtime Channel using active subscribed channel for instant delivery
     if (channelRef.current) {
       try {
         await channelRef.current.send({
@@ -223,108 +255,298 @@ export function SwapChatModal({
     setSending(false);
   };
 
+  const handleDownloadFile = async (storagePath: string, fileName: string, fileId: string, isSubmission: boolean = true) => {
+    setDownloadingFileId(fileId);
+    try {
+      const signedUrl = isSubmission
+        ? await getSubmissionFileSignedUrl(storagePath)
+        : await getSwapAttachmentSignedUrl(storagePath);
+      if (signedUrl) {
+        await downloadFileFromSignedUrl(signedUrl, fileName);
+      }
+    } catch (err) {
+      console.error('Workspace download error:', err);
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
+
+  // Determine lifecycle step
+  const isCompleted = swap.status === 'completed';
+  const isSubmitted = swap.status === 'submitted' || isCompleted;
+  const isAccepted = swap.status === 'accepted' || isSubmitted;
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content chat-modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content chat-workspace-content" onClick={(e) => e.stopPropagation()}>
+        {/* WORKSPACE HEADER */}
         <div className="chat-modal-header">
           <div className="chat-user-header-info">
             <img src={displayAvatar} alt={displayName} className="chat-avatar" />
             <div>
-              <h3 className="chat-title">Chat with {displayName}</h3>
+              <h3 className="chat-title">
+                Swap Workspace with {displayName}
+              </h3>
               <p className="chat-subtitle">{swap.topic}</p>
             </div>
           </div>
-          <button type="button" className="chat-close-btn" onClick={onClose} aria-label="Close chat">
-            ×
-          </button>
-        </div>
 
-        {/* CONCISE SWAP CONTEXT BANNER */}
-        <div
-          className="chat-swap-context-banner"
-          style={{
-            padding: '0.55rem 1.25rem',
-            background: 'rgba(214, 166, 74, 0.08)',
-            borderBottom: '1px solid rgba(17, 22, 28, 0.08)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.35rem',
-            fontSize: '0.825rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
-              <span style={{ fontWeight: 700, color: '#d97706', whiteSpace: 'nowrap' }}>
-                ⚡ {swap.creditAmount} SkillCredits
-              </span>
-              <span style={{ opacity: 0.4 }}>•</span>
-              <span
-                style={{
-                  color: 'var(--text-color)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  fontWeight: 500,
-                }}
-                title={swap.requirements || swap.description}
-              >
-                {swap.requirements || swap.description}
-              </span>
-            </div>
-            <span className={`as-status-badge as-status-badge--${swap.status}`} style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem' }}>
-              {swap.status}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontWeight: 700, color: '#d97706', fontSize: '0.9rem', background: 'rgba(214, 166, 74, 0.12)', padding: '0.25rem 0.65rem', borderRadius: '999px' }}>
+              ⚡ {swap.creditAmount} SkillCredits
             </span>
+            <span className={`as-status-badge as-status-badge--${swap.status}`}>
+              ● {swap.status}
+            </span>
+            <button type="button" className="chat-close-btn" onClick={onClose} aria-label="Close workspace">
+              ×
+            </button>
           </div>
-          <p style={{ margin: 0, fontSize: '0.775rem', color: 'var(--text-secondary)' }}>
-            Use this chat to coordinate deliverables, ask clarifying questions, and agree on exchange details with {displayName}.
-          </p>
         </div>
 
-        <div className="chat-messages-container">
-          {messages.length === 0 ? (
-            <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-              No messages yet. Start the conversation to discuss exchange details.
-            </p>
-          ) : (
-            messages.map((msg) => {
-              const isUser = user && msg.senderId === user.id;
-              const timeFormatted = new Date(msg.createdAt).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              });
-              return (
-                <div
-                  key={msg.id}
-                  className={`chat-message-bubble ${isUser ? 'chat-message--user' : 'chat-message--other'}`}
-                >
-                  <p className="chat-message-text">{msg.body}</p>
-                  <span className="chat-message-time">{timeFormatted}</span>
+        {/* WORKSPACE GRID: CONVERSATION TIMELINE + SIDEBAR */}
+        <div className="chat-workspace-grid">
+          {/* MAIN / LEFT AREA: CHAT TIMELINE WITH EMBEDDED SYSTEM CARDS */}
+          <div className="chat-workspace-main">
+            <div className="chat-messages-container">
+              {/* SYSTEM CARD 1: ESCROW ALLOCATION */}
+              <div className="chat-system-card chat-system-card--reserved">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
+                  <span>⚡ Escrow Allocation Active</span>
                 </div>
-              );
-            })
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+                <span>
+                  {swap.creditAmount} SkillCredits are held safely in escrow ledger for this swap agreement.
+                </span>
+              </div>
 
-        {chatError && (
-          <div style={{ color: 'var(--error-color, #ef4444)', padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
-            {chatError}
+              {/* MESSAGES LIST */}
+              {messages.length === 0 ? (
+                <p style={{ textAlign: 'center', color: 'var(--text-secondary)', margin: '1.5rem 0' }}>
+                  No messages yet. Use this space to discuss exchange terms and deliverables.
+                </p>
+              ) : (
+                messages.map((msg) => {
+                  const isUser = user && msg.senderId === user.id;
+                  const timeFormatted = new Date(msg.createdAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`chat-message-bubble ${isUser ? 'chat-message--user' : 'chat-message--other'}`}
+                    >
+                      <p className="chat-message-text">{msg.body}</p>
+                      <span className="chat-message-time">{timeFormatted}</span>
+                    </div>
+                  );
+                })
+              )}
+
+              {/* SYSTEM CARD 2: WORK SUBMISSION EVENT */}
+              {submission && (
+                <div className="chat-system-card chat-system-card--submission">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', fontWeight: 700 }}>
+                    <span>📎 Work Submitted for Review</span>
+                    <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>
+                      {new Date(submission.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+
+                  {submission.notes && <p style={{ margin: '0.2rem 0 0', fontStyle: 'italic' }}>“{submission.notes}”</p>}
+
+                  {submission.files && submission.files.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.35rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Attached Deliverables:</span>
+                      {submission.files.map((f) => (
+                        <div key={f.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.15)', padding: '0.3rem 0.6rem', borderRadius: '8px', fontSize: '0.8rem' }}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, paddingRight: '0.5rem' }}>
+                            {f.fileName}
+                          </span>
+                          <button
+                            type="button"
+                            className="as-btn as-btn--secondary"
+                            style={{ padding: '0.15rem 0.5rem', fontSize: '0.7rem' }}
+                            disabled={downloadingFileId === f.id}
+                            onClick={() => handleDownloadFile(f.storagePath, f.fileName, f.id, true)}
+                          >
+                            {downloadingFileId === f.id ? '...' : 'Download'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* ACTION CTA INSIDE TIMELINE FOR REQUESTER */}
+                  {isRequester && swap.status === 'submitted' && onApproveSwap && (
+                    <button
+                      type="button"
+                      className="as-btn as-btn--primary"
+                      style={{ marginTop: '0.5rem', width: '100%', fontSize: '0.85rem' }}
+                      disabled={isApproving}
+                      onClick={onApproveSwap}
+                    >
+                      {isApproving ? 'Settling...' : 'Approve Work & Transfer Credits'}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* SYSTEM CARD 3: SWAP COMPLETED SETTLEMENT */}
+              {isCompleted && (
+                <div className="chat-system-card chat-system-card--completed">
+                  <div style={{ fontWeight: 700 }}>✓ Swap Completed &amp; Settled</div>
+                  <span>
+                    Work approved! {swap.creditAmount} SkillCredits transferred to the participant.
+                  </span>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {chatError && (
+              <div style={{ color: 'var(--error-color, #ef4444)', padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
+                {chatError}
+              </div>
+            )}
+
+            <form onSubmit={handleSendMessage} className="chat-input-form">
+              <input
+                type="text"
+                className="chat-input"
+                placeholder="Type your message..."
+                value={input}
+                disabled={sending || !recipientId}
+                onChange={(e) => setInput(e.target.value)}
+              />
+              <button type="submit" className="chat-send-btn" disabled={sending || !input.trim() || !recipientId}>
+                {sending ? 'Sending...' : 'Send'}
+              </button>
+            </form>
           </div>
-        )}
 
-        <form onSubmit={handleSendMessage} className="chat-input-form">
-          <input
-            type="text"
-            className="chat-input"
-            placeholder="Type your message..."
-            value={input}
-            disabled={sending || !recipientId}
-            onChange={(e) => setInput(e.target.value)}
-          />
-          <button type="submit" className="chat-send-btn" disabled={sending || !input.trim() || !recipientId}>
-            {sending ? 'Sending...' : 'Send'}
-          </button>
-        </form>
+          {/* SIDEBAR / SECONDARY AREA: REQUIREMENTS, PROGRESS BAR & PRIMARY ACTION */}
+          <div className="chat-workspace-sidebar">
+            {/* LIFECYCLE PROGRESS BAR */}
+            <div>
+              <span style={{ fontSize: '0.785rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                Exchange Lifecycle
+              </span>
+              <div className="ws-lifecycle-stepper">
+                <div className={`ws-lifecycle-step ${swap.status === 'open' ? 'ws-lifecycle-step--active' : 'ws-lifecycle-step--completed'}`}>
+                  <span className="ws-lifecycle-dot">{swap.status === 'open' ? '1' : '✓'}</span>
+                  <span className="ws-lifecycle-label">Open</span>
+                </div>
+
+                <div className={`ws-lifecycle-step ${swap.status === 'accepted' ? 'ws-lifecycle-step--active' : isAccepted ? 'ws-lifecycle-step--completed' : ''}`}>
+                  <span className="ws-lifecycle-dot">{isAccepted && swap.status !== 'accepted' ? '✓' : '2'}</span>
+                  <span className="ws-lifecycle-label">Accepted</span>
+                </div>
+
+                <div className={`ws-lifecycle-step ${swap.status === 'submitted' ? 'ws-lifecycle-step--active' : isSubmitted ? 'ws-lifecycle-step--completed' : ''}`}>
+                  <span className="ws-lifecycle-dot">{isSubmitted && swap.status !== 'submitted' ? '✓' : '3'}</span>
+                  <span className="ws-lifecycle-label">Submitted</span>
+                </div>
+
+                <div className={`ws-lifecycle-step ${swap.status === 'completed' ? 'ws-lifecycle-step--active ws-lifecycle-step--completed' : ''}`}>
+                  <span className="ws-lifecycle-dot">4</span>
+                  <span className="ws-lifecycle-label">Completed</span>
+                </div>
+              </div>
+            </div>
+
+            {/* DOMINANT SINGLE PRIMARY ACTION CTA */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {isParticipant && swap.status === 'accepted' && onOpenSubmitWork && (
+                <button
+                  type="button"
+                  className="as-btn as-btn--primary"
+                  style={{ width: '100%', padding: '0.85rem' }}
+                  onClick={onOpenSubmitWork}
+                >
+                  Submit Deliverables
+                </button>
+              )}
+
+              {isRequester && swap.status === 'submitted' && onApproveSwap && (
+                <button
+                  type="button"
+                  className="as-btn as-btn--primary"
+                  style={{ width: '100%', padding: '0.85rem' }}
+                  disabled={isApproving}
+                  onClick={onApproveSwap}
+                >
+                  {isApproving ? 'Settling...' : 'Approve Work & Transfer Credits'}
+                </button>
+              )}
+
+              {swap.status === 'completed' && (
+                <div
+                  style={{
+                    padding: '0.75rem',
+                    borderRadius: '12px',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    color: '#10b981',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    textAlign: 'center',
+                  }}
+                >
+                  ✓ Swap Complete &amp; Settled
+                </div>
+              )}
+            </div>
+
+            {/* REQUIREMENTS & GUIDELINES */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <span style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-color)' }}>
+                Requirements &amp; Terms
+              </span>
+              <p style={{ margin: 0, fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                {swap.requirements || swap.description}
+              </p>
+            </div>
+
+            {/* CREATOR ATTACHMENTS (if present) */}
+            {creatorAttachments.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <span style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-color)' }}>
+                  Creator Resources ({creatorAttachments.length})
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  {creatorAttachments.map((att) => (
+                    <div
+                      key={att.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0.4rem 0.65rem',
+                        borderRadius: '8px',
+                        background: 'rgba(17, 22, 28, 0.04)',
+                        fontSize: '0.8rem',
+                      }}
+                    >
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, paddingRight: '0.5rem' }}>
+                        📎 {att.fileName}
+                      </span>
+                      <button
+                        type="button"
+                        className="as-btn as-btn--secondary"
+                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.725rem' }}
+                        disabled={downloadingFileId === att.id}
+                        onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false)}
+                      >
+                        {downloadingFileId === att.id ? '...' : 'Download'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

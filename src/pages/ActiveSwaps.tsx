@@ -1519,13 +1519,22 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         </div>
       )}
 
-      {/* CHAT MODAL */}
+      {/* CHAT MODAL / CONSOLIDATED WORKSPACE */}
       {activeChatSwap && (
         <SwapChatModal
           swap={activeChatSwap.swap}
           partnerName={activeChatSwap.partner.name}
           partnerAvatar={activeChatSwap.partner.avatar}
           onClose={() => setActiveChatSwap(null)}
+          onOpenSubmitWork={() => {
+            setActiveChatSwap(null);
+            setSubmitError(null);
+            setIsSubmitWorkModalOpen(true);
+          }}
+          onApproveSwap={async () => {
+            await handleApproveGivenSwap(activeChatSwap);
+          }}
+          isApproving={isMutating}
         />
       )}
 
