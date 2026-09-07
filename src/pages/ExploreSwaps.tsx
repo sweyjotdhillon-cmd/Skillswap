@@ -329,19 +329,35 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             {!requestSent ? (
               <>
-                <h3 className="modal-title">Accept this swap?</h3>
+                <h3 className="modal-title">Accept Swap Request</h3>
+                <p style={{ margin: '0 0 1rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                  Review the swap details below before committing to this exchange.
+                </p>
                 <div className="modal-swap-details">
                   <div className="modal-detail-row">
-                    <span className="modal-label">You’re accepting:</span>
-                    <strong>{selectedSwapForAccept.topic}</strong>
+                    <span className="modal-label">Skill Topic</span>
+                    <strong style={{ fontSize: '1.05rem' }}>{selectedSwapForAccept.topic}</strong>
                   </div>
-                  <div className="modal-detail-user">
-                    <span>Offered by:</span> {getRequesterName(selectedSwapForAccept)} • {selectedSwapForAccept.creditAmount} SkillCredits
+                  <div className="modal-detail-row">
+                    <span className="modal-label">Offered By</span>
+                    <span>{getRequesterName(selectedSwapForAccept)}</span>
                   </div>
+                  <div className="modal-detail-row">
+                    <span className="modal-label">SkillCredits Reward</span>
+                    <strong style={{ color: '#d97706' }}>⚡ {selectedSwapForAccept.creditAmount} SkillCredits</strong>
+                  </div>
+                  {selectedSwapForAccept.requirements && (
+                    <div className="modal-detail-row" style={{ borderTop: '1px solid rgba(17, 22, 28, 0.08)', paddingTop: '0.5rem', marginTop: '0.25rem' }}>
+                      <span className="modal-label">Expected Deliverables</span>
+                      <p style={{ margin: '0.2rem 0 0', fontSize: '0.875rem', color: 'var(--text-color)', lineHeight: 1.4 }}>
+                        {selectedSwapForAccept.requirements}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {acceptError && (
-                  <p className="error-message" style={{ margin: '12px 0 0' }} role="alert">
+                  <p className="error-message" style={{ margin: '0 0 1rem' }} role="alert">
                     {acceptError}
                   </p>
                 )}
@@ -383,7 +399,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                       setRequestSent(true);
                     }}
                   >
-                    {isAccepting ? 'Accepting...' : 'Confirm Accept Swap'}
+                    {isAccepting ? 'Accepting Swap...' : 'Accept Swap'}
                   </button>
                 </div>
               </>

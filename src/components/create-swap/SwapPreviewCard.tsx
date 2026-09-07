@@ -75,7 +75,7 @@ export function SwapPreviewCard({ formState }: SwapPreviewCardProps) {
 
         <div className="swap-card-footer">
           <button type="button" className="btn-request-swap" disabled>
-            Propose Exchange
+            Create Swap
           </button>
         </div>
       </div>

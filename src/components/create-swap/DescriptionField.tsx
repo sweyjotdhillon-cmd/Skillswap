@@ -11,18 +11,21 @@ export function DescriptionField({ value, onChange, error }: DescriptionFieldPro
     <div className="form-group">
       <div className="form-label-row">
         <label htmlFor="description-textarea" className="form-label">
-          Describe your swap
+          Swap Description
         </label>
         <span className="badge-required">Required</span>
       </div>
+      <p className="form-helper-text">
+        Provide context about your goals, current skill level, or what you want to achieve.
+      </p>
       <div className="input-wrapper">
         <textarea
           id="description-textarea"
           className={`form-textarea description-textarea ${error ? 'input-error' : ''}`}
-          placeholder="Explain what you're offering, who it's for, and what participants can expect..."
+          placeholder="Explain the background, goals, and context of this exchange..."
           value={value}
           maxLength={maxLength}
-          rows={5}
+          rows={4}
           onChange={(e) => onChange(e.target.value)}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? 'description-error' : undefined}

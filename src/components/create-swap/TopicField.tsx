@@ -11,16 +11,19 @@ export function TopicField({ value, onChange, error }: TopicFieldProps) {
     <div className="form-group">
       <div className="form-label-row">
         <label htmlFor="topic-input" className="form-label">
-          Topic
+          Topic / Skill
         </label>
         <span className="badge-required">Required</span>
       </div>
+      <p className="form-helper-text">
+        Specify the exact skill or topic you want to learn or exchange.
+      </p>
       <div className="input-wrapper">
         <input
           id="topic-input"
           type="text"
           className={`form-input ${error ? 'input-error' : ''}`}
-          placeholder="What skill or experience are you offering?"
+          placeholder="e.g. React Code Review, UI Design Feedback, Conversational Spanish..."
           value={value}
           maxLength={maxLength}
           onChange={(e) => onChange(e.target.value)}
