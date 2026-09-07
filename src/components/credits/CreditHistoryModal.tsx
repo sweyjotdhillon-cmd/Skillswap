@@ -135,7 +135,7 @@ export function CreditHistoryModal({ isOpen, onClose }: CreditHistoryModalProps)
                 Credit Account
                 <span className="credit-modal-title-break"> &amp; History</span>
               </h2>
-              <p className="credit-modal-subtitle">Your SkillSwap credit activity</p>
+              <p className="credit-modal-subtitle">Your Skillswap exchange history &amp; capability ledger</p>
             </div>
           </div>
           <button
@@ -159,7 +159,7 @@ export function CreditHistoryModal({ isOpen, onClose }: CreditHistoryModalProps)
               </span>
               <span className="credit-balance-currency">SkillCredits</span>
             </div>
-            <span className="credit-balance-subtext">Available to use for skill swaps</span>
+            <span className="credit-balance-subtext">Earned and spent through mutual skill exchange</span>
           </div>
 
           {/* C. ACCOUNT SUMMARY */}

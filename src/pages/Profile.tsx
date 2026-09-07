@@ -21,7 +21,7 @@ type ProfilePageProps = {
 };
 
 export function ProfilePage({ onNavigate }: ProfilePageProps) {
-  const { user, profile: authProfile, connectedProviders, refreshProfile } = useAuth();
+  const { user, profile: authProfile, account, connectedProviders, refreshProfile } = useAuth();
 
   const [profile, setProfile] = useState<Profile | null>(authProfile);
   const [predefinedSkills, setPredefinedSkills] = useState<UserSkill[]>([]);
@@ -376,13 +376,44 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
           </div>
         </section>
 
-        {/* MY SKILLS SECTION */}
-        <section className="profile-section-card" aria-label="My Skills">
+        {/* SKILL JOURNEY & CAPABILITY OVERVIEW SECTION */}
+        <section className="profile-section-card" aria-label="Skill Journey Overview">
           <div className="profile-section-header">
             <div>
-              <h2 className="profile-section-title">My Skills</h2>
+              <h2 className="profile-section-title">Skill Journey &amp; Expertise</h2>
               <span className="profile-section-subtitle">
-                {totalSkillsCount} of 10 skills selected
+                Building capability through mutual learning and exchange
+              </span>
+            </div>
+          </div>
+
+          <div className="as-stats-row" style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
+            <div className="as-stat-item">
+              <span className="as-stat-label">Skills &amp; Capabilities</span>
+              <strong className="as-stat-value">{totalSkillsCount} Listed</strong>
+            </div>
+            <div className="as-stat-item">
+              <span className="as-stat-label">Lifetime Credits Earned</span>
+              <strong className="as-stat-value">{account ? `+${account.credits_earned}` : '0'} SkillCredits</strong>
+            </div>
+            <div className="as-stat-item">
+              <span className="as-stat-label">Available Balance</span>
+              <strong className="as-stat-value">{account ? account.credits_balance : '0'} SkillCredits</strong>
+            </div>
+          </div>
+
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+            Every exchange you participate in adds real experience to your journey. Share what you know to help peers and learn new skills to broaden your expertise.
+          </p>
+        </section>
+
+        {/* MY SKILLS SECTION */}
+        <section className="profile-section-card" aria-label="Skills & Expertise">
+          <div className="profile-section-header">
+            <div>
+              <h2 className="profile-section-title">Skills &amp; Expertise</h2>
+              <span className="profile-section-subtitle">
+                Capabilities you share and develop across Skillswap ({totalSkillsCount} of 10 selected)
               </span>
             </div>
             <button
@@ -414,13 +445,13 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
           <div className="profile-skills-wrapper">
             {totalSkillsCount === 0 ? (
               <div className="profile-empty-state">
-                <p>No skills added yet.</p>
+                <p>No skills added to your expertise portfolio yet.</p>
                 <button
                   type="button"
                   className="profile-empty-action-btn"
                   onClick={() => setIsManageSkillsOpen(true)}
                 >
-                  + Add your skills
+                  + Add skills you offer or want to develop
                 </button>
               </div>
             ) : (

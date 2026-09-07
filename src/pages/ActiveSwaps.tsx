@@ -401,7 +401,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
       setSubmitWorkFiles([]);
       setSubmitError(null);
 
-      setSubmitSuccessToast(`Work submitted for "${currentAcceptedItem.swap.topic}"! Waiting for requester review.`);
+      setSubmitSuccessToast(`Work submitted for "${currentAcceptedItem.swap.topic}"! Your contribution is ready for requester review.`);
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
       toastTimerRef.current = setTimeout(() => {
         if (isMountedRef.current) setSubmitSuccessToast(null);
@@ -438,7 +438,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
     await refreshAccount();
     await loadRealActiveSwaps();
-    setSubmitSuccessToast(`Swap completed! ${item.swap.creditAmount} SkillCredits settled successfully.`);
+    setSubmitSuccessToast(`Swap completed! You exchanged expertise on "${item.swap.topic}" with ${item.partner.name} and settled ${item.swap.creditAmount} SkillCredits.`);
 
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => {
@@ -808,9 +808,30 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     </div>
                   ) : null}
 
+                  {/* JOURNEY STATUS & NEXT STEP GUIDANCE */}
+                  <div className="as-detail-section">
+                    <h4 className="as-section-subheading">Exchange Journey &amp; Control</h4>
+                    <div className="as-callout-box" style={{ background: 'var(--card-bg, rgba(255, 255, 255, 0.03))', borderLeft: '3px solid var(--primary-color, #2563eb)', padding: '0.85rem 1rem' }}>
+                      <div className="as-callout-title" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {currentAcceptedItem.swap.status === 'completed'
+                          ? 'Journey Step: Exchange Complete'
+                          : currentAcceptedItem.swap.status === 'submitted'
+                          ? 'Journey Step: Awaiting Requester Review'
+                          : 'Journey Step: In Progress — Building Capability'}
+                      </div>
+                      <p className="as-callout-text" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.35rem 0 0 0' }}>
+                        {currentAcceptedItem.swap.status === 'completed'
+                          ? 'You have successfully delivered expertise for this swap and earned SkillCredits to fund your next learning exchange.'
+                          : currentAcceptedItem.swap.status === 'submitted'
+                          ? 'Your work has been submitted. The swap requester will review your deliverables and settle the agreed SkillCredits.'
+                          : 'You are currently working on this skill exchange. Once your work or deliverables are ready, submit them below to complete the exchange.'}
+                      </p>
+                    </div>
+                  </div>
+
                   {/* YOUR SUBMISSION / NEXT STEP */}
                   <div className="as-detail-section">
-                    <h4 className="as-section-subheading">Submission Status</h4>
+                    <h4 className="as-section-subheading">Submitted Expertise &amp; Deliverables</h4>
                     {submissionLoading ? (
                       <p className="as-section-body-text">Loading submission details...</p>
                     ) : currentSubmission ? (
