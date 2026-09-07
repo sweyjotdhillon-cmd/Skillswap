@@ -1037,10 +1037,12 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                   {/* CALLOUT / SUBMISSION DETAILS */}
                   <div className="as-detail-section">
                     {currentGivenItem.swap.status === 'accepted' ? (
-                      <div className="as-callout-box">
-                        <div className="as-callout-title">Waiting for submission</div>
-                        <p className="as-callout-text">
-                          {currentGivenItem.partner.name} has accepted this swap. You will be able to review deliverables and transfer SkillCredits once work is submitted.
+                      <div className="as-callout-box" style={{ background: 'var(--card-bg, rgba(255, 255, 255, 0.03))', borderLeft: '3px solid #d6a64a', padding: '0.85rem 1rem' }}>
+                        <div className="as-callout-title" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          Participant is preparing deliverables
+                        </div>
+                        <p className="as-callout-text" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.35rem 0 0 0' }}>
+                          The participant is currently preparing your deliverables. You will be notified when work is submitted for your approval.
                         </p>
                       </div>
                     ) : submissionLoading ? (
@@ -1286,7 +1288,12 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         <div className="modal-overlay" onClick={() => !isMutating && setIsSubmitWorkModalOpen(false)}>
           <div className="modal-content as-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="chat-modal-header">
-              <h3 className="chat-title">Submit Work for {currentAcceptedItem.swap.topic}</h3>
+              <div>
+                <h3 className="chat-title">Submit Work for {currentAcceptedItem.swap.topic}</h3>
+                <p style={{ margin: '0.2rem 0 0', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                  Provide notes, external deliverable links, or file attachments for the requester to review.
+                </p>
+              </div>
               <button
                 type="button"
                 className="chat-close-btn"
@@ -1393,7 +1400,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                   Cancel
                 </button>
                 <button type="submit" className="modal-btn modal-btn--confirm" disabled={isMutating}>
-                  {isMutating ? 'Uploading & Submitting Work...' : 'Confirm Work Submission'}
+                  {isMutating ? 'Uploading & Submitting Work...' : 'Submit Work for Review'}
                 </button>
               </div>
             </form>
