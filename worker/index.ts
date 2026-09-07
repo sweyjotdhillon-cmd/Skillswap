@@ -1,3 +1,5 @@
+/// <reference types="@cloudflare/workers-types" />
+
 export default {
   async fetch(request, env): Promise<Response> {
     const url = new URL(request.url);

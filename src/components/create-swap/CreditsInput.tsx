@@ -1,3 +1,5 @@
+import { useAuth } from '../../context/AuthContext';
+
 type CreditsInputProps = {
   value: string;
   onChange: (value: string) => void;
@@ -5,7 +7,10 @@ type CreditsInputProps = {
 };
 
 export function CreditsInput({ value, onChange, error }: CreditsInputProps) {
+  const { account } = useAuth();
   const numValue = value === '' ? null : parseInt(value, 10);
+  const currentBalance = account?.credits_balance ?? 0;
+  const remainingBalance = numValue !== null && !isNaN(numValue) ? currentBalance - numValue : currentBalance;
 
   const handleDecrement = () => {
     if (numValue === null) {
@@ -58,7 +63,7 @@ export function CreditsInput({ value, onChange, error }: CreditsInputProps) {
             className="stepper-btn stepper-btn--minus"
             onClick={handleDecrement}
             disabled={numValue !== null && numValue <= 1}
-            aria-label="Decrease credits"
+            aria-label="Decrease SkillCredits"
           >
             –
           </button>
@@ -78,13 +83,23 @@ export function CreditsInput({ value, onChange, error }: CreditsInputProps) {
             type="button"
             className="stepper-btn stepper-btn--plus"
             onClick={handleIncrement}
-            aria-label="Increase credits"
+            aria-label="Increase SkillCredits"
           >
             +
           </button>
         </div>
         <span className="credits-label">SkillCredits</span>
       </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+        <span>Available Balance: <strong style={{ color: 'var(--text-color)' }}>{currentBalance} ⚡ SkillCredits</strong></span>
+        {numValue !== null && !isNaN(numValue) && numValue > 0 && (
+          <span style={{ color: remainingBalance < 0 ? '#ef4444' : 'var(--text-muted)' }}>
+            Remaining after swap: <strong>{remainingBalance} ⚡ SkillCredits</strong>
+          </span>
+        )}
+      </div>
+
       {error && <p id="credits-error" className="error-message" role="alert">{error}</p>}
     </div>
   );
