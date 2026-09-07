@@ -8,11 +8,10 @@ import { AttachmentUploader, AttachmentItem } from '../components/create-swap/At
 import { CreditsInput } from '../components/create-swap/CreditsInput';
 import { RequirementsField } from '../components/create-swap/RequirementsField';
 import { AdditionalMessageField } from '../components/create-swap/AdditionalMessageField';
-import { CreateSwapActions } from '../components/create-swap/CreateSwapActions';
 import { SwapPreviewCard } from '../components/create-swap/SwapPreviewCard';
 import { useAuth } from '../context/AuthContext';
 import { createCreditSwap, uploadSwapAttachments, cancelCreditSwap } from '../lib/supabase/credits';
-import { getTagSlug, isValidSwapTag } from '../constants/tags';
+import { getTagSlug, getTagLabel, isValidSwapTag } from '../constants/tags';
 import { generateUUID } from '../lib/uuid';
 
 export interface CreateSwapFormState {
@@ -37,9 +36,46 @@ type CreateSwapPageProps = {
   onNavigate?: (path: string) => void;
 };
 
+const QUICK_TEMPLATES = [
+  {
+    label: '⚡ React Code Review',
+    topic: 'React & TypeScript Code Review',
+    tags: ['coding'],
+    description: 'Review my React custom hooks and state management architecture for performance bottlenecks and clean code patterns.',
+    credits: '50',
+    requirements: 'Detailed code review comments on my pull request with 3 actionable optimization suggestions.',
+  },
+  {
+    label: '🎨 UI/UX Design Feedback',
+    topic: 'Mobile App UI/UX Feedback',
+    tags: ['design'],
+    description: 'Evaluate my mobile app Figma designs for visual hierarchy, contrast accessibility, and intuitive navigation flows.',
+    credits: '75',
+    requirements: 'Annotated visual feedback on 5 core screen flows with accessibility score recommendations.',
+  },
+  {
+    label: '🗣️ Spanish Practice',
+    topic: 'Spanish Conversation Practice',
+    tags: ['languages'],
+    description: 'Practice 45 minutes of natural spoken Spanish covering everyday professional and travel vocabulary.',
+    credits: '30',
+    requirements: '45-minute live audio/video call with feedback notes on pronunciation and grammar.',
+  },
+  {
+    label: '🎬 Video Editing Review',
+    topic: 'Short-Form Video Editing Review',
+    tags: ['video-editing'],
+    description: 'Review my 60-second video reel pacing, color grading, audio leveling, and captions.',
+    credits: '60',
+    requirements: 'Timestamped feedback list on cuts, audio balance, and visual transitions.',
+  },
+];
+
 export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
   const { user, account, refreshAccount } = useAuth();
   const draftKey = user ? `skillswap_create_swap_draft_${user.id}` : 'skillswap_create_swap_draft_guest';
+
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   const [formState, setFormState] = useState<CreateSwapFormState>(() => {
     try {
@@ -112,38 +148,82 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
     };
   }, [statusMessage]);
 
-  const validate = (): boolean => {
+  const validateStep = (step: 1 | 2): boolean => {
     const newErrors: FormErrors = {};
 
-    if (!formState.topic.trim()) {
-      newErrors.topic = 'Please add a topic.';
-    }
-
-    if (!formState.tags || formState.tags.length === 0) {
-      newErrors.tags = 'Please select at least one tag.';
-    }
-
-    if (!formState.description.trim()) {
-      newErrors.description = 'Please describe your swap.';
-    }
-
-    if (!formState.credits.trim()) {
-      newErrors.credits = "Enter the number of SkillCredits you're offering.";
-    } else {
-      const parsed = parseInt(formState.credits, 10);
-      if (isNaN(parsed) || parsed <= 0) {
-        newErrors.credits = 'SkillCredits must be a valid positive number.';
-      } else if (account && parsed > account.credits_balance) {
-        newErrors.credits = `Insufficient SkillCredits balance. You currently have ${account.credits_balance} SkillCredits available.`;
+    if (step === 1) {
+      if (!formState.topic.trim()) {
+        newErrors.topic = 'Please add a topic.';
+      }
+      if (!formState.tags || formState.tags.length === 0) {
+        newErrors.tags = 'Please select at least one tag.';
+      }
+      if (!formState.description.trim()) {
+        newErrors.description = 'Please describe your swap.';
+      }
+    } else if (step === 2) {
+      if (!formState.credits.trim()) {
+        newErrors.credits = "Enter the number of SkillCredits you're offering.";
+      } else {
+        const parsed = parseInt(formState.credits, 10);
+        if (isNaN(parsed) || parsed <= 0) {
+          newErrors.credits = 'SkillCredits must be a valid positive number.';
+        } else if (account && parsed > account.credits_balance) {
+          newErrors.credits = `Insufficient SkillCredits balance. You currently have ${account.credits_balance} SkillCredits available.`;
+        }
+      }
+      if (!formState.requirements.trim()) {
+        newErrors.requirements = 'Describe what participants need to complete.';
       }
     }
 
-    if (!formState.requirements.trim()) {
-      newErrors.requirements = 'Describe what participants need to complete.';
-    }
-
-    setErrors(newErrors);
+    setErrors((prev) => ({ ...prev, ...newErrors }));
     return Object.keys(newErrors).length === 0;
+  };
+
+  const validateAll = (): boolean => {
+    const step1Valid = validateStep(1);
+    const step2Valid = validateStep(2);
+    return step1Valid && step2Valid;
+  };
+
+  const handleApplyTemplate = (tpl: typeof QUICK_TEMPLATES[number]) => {
+    setFormState((prev) => ({
+      ...prev,
+      topic: tpl.topic,
+      tags: tpl.tags,
+      description: tpl.description,
+      credits: tpl.credits,
+      requirements: tpl.requirements,
+    }));
+    setErrors({});
+    setStatusMessage({
+      type: 'info',
+      text: `Applied "${tpl.topic}" template! Customize any fields below.`,
+    });
+    if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+    statusTimerRef.current = setTimeout(() => setStatusMessage(null), 4000);
+  };
+
+  const handleNextStep = () => {
+    if (currentStep === 1) {
+      if (validateStep(1)) {
+        setCurrentStep(2);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } else if (currentStep === 2) {
+      if (validateStep(2)) {
+        setCurrentStep(3);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep((prev) => (prev - 1) as 1 | 2);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleSaveDraft = () => {
@@ -179,7 +259,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
       return;
     }
 
-    if (validate()) {
+    if (validateAll()) {
       setIsSubmitting(true);
       if (!activeIdempotencyKeyRef.current) {
         activeIdempotencyKeyRef.current = `swap_create:${generateUUID()}`;
@@ -302,6 +382,8 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
     }));
   };
 
+  const progressPercent = currentStep === 1 ? 33 : currentStep === 2 ? 66 : 100;
+
   return (
     <div className="page-shell">
       <Navbar onNavigate={onNavigate} showUserHeader />
@@ -309,6 +391,59 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         <div className="create-swap-layout">
           <div className="create-swap-card">
             <CreateSwapHeader />
+
+            {/* STEPPER PROGRESS INDICATOR */}
+            <div className="cs-stepper-container" aria-label="Creation progress">
+              <div className="cs-progress-bar-bg">
+                <div
+                  className="cs-progress-bar-fill"
+                  style={{ width: `${progressPercent}%` }}
+                  role="progressbar"
+                  aria-valuenow={progressPercent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                />
+              </div>
+
+              <div className="cs-stepper-tabs" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={currentStep === 1}
+                  className={`cs-step-tab ${currentStep === 1 ? 'cs-step-tab--active' : currentStep > 1 ? 'cs-step-tab--completed' : ''}`}
+                  onClick={() => setCurrentStep(1)}
+                >
+                  <span className="cs-step-num">{currentStep > 1 ? '✓' : '1'}</span>
+                  <span>1. Skill Request</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={currentStep === 2}
+                  className={`cs-step-tab ${currentStep === 2 ? 'cs-step-tab--active' : currentStep > 2 ? 'cs-step-tab--completed' : ''}`}
+                  onClick={() => {
+                    if (validateStep(1)) setCurrentStep(2);
+                  }}
+                >
+                  <span className="cs-step-num">{currentStep > 2 ? '✓' : '2'}</span>
+                  <span>2. Exchange Terms</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={currentStep === 3}
+                  className={`cs-step-tab ${currentStep === 3 ? 'cs-step-tab--active' : ''}`}
+                  onClick={() => {
+                    if (validateStep(1) && validateStep(2)) setCurrentStep(3);
+                  }}
+                >
+                  <span className="cs-step-num">3</span>
+                  <span>3. Resources &amp; Publish</span>
+                </button>
+              </div>
+            </div>
 
             {statusMessage && (
               <div className={`status-banner status-banner--${statusMessage.type}`} role="status">
@@ -352,6 +487,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
                     onClick={() => {
                       setCreatedSwapResult(null);
                       setStatusMessage(null);
+                      setCurrentStep(1);
                     }}
                   >
                     Create Another Swap
@@ -360,94 +496,212 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
               </div>
             ) : (
               <form onSubmit={handleSubmit} noValidate className="create-swap-form">
-                {/* SECTION 1: SKILL REQUEST */}
-                <fieldset className="create-swap-section" style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  <legend className="create-swap-section-title" style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-color)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(214, 166, 74, 0.2)', color: '#a8781d', fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', lineHeight: '24px' }}>1</span>
-                    Skill Request Overview
-                  </legend>
+                {/* STEP 1: SKILL REQUEST OVERVIEW */}
+                {currentStep === 1 && (
+                  <fieldset className="create-swap-section" style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    <legend className="create-swap-section-title" style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-color)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(214, 166, 74, 0.2)', color: '#a8781d', fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', lineHeight: '24px' }}>1</span>
+                      Skill Request Overview
+                    </legend>
 
-                  <TopicField
-                    value={formState.topic}
-                    onChange={(val) => {
-                      setFormState((prev) => ({ ...prev, topic: val }));
-                      if (errors.topic) setErrors((prev) => ({ ...prev, topic: undefined }));
-                    }}
-                    error={errors.topic}
-                  />
+                    {/* QUICK WORKED EXAMPLE TEMPLATES */}
+                    <div className="cs-templates-section">
+                      <span className="cs-templates-label">💡 Worked Examples / Quick Templates</span>
+                      <p style={{ margin: 0, fontSize: '0.785rem', color: 'var(--text-secondary)' }}>
+                        Select a template to pre-fill common swap parameters with sensible defaults:
+                      </p>
+                      <div className="cs-templates-grid">
+                        {QUICK_TEMPLATES.map((tpl) => (
+                          <button
+                            key={tpl.label}
+                            type="button"
+                            className="cs-template-chip"
+                            onClick={() => handleApplyTemplate(tpl)}
+                          >
+                            {tpl.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-                  <TagSelectionField
-                    selectedTags={formState.tags}
-                    onChange={(tags) => {
-                      setFormState((prev) => ({ ...prev, tags }));
-                      if (errors.tags) setErrors((prev) => ({ ...prev, tags: undefined }));
-                    }}
-                    error={errors.tags}
-                  />
+                    <TopicField
+                      value={formState.topic}
+                      onChange={(val) => {
+                        setFormState((prev) => ({ ...prev, topic: val }));
+                        if (errors.topic) setErrors((prev) => ({ ...prev, topic: undefined }));
+                      }}
+                      error={errors.topic}
+                    />
 
-                  <DescriptionField
-                    value={formState.description}
-                    onChange={(val) => {
-                      setFormState((prev) => ({ ...prev, description: val }));
-                      if (errors.description) setErrors((prev) => ({ ...prev, description: undefined }));
-                    }}
-                    error={errors.description}
-                  />
-                </fieldset>
+                    <TagSelectionField
+                      selectedTags={formState.tags}
+                      onChange={(tags) => {
+                        setFormState((prev) => ({ ...prev, tags }));
+                        if (errors.tags) setErrors((prev) => ({ ...prev, tags: undefined }));
+                      }}
+                      error={errors.tags}
+                    />
 
-                <hr style={{ border: 'none', borderTop: '1px solid var(--card-border, rgba(17, 22, 28, 0.08))', margin: '0.5rem 0' }} />
+                    <DescriptionField
+                      value={formState.description}
+                      onChange={(val) => {
+                        setFormState((prev) => ({ ...prev, description: val }));
+                        if (errors.description) setErrors((prev) => ({ ...prev, description: undefined }));
+                      }}
+                      error={errors.description}
+                    />
 
-                {/* SECTION 2: EXCHANGE TERMS */}
-                <fieldset className="create-swap-section" style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  <legend className="create-swap-section-title" style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-color)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(214, 166, 74, 0.2)', color: '#a8781d', fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', lineHeight: '24px' }}>2</span>
-                    Exchange Terms & Deliverables
-                  </legend>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', gap: '1rem' }}>
+                      <button
+                        type="button"
+                        className="btn-save-draft"
+                        onClick={handleSaveDraft}
+                      >
+                        Save Draft
+                      </button>
 
-                  <CreditsInput
-                    value={formState.credits}
-                    onChange={(val) => {
-                      setFormState((prev) => ({ ...prev, credits: val }));
-                      if (errors.credits) setErrors((prev) => ({ ...prev, credits: undefined }));
-                    }}
-                    error={errors.credits}
-                  />
+                      <button
+                        type="button"
+                        className="btn-create-swap"
+                        onClick={handleNextStep}
+                      >
+                        Next: Exchange Terms →
+                      </button>
+                    </div>
+                  </fieldset>
+                )}
 
-                  <RequirementsField
-                    value={formState.requirements}
-                    onChange={(val) => {
-                      setFormState((prev) => ({ ...prev, requirements: val }));
-                      if (errors.requirements) setErrors((prev) => ({ ...prev, requirements: undefined }));
-                    }}
-                    error={errors.requirements}
-                  />
-                </fieldset>
+                {/* STEP 2: EXCHANGE TERMS & DELIVERABLES */}
+                {currentStep === 2 && (
+                  <fieldset className="create-swap-section" style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    <legend className="create-swap-section-title" style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-color)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(214, 166, 74, 0.2)', color: '#a8781d', fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', lineHeight: '24px' }}>2</span>
+                      Exchange Terms &amp; Deliverables
+                    </legend>
 
-                <hr style={{ border: 'none', borderTop: '1px solid var(--card-border, rgba(17, 22, 28, 0.08))', margin: '0.5rem 0' }} />
+                    <CreditsInput
+                      value={formState.credits}
+                      onChange={(val) => {
+                        setFormState((prev) => ({ ...prev, credits: val }));
+                        if (errors.credits) setErrors((prev) => ({ ...prev, credits: undefined }));
+                      }}
+                      error={errors.credits}
+                    />
 
-                {/* SECTION 3: OPTIONAL EXTRAS */}
-                <fieldset className="create-swap-section" style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  <legend className="create-swap-section-title" style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-color)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(214, 166, 74, 0.2)', color: '#a8781d', fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', lineHeight: '24px' }}>3</span>
-                    Optional Resources & Notes
-                  </legend>
+                    <RequirementsField
+                      value={formState.requirements}
+                      onChange={(val) => {
+                        setFormState((prev) => ({ ...prev, requirements: val }));
+                        if (errors.requirements) setErrors((prev) => ({ ...prev, requirements: undefined }));
+                      }}
+                      error={errors.requirements}
+                    />
 
-                  <AttachmentUploader
-                    attachments={formState.attachments}
-                    onAddAttachments={handleAddAttachments}
-                    onRemoveAttachment={handleRemoveAttachment}
-                  />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', gap: '1rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn-save-draft"
+                        onClick={handlePrevStep}
+                      >
+                        ← Back to Overview
+                      </button>
 
-                  <AdditionalMessageField
-                    value={formState.additionalMessage}
-                    onChange={(val) => setFormState((prev) => ({ ...prev, additionalMessage: val }))}
-                  />
-                </fieldset>
+                      <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        <button
+                          type="button"
+                          className="btn-save-draft"
+                          onClick={handleSaveDraft}
+                        >
+                          Save Draft
+                        </button>
 
-                <CreateSwapActions
-                  onSaveDraft={handleSaveDraft}
-                  isSubmitting={isSubmitting}
-                />
+                        <button
+                          type="button"
+                          className="btn-create-swap"
+                          onClick={handleNextStep}
+                        >
+                          Next: Resources &amp; Publish →
+                        </button>
+                      </div>
+                    </div>
+                  </fieldset>
+                )}
+
+                {/* STEP 3: RESOURCES & FINAL REVIEW */}
+                {currentStep === 3 && (
+                  <fieldset className="create-swap-section" style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    <legend className="create-swap-section-title" style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-color)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(214, 166, 74, 0.2)', color: '#a8781d', fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', lineHeight: '24px' }}>3</span>
+                      Optional Resources &amp; Final Review
+                    </legend>
+
+                    {/* SUMMARY REVIEW BOX */}
+                    <div
+                      style={{
+                        padding: '1rem 1.25rem',
+                        borderRadius: '12px',
+                        background: 'rgba(17, 22, 28, 0.03)',
+                        border: '1px solid rgba(17, 22, 28, 0.1)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem',
+                        fontSize: '0.9rem',
+                      }}
+                    >
+                      <span style={{ fontWeight: 700, color: '#a8781d' }}>📋 Swap Summary Review</span>
+                      <div><strong>Topic:</strong> {formState.topic || '(Not set)'}</div>
+                      <div>
+                        <strong>Tags:</strong>{' '}
+                        {formState.tags.length > 0
+                          ? formState.tags.map((t) => getTagLabel(t)).join(', ')
+                          : '(None)'}
+                      </div>
+                      <div><strong>Credits Offered:</strong> {formState.credits || '0'} SkillCredits</div>
+                      <div><strong>Requirements:</strong> {formState.requirements || '(None)'}</div>
+                    </div>
+
+                    <AttachmentUploader
+                      attachments={formState.attachments}
+                      onAddAttachments={handleAddAttachments}
+                      onRemoveAttachment={handleRemoveAttachment}
+                    />
+
+                    <AdditionalMessageField
+                      value={formState.additionalMessage}
+                      onChange={(val) => setFormState((prev) => ({ ...prev, additionalMessage: val }))}
+                    />
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', gap: '1rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn-save-draft"
+                        onClick={handlePrevStep}
+                        disabled={isSubmitting}
+                      >
+                        ← Back to Terms
+                      </button>
+
+                      <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        <button
+                          type="button"
+                          className="btn-save-draft"
+                          onClick={handleSaveDraft}
+                          disabled={isSubmitting}
+                        >
+                          Save Draft
+                        </button>
+
+                        <button
+                          type="submit"
+                          className="btn-create-swap"
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? 'Publishing Swap...' : 'Publish Swap Request'}
+                        </button>
+                      </div>
+                    </div>
+                  </fieldset>
+                )}
               </form>
             )}
           </div>
