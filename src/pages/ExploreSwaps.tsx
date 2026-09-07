@@ -330,7 +330,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
               <>
                 <h3 className="modal-title">Accept Swap Request</h3>
                 <p style={{ margin: '0 0 1rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                  Review the swap details below before committing to this exchange.
+                  As the participant, you agree to fulfill the deliverables below. Upon requester review, SkillCredits will be awarded to your balance.
                 </p>
                 <div className="modal-swap-details">
                   <div className="modal-detail-row">
@@ -353,6 +353,10 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                       </p>
                     </div>
                   )}
+                </div>
+
+                <div className="modal-next-step-note" style={{ margin: '0.75rem 0 1rem', fontSize: '0.825rem', color: 'var(--text-secondary)', background: 'var(--card-bg, rgba(255, 255, 255, 0.04))', padding: '0.6rem 0.85rem', borderRadius: '8px', borderLeft: '3px solid #d6a64a' }}>
+                  <strong>Next step:</strong> This swap will move to your Active Swaps where you can chat with {getRequesterName(selectedSwapForAccept)} and submit completed work.
                 </div>
 
                 {acceptError && (
@@ -398,7 +402,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                       setRequestSent(true);
                     }}
                   >
-                    {isAccepting ? 'Accepting Swap...' : 'Accept Swap'}
+                    {isAccepting ? 'Accepting Swap...' : 'Accept Swap & Start Exchange'}
                   </button>
                 </div>
               </>
