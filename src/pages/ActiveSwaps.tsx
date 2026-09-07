@@ -1004,30 +1004,9 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     )}
 
                     {currentAcceptedItem.swap.status === 'completed' && (
-                      <>
-                        <span className="as-status-badge as-status-badge--large as-status-badge--completed">
-                          ✓ Completed & Credits Received
-                        </span>
-                        {reviewedSwaps[currentAcceptedItem.swap.id] ? (
-                          <span className="as-status-badge as-status-badge--completed" style={{ background: 'rgba(214, 166, 74, 0.12)', color: '#a8781d' }}>
-                            ★ Review Submitted
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            className="as-btn as-btn--primary"
-                            style={{ background: '#a8781d', borderColor: '#a8781d' }}
-                            onClick={() => {
-                              setSelectedSwapForReview(currentAcceptedItem);
-                              setReviewRating(5);
-                              setReviewText('');
-                              setReviewError(null);
-                            }}
-                          >
-                            ★ Leave a Review
-                          </button>
-                        )}
-                      </>
+                      <span className="as-status-badge as-status-badge--large as-status-badge--completed">
+                        ✓ Completed & Credits Received
+                      </span>
                     )}
 
                     <button

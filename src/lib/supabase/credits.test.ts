@@ -131,6 +131,7 @@ export async function runCreditSystemTests() {
     '026_submission_and_chat_permissions.sql',
     '027_remove_chat_permissions.sql',
     '028_trust_data_pipeline.sql',
+    '029_reconcile_rating_and_trust_schema.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -1532,14 +1533,14 @@ export async function runCreditSystemTests() {
   assert(Number(profileAAfterS2.completed_swaps_count) >= 1, 'User A completed_swaps_count automatically updated by trigger');
   assert(Number(profileBAfterS2.completed_swaps_count) >= 1, 'User B completed_swaps_count automatically updated by trigger');
 
-  // 20c: Submit review from User A to User B for Swap 2
+  // 20c: Submit review from User A (requester) to User B (participant) for Swap 2
   await setAuthUser(userA);
   const reviewRes1 = await db.query<{ submit_swap_review: { success: boolean; review_id?: string } }>(`
     SELECT public.submit_swap_review('${swap2Id}'::uuid, 5, 'Outstanding React & TypeScript guidance!') AS submit_swap_review;
   `);
-  assert(reviewRes1.rows[0].submit_swap_review.success === true, 'User A submitted review for User B successfully');
+  assert(reviewRes1.rows[0].submit_swap_review.success === true, 'Requester User A submitted review for Participant User B successfully');
 
-  // Verify User B profile metrics updated automatically by trg_update_profile_review_metrics
+  // Verify User B profile metrics updated automatically by trg_update_profile_review_metrics using canonical reviewee_id
   await setSuperuser();
   const profileBMetrics = (await db.query<ProfileTrustRow>(`SELECT average_rating, review_count FROM public.profiles WHERE id = '${userB}';`)).rows[0];
   assert(Number(profileBMetrics.review_count) === 1, 'User B review_count updated to 1');
@@ -1553,18 +1554,13 @@ export async function runCreditSystemTests() {
   assert(dupReviewRes.rows[0].submit_swap_review.success === false, 'Duplicate review attempt rejected');
   assert(dupReviewRes.rows[0].submit_swap_review.error?.includes('already submitted') === true, 'Correct error message for duplicate review');
 
-  // 20e: Submit review from User B to User A for Swap 2
+  // 20e: Participant User B attempts to review Requester User A for Swap 2 -> MUST BE REJECTED! (Strict A -> B rule)
   await setAuthUser(userB);
-  const reviewRes2 = await db.query<{ submit_swap_review: { success: boolean } }>(`
-    SELECT public.submit_swap_review('${swap2Id}'::uuid, 4, 'Great exchange partner!') AS submit_swap_review;
+  const participantReviewRes = await db.query<{ submit_swap_review: { success: boolean; error?: string } }>(`
+    SELECT public.submit_swap_review('${swap2Id}'::uuid, 4, 'Participant trying to review requester') AS submit_swap_review;
   `);
-  assert(reviewRes2.rows[0].submit_swap_review.success === true, 'User B submitted review for User A successfully');
-
-  // Verify User A profile metrics updated
-  await setSuperuser();
-  const profileAMetrics = (await db.query<ProfileTrustRow>(`SELECT average_rating, review_count FROM public.profiles WHERE id = '${userA}';`)).rows[0];
-  assert(Number(profileAMetrics.review_count) === 1, 'User A review_count updated to 1');
-  assert(Number(profileAMetrics.average_rating) === 4.00, 'User A average_rating updated to 4.00');
+  assert(participantReviewRes.rows[0].submit_swap_review.success === false, 'Participant review attempt on requester rejected');
+  assert(participantReviewRes.rows[0].submit_swap_review.error?.includes('Only the swap requester can submit a review') === true, 'Correct error message for participant review attempt');
 
   // 20f: Unrelated User C attempt to submit review for Swap 2 -> Must be rejected
   await setAuthUser(userC);
@@ -1572,6 +1568,16 @@ export async function runCreditSystemTests() {
     SELECT public.submit_swap_review('${swap2Id}'::uuid, 5, 'Unrelated user review attempt') AS submit_swap_review;
   `);
   assert(unauthReviewRes.rows[0].submit_swap_review.success === false, 'Unrelated user review attempt rejected');
+
+  // 20g: User attempts to directly modify profile reputation columns -> Must be blocked by trigger
+  await setAuthUser(userA);
+  let directModError = false;
+  try {
+    await db.query(`UPDATE public.profiles SET average_rating = 5.00, review_count = 100 WHERE id = '${userA}';`);
+  } catch (err: unknown) {
+    directModError = (err as Error).message.includes('Direct modification of trust and reputation metrics is prohibited');
+  }
+  assert(directModError, 'Direct client update on profiles average_rating/review_count blocked by trigger');
 
   console.log('  -> Trust Data Pipeline & Review System verified cleanly!');
 
