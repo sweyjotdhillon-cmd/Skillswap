@@ -11,18 +11,18 @@ export function RequirementsField({ value, onChange, error }: RequirementsFieldP
     <div className="form-group">
       <div className="form-label-row">
         <label htmlFor="requirements-textarea" className="form-label">
-          What needs to be completed?
+          Expected Deliverables
         </label>
         <span className="badge-required">Required</span>
       </div>
       <p className="form-helper-text">
-        Tell people exactly what needs to be completed for a successful skill exchange.
+        Specify tangible outcomes required from the partner (e.g., 45-min live session, code review notes, design mockup).
       </p>
       <div className="input-wrapper">
         <textarea
           id="requirements-textarea"
           className={`form-textarea requirements-textarea ${error ? 'input-error' : ''}`}
-          placeholder="Describe what needs to be completed for a successful skill exchange..."
+          placeholder="List concrete deliverables or criteria for approving the work..."
           value={value}
           maxLength={maxLength}
           rows={4}

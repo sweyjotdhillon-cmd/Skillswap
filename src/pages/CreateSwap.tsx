@@ -360,67 +360,95 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
               </div>
             ) : (
               <form onSubmit={handleSubmit} noValidate className="create-swap-form">
-              <TopicField
-                value={formState.topic}
-                onChange={(val) => {
-                  setFormState((prev) => ({ ...prev, topic: val }));
-                  if (errors.topic) setErrors((prev) => ({ ...prev, topic: undefined }));
-                }}
-                error={errors.topic}
-              />
+                {/* SECTION 1: SKILL REQUEST */}
+                <fieldset className="create-swap-section" style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  <legend className="create-swap-section-title" style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-color)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(214, 166, 74, 0.2)', color: '#a8781d', fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', lineHeight: '24px' }}>1</span>
+                    Skill Request Overview
+                  </legend>
 
-              <TagSelectionField
-                selectedTags={formState.tags}
-                onChange={(tags) => {
-                  setFormState((prev) => ({ ...prev, tags }));
-                  if (errors.tags) setErrors((prev) => ({ ...prev, tags: undefined }));
-                }}
-                error={errors.tags}
-              />
+                  <TopicField
+                    value={formState.topic}
+                    onChange={(val) => {
+                      setFormState((prev) => ({ ...prev, topic: val }));
+                      if (errors.topic) setErrors((prev) => ({ ...prev, topic: undefined }));
+                    }}
+                    error={errors.topic}
+                  />
 
-              <DescriptionField
-                value={formState.description}
-                onChange={(val) => {
-                  setFormState((prev) => ({ ...prev, description: val }));
-                  if (errors.description) setErrors((prev) => ({ ...prev, description: undefined }));
-                }}
-                error={errors.description}
-              />
+                  <TagSelectionField
+                    selectedTags={formState.tags}
+                    onChange={(tags) => {
+                      setFormState((prev) => ({ ...prev, tags }));
+                      if (errors.tags) setErrors((prev) => ({ ...prev, tags: undefined }));
+                    }}
+                    error={errors.tags}
+                  />
 
-              <AttachmentUploader
-                attachments={formState.attachments}
-                onAddAttachments={handleAddAttachments}
-                onRemoveAttachment={handleRemoveAttachment}
-              />
+                  <DescriptionField
+                    value={formState.description}
+                    onChange={(val) => {
+                      setFormState((prev) => ({ ...prev, description: val }));
+                      if (errors.description) setErrors((prev) => ({ ...prev, description: undefined }));
+                    }}
+                    error={errors.description}
+                  />
+                </fieldset>
 
-              <CreditsInput
-                value={formState.credits}
-                onChange={(val) => {
-                  setFormState((prev) => ({ ...prev, credits: val }));
-                  if (errors.credits) setErrors((prev) => ({ ...prev, credits: undefined }));
-                }}
-                error={errors.credits}
-              />
+                <hr style={{ border: 'none', borderTop: '1px solid var(--card-border, rgba(17, 22, 28, 0.08))', margin: '0.5rem 0' }} />
 
-              <RequirementsField
-                value={formState.requirements}
-                onChange={(val) => {
-                  setFormState((prev) => ({ ...prev, requirements: val }));
-                  if (errors.requirements) setErrors((prev) => ({ ...prev, requirements: undefined }));
-                }}
-                error={errors.requirements}
-              />
+                {/* SECTION 2: EXCHANGE TERMS */}
+                <fieldset className="create-swap-section" style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  <legend className="create-swap-section-title" style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-color)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(214, 166, 74, 0.2)', color: '#a8781d', fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', lineHeight: '24px' }}>2</span>
+                    Exchange Terms & Deliverables
+                  </legend>
 
-              <AdditionalMessageField
-                value={formState.additionalMessage}
-                onChange={(val) => setFormState((prev) => ({ ...prev, additionalMessage: val }))}
-              />
+                  <CreditsInput
+                    value={formState.credits}
+                    onChange={(val) => {
+                      setFormState((prev) => ({ ...prev, credits: val }));
+                      if (errors.credits) setErrors((prev) => ({ ...prev, credits: undefined }));
+                    }}
+                    error={errors.credits}
+                  />
 
-              <CreateSwapActions
-                onSaveDraft={handleSaveDraft}
-                isSubmitting={isSubmitting}
-              />
-            </form>
+                  <RequirementsField
+                    value={formState.requirements}
+                    onChange={(val) => {
+                      setFormState((prev) => ({ ...prev, requirements: val }));
+                      if (errors.requirements) setErrors((prev) => ({ ...prev, requirements: undefined }));
+                    }}
+                    error={errors.requirements}
+                  />
+                </fieldset>
+
+                <hr style={{ border: 'none', borderTop: '1px solid var(--card-border, rgba(17, 22, 28, 0.08))', margin: '0.5rem 0' }} />
+
+                {/* SECTION 3: OPTIONAL EXTRAS */}
+                <fieldset className="create-swap-section" style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  <legend className="create-swap-section-title" style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-color)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(214, 166, 74, 0.2)', color: '#a8781d', fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', lineHeight: '24px' }}>3</span>
+                    Optional Resources & Notes
+                  </legend>
+
+                  <AttachmentUploader
+                    attachments={formState.attachments}
+                    onAddAttachments={handleAddAttachments}
+                    onRemoveAttachment={handleRemoveAttachment}
+                  />
+
+                  <AdditionalMessageField
+                    value={formState.additionalMessage}
+                    onChange={(val) => setFormState((prev) => ({ ...prev, additionalMessage: val }))}
+                  />
+                </fieldset>
+
+                <CreateSwapActions
+                  onSaveDraft={handleSaveDraft}
+                  isSubmitting={isSubmitting}
+                />
+              </form>
             )}
           </div>
 

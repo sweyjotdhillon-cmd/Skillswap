@@ -239,6 +239,42 @@ export function SwapChatModal({
           </button>
         </div>
 
+        {/* CONCISE SWAP CONTEXT BANNER */}
+        <div
+          className="chat-swap-context-banner"
+          style={{
+            padding: '0.55rem 1.25rem',
+            background: 'rgba(214, 166, 74, 0.08)',
+            borderBottom: '1px solid rgba(17, 22, 28, 0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            fontSize: '0.825rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+            <span style={{ fontWeight: 700, color: '#d97706', whiteSpace: 'nowrap' }}>
+              ⚡ {swap.creditAmount} SkillCredits
+            </span>
+            <span style={{ opacity: 0.4 }}>•</span>
+            <span
+              style={{
+                color: 'var(--text-color)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title={swap.requirements || swap.description}
+            >
+              {swap.requirements || swap.description}
+            </span>
+          </div>
+          <span className={`as-status-badge as-status-badge--${swap.status}`} style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem' }}>
+            {swap.status}
+          </span>
+        </div>
+
         <div className="chat-messages-container">
           {messages.length === 0 ? (
             <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
