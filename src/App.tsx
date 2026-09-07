@@ -5,6 +5,7 @@ import { CreateSwapPage } from './pages/CreateSwap';
 import { ExploreSwapsPage } from './pages/ExploreSwaps';
 import { AboutPage } from './pages/About';
 import { HowItWorksPage } from './pages/HowItWorks';
+import { StartPage } from './pages/Start';
 import { ActiveSwapsPage } from './pages/ActiveSwaps';
 import { LoginPage } from './pages/Login';
 import { SignupPage } from './pages/Signup';
@@ -52,6 +53,8 @@ function AppContent() {
       document.title = 'About — SkillSwap';
     } else if (path === '/how-it-works') {
       document.title = 'How It Works — SkillSwap';
+    } else if (path === '/start') {
+      document.title = 'Get Started — SkillSwap';
     } else if (path.startsWith('/login')) {
       document.title = 'Log In — SkillSwap';
     } else if (path.startsWith('/signup')) {
@@ -189,6 +192,10 @@ function AppContent() {
 
   if (path === '/how-it-works') {
     return <HowItWorksPage onNavigate={navigate} />;
+  }
+
+  if (path === '/start') {
+    return <StartPage onNavigate={navigate} />;
   }
 
   if (path === '/faq' || path === '/faq/') {
