@@ -150,16 +150,16 @@ export function CreditHistoryModal({ isOpen, onClose }: CreditHistoryModalProps)
 
         {/* MODAL SCROLLABLE BODY */}
         <div className="credit-modal-body">
-          {/* B. PRIMARY BALANCE */}
+          {/* B. PRIMARY BALANCE (B1: Active Trading Capital Framing) */}
           <div className="credit-primary-balance-card">
-            <span className="credit-balance-eyebrow">Available Balance</span>
+            <span className="credit-balance-eyebrow">Available Trading Capital</span>
             <div className="credit-balance-main-val">
               <span className="credit-balance-number">
                 {accountLoading ? '—' : account ? account.credits_balance : '0'}
               </span>
               <span className="credit-balance-currency">SkillCredits</span>
             </div>
-            <span className="credit-balance-subtext">Earned and spent through mutual skill exchange</span>
+            <span className="credit-balance-subtext">Welcome grant &amp; exchange capital ready for skill swaps</span>
           </div>
 
           {/* C. ACCOUNT SUMMARY */}

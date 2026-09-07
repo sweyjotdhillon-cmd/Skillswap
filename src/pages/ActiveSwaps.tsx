@@ -9,6 +9,7 @@ import {
   submitSwapWorkWithFiles,
   completeCreditSwap,
   cancelCreditSwap,
+  createCreditSwap,
   getSubmissionFileSignedUrl,
   getSwapAttachmentSignedUrl,
   downloadFileFromSignedUrl,
@@ -43,7 +44,7 @@ type ActiveSwapsPageProps = {
 };
 
 export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
-  const { user, refreshAccount } = useAuth();
+  const { user, account, refreshAccount } = useAuth();
   const [activeTab, setActiveTab] = useState<'accepted' | 'given' | 'open'>('accepted');
 
   const [acceptedSwaps, setAcceptedSwaps] = useState<ActiveSwapItem[]>([]);
@@ -446,6 +447,10 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     }, 5000);
   };
 
+  // Undo state for listing cancellation (B3 Behavioral Feedback)
+  const [undoCancelItem, setUndoCancelItem] = useState<{ item: ActiveSwapItem; seconds: number } | null>(null);
+  const undoCancelTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const handleCancelOpenSwap = async (item: ActiveSwapItem) => {
     if (isMutating) return;
 
@@ -460,12 +465,19 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
     await refreshAccount();
     await loadRealActiveSwaps();
-    setSubmitSuccessToast(`Swap listing "${item.swap.topic}" cancelled and reserved credits refunded.`);
 
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => {
-      if (isMountedRef.current) setSubmitSuccessToast(null);
-    }, 5000);
+    // Start 5-second Undo Toast Timer
+    setUndoCancelItem({ item, seconds: 5 });
+    if (undoCancelTimerRef.current) clearInterval(undoCancelTimerRef.current);
+    undoCancelTimerRef.current = setInterval(() => {
+      setUndoCancelItem((prev) => {
+        if (!prev || prev.seconds <= 1) {
+          if (undoCancelTimerRef.current) clearInterval(undoCancelTimerRef.current);
+          return null;
+        }
+        return { ...prev, seconds: prev.seconds - 1 };
+      });
+    }, 1000);
   };
 
   return (
@@ -476,8 +488,22 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         {/* PAGE HEADER */}
         <header className="active-swaps-header">
           <h1 className="active-swaps-title">Active Swaps</h1>
-          <p className="active-swaps-subtitle">Manage your ongoing skill exchanges.</p>
+          <p className="active-swaps-subtitle">Manage your ongoing skill exchanges and active escrow allocations.</p>
         </header>
+
+        {/* EMPOWERED JOURNEY CAPITAL SUMMARY BANNER (B1) */}
+        <div className="as-journey-banner">
+          <div className="as-journey-icon" aria-hidden="true">⚡</div>
+          <div className="as-journey-text-group">
+            <span className="as-journey-label">YOUR SKILLSWAP JOURNEY IS UNDERWAY</span>
+            <strong className="as-journey-balance">
+              Available Trading Capital: {account?.credits_balance ?? 0} SkillCredits
+            </strong>
+            <p className="as-journey-subtext">
+              Your exchange capital is active in your ledger. You have already started — request new expertise or complete active swaps to build your skills portfolio.
+            </p>
+          </div>
+        </div>
 
         {/* TOAST NOTIFICATION */}
         {submitSuccessToast && (
@@ -490,6 +516,39 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
               onClick={() => setSubmitSuccessToast(null)}
             >
               ×
+            </button>
+          </div>
+        )}
+
+        {/* 5-SECOND TRANSACTIONAL UNDO TOAST FOR LISTING CANCELLATION (B3 Behavioral Feedback) */}
+        {undoCancelItem && (
+          <div className="as-toast-banner" role="status" style={{ background: 'rgba(217, 119, 6, 0.12)', borderLeft: '4px solid #d97706' }}>
+            <div className="as-toast-icon">↩️</div>
+            <span>
+              Cancelled listing "{undoCancelItem.item.swap.topic}". Reserved credits refunded.
+            </span>
+            <button
+              type="button"
+              className="as-btn as-btn--secondary"
+              style={{ marginLeft: 'auto', padding: '0.25rem 0.75rem', fontSize: '0.8rem', background: '#d97706', color: '#ffffff' }}
+              onClick={async () => {
+                if (undoCancelTimerRef.current) clearInterval(undoCancelTimerRef.current);
+                const restoredSwap = undoCancelItem.item.swap;
+                setUndoCancelItem(null);
+
+                // Re-create the swap listing
+                await createCreditSwap({
+                  topic: restoredSwap.topic,
+                  description: restoredSwap.description,
+                  requirements: restoredSwap.requirements || '',
+                  creditAmount: restoredSwap.creditAmount,
+                  tags: restoredSwap.tags,
+                });
+                await refreshAccount();
+                await loadRealActiveSwaps();
+              }}
+            >
+              Undo ({undoCancelItem.seconds}s)
             </button>
           </div>
         )}

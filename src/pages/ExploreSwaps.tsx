@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { HeroVisual } from '../components/hero/HeroVisual';
 import { useAuth } from '../context/AuthContext';
 import {
   getOpenSwaps,
   acceptCreditSwap,
+  cancelCreditSwap,
 } from '../lib/supabase/credits';
 import { mapSwapRecordToSwap, type Swap } from '../types/swap';
 import { SWAP_TAG_OPTIONS, getTagLabel, getTagSlug } from '../constants/tags';
@@ -32,6 +33,10 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   const [selectedSwapForAccept, setSelectedSwapForAccept] = useState<Swap | null>(null);
   const [requestSent, setRequestSent] = useState(false);
   const [acceptError, setAcceptError] = useState<string | null>(null);
+
+  // Undo Toast state (B3 Behavioral Feedback)
+  const [undoToastSwap, setUndoToastSwap] = useState<{ swap: Swap; seconds: number } | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [selectedSwapForChat, setSelectedSwapForChat] = useState<Swap | null>(null);
 
@@ -156,21 +161,76 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
             )}
           </div>
 
-          {/* Category Filter Pills */}
-          <div className="explore-categories" role="tablist" aria-label="Category filter">
-            {CATEGORIES.map((category) => (
-              <button
-                key={category}
-                type="button"
-                role="tab"
-                aria-selected={selectedCategory === category}
-                className={`category-pill ${selectedCategory === category ? 'category-pill--active' : ''}`}
-                onClick={() => setSelectedCategory(category)}
-              >
-                {category === 'All' ? 'All Swaps' : category}
-              </button>
-            ))}
+          {/* Category Filter Chips (B2: Recognition over Recall) */}
+          <div className="explore-categories-wrapper">
+            <div className="explore-categories-label" style={{ fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
+              Select Skill Domain (Recognition Chips)
+            </div>
+            <div className="explore-categories" role="tablist" aria-label="Skill Category Filter Chips">
+              {CATEGORIES.map((category) => {
+                const isActive = selectedCategory === category;
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    className={`category-pill ${isActive ? 'category-pill--active' : ''}`}
+                    onClick={() => setSelectedCategory(category)}
+                  >
+                    {category === 'All' ? 'All Skill Domains' : category}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
+          {/* Active Filter Summary Bar (Information Scent & Lowest Effort) */}
+          {(searchTerm || selectedCategory !== 'All') && (
+            <div className="explore-active-filter-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.6rem 0.9rem', borderRadius: '10px', background: 'var(--card-bg, rgba(17, 22, 28, 0.04))', border: '1px solid var(--border-color, rgba(17, 22, 28, 0.12))', margin: '0.75rem 0' }}>
+              <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                Showing <strong>{filteredSwaps.length}</strong> {filteredSwaps.length === 1 ? 'swap' : 'swaps'}
+                {selectedCategory !== 'All' ? ` in ${selectedCategory}` : ''}
+                {searchTerm ? ` matching "${searchTerm}"` : ''}
+              </span>
+              <button
+                type="button"
+                className="reset-filter-btn"
+                style={{ marginLeft: 'auto', padding: '0.2rem 0.6rem', fontSize: '0.75rem', borderRadius: '6px' }}
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedCategory('All');
+                }}
+              >
+                Reset Filters ×
+              </button>
+            </div>
+          )}
+
+          {/* 5-SECOND TRANSACTIONAL UNDO TOAST BANNER (B3 Behavioral Feedback) */}
+          {undoToastSwap && (
+            <div className="as-toast-banner" role="status" style={{ background: 'rgba(37, 99, 235, 0.12)', borderLeft: '4px solid #2563eb', marginBottom: '1rem' }}>
+              <div className="as-toast-icon">⚡</div>
+              <span>
+                Accepted swap "{undoToastSwap.swap.topic}"! Exchange moves to Active Swaps.
+              </span>
+              <button
+                type="button"
+                className="as-btn as-btn--secondary"
+                style={{ marginLeft: 'auto', padding: '0.25rem 0.75rem', fontSize: '0.8rem', background: '#2563eb', color: '#ffffff' }}
+                onClick={async () => {
+                  if (undoTimerRef.current) clearInterval(undoTimerRef.current);
+                  const swapToUndo = undoToastSwap.swap;
+                  setUndoToastSwap(null);
+                  await cancelCreditSwap(swapToUndo.id);
+                  await refreshAccount();
+                  await loadRealOpenSwaps();
+                }}
+              >
+                Undo ({undoToastSwap.seconds}s)
+              </button>
+            </div>
+          )}
 
           {/* Available Swaps Header */}
           <div className="explore-section-header">
@@ -389,17 +449,30 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                       }
                       setIsAccepting(true);
                       setAcceptError(null);
-                      const res = await acceptCreditSwap(selectedSwapForAccept.id);
+                      const targetSwap = selectedSwapForAccept;
+                      const res = await acceptCreditSwap(targetSwap.id);
                       setIsAccepting(false);
                       if (!res.success) {
                         setAcceptError(res.error || 'Failed to accept swap.');
                         return;
                       }
-                      const acceptedSwapId = selectedSwapForAccept.id;
-                      setSwaps((prev) => prev.filter((s) => s.id !== acceptedSwapId));
+                      setSwaps((prev) => prev.filter((s) => s.id !== targetSwap.id));
                       await refreshAccount();
                       await loadRealOpenSwaps();
                       setRequestSent(true);
+
+                      // Trigger 5-second Undo Toast
+                      setUndoToastSwap({ swap: targetSwap, seconds: 5 });
+                      if (undoTimerRef.current) clearInterval(undoTimerRef.current);
+                      undoTimerRef.current = setInterval(() => {
+                        setUndoToastSwap((prev) => {
+                          if (!prev || prev.seconds <= 1) {
+                            if (undoTimerRef.current) clearInterval(undoTimerRef.current);
+                            return null;
+                          }
+                          return { ...prev, seconds: prev.seconds - 1 };
+                        });
+                      }, 1000);
                     }}
                   >
                     {isAccepting ? 'Accepting Swap...' : 'Accept Swap & Start Exchange'}
