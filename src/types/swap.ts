@@ -15,8 +15,11 @@ export interface SwapProfile {
   username: string;
   avatarUrl?: string;
   profileCompleted?: boolean;
-  createdAt?: string;
+  isVerified?: boolean;
+  averageRating?: number | null;
+  reviewCount?: number;
   completedSwapsCount?: number;
+  createdAt?: string;
 }
 
 export interface Swap {
@@ -100,6 +103,10 @@ export function mapSwapRecordToSwap(record: SwapRecord): Swap {
           username: record.requester_profile.username,
           avatarUrl: record.requester_profile.avatar_url,
           profileCompleted: record.requester_profile.profile_completed,
+          isVerified: Boolean(record.requester_profile.is_verified),
+          averageRating: record.requester_profile.average_rating ?? null,
+          reviewCount: record.requester_profile.review_count ?? 0,
+          completedSwapsCount: record.requester_profile.completed_swaps_count ?? 0,
           createdAt: record.requester_profile.created_at,
         }
       : null,
@@ -109,6 +116,10 @@ export function mapSwapRecordToSwap(record: SwapRecord): Swap {
           username: record.participant_profile.username,
           avatarUrl: record.participant_profile.avatar_url,
           profileCompleted: record.participant_profile.profile_completed,
+          isVerified: Boolean(record.participant_profile.is_verified),
+          averageRating: record.participant_profile.average_rating ?? null,
+          reviewCount: record.participant_profile.review_count ?? 0,
+          completedSwapsCount: record.participant_profile.completed_swaps_count ?? 0,
           createdAt: record.participant_profile.created_at,
         }
       : null,

@@ -6,12 +6,14 @@ import {
   UserSkill,
   UserCustomSkill,
   Skill,
+  SwapReview,
   getProfile,
   getUserSkills,
   getSkillsCatalog,
   searchSkillsCatalog,
   addUserSkill,
   removeUserSkill,
+  getUserReviews,
   formatFriendlyErrorMessage,
 } from '../lib/supabase/profile';
 import { getUserCompletedSwapsCount } from '../lib/supabase/credits';
@@ -27,6 +29,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const [profile, setProfile] = useState<Profile | null>(authProfile);
   const [predefinedSkills, setPredefinedSkills] = useState<UserSkill[]>([]);
   const [customSkills, setCustomSkills] = useState<UserCustomSkill[]>([]);
+  const [userReviews, setUserReviews] = useState<SwapReview[]>([]);
   const [completedSwapsCount, setCompletedSwapsCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -58,10 +61,11 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     setErrorMsg(null);
 
     try {
-      const [fetchedProfile, skillsData, completedCount] = await Promise.all([
+      const [fetchedProfile, skillsData, completedCount, reviewsData] = await Promise.all([
         getProfile(user.id),
         getUserSkills(user.id),
         getUserCompletedSwapsCount(user.id),
+        getUserReviews(user.id),
       ]);
 
       if (fetchedProfile) {
@@ -77,6 +81,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       setPredefinedSkills(skillsData.predefined);
       setCustomSkills(skillsData.custom);
       setCompletedSwapsCount(completedCount);
+      setUserReviews(reviewsData);
     } catch (err: unknown) {
       console.error('Error loading profile page data:', err);
       setErrorMsg(formatFriendlyErrorMessage(err));
@@ -328,23 +333,19 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <h1 className="profile-full-name" style={{ margin: 0 }}>{profile.full_name}</h1>
 
-                {/* VERIFIED IDENTITY CUE */}
-                {profile.profile_completed && (
-                  <span className="verification-badge" title="Verified Profile: Completed onboarding identity setup">
+                {/* VERIFIED IDENTITY CUE (Strictly checks is_verified) */}
+                {profile.is_verified ? (
+                  <span className="verification-badge" title="Verified Identity">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                     Verified Profile
                   </span>
-                )}
-                {isVerified && !profile.profile_completed && (
-                  <span className="verification-badge" title="Verified Account">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    Verified Account
+                ) : profile.profile_completed ? (
+                  <span className="verification-badge" style={{ background: 'rgba(255, 255, 255, 0.08)', color: 'var(--text-secondary)' }} title="Completed onboarding profile setup">
+                    Profile Complete
                   </span>
-                )}
+                ) : null}
               </div>
 
               <div className="profile-username-row" style={{ marginTop: '0.35rem' }}>
@@ -420,15 +421,19 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
           <div className="as-stats-row" style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
             <div className="as-stat-item">
               <span className="as-stat-label">Completed Swaps</span>
-              <strong className="as-stat-value">{completedSwapsCount} Exchanges</strong>
+              <strong className="as-stat-value">{profile.completed_swaps_count ?? completedSwapsCount} Exchanges</strong>
+            </div>
+            <div className="as-stat-item">
+              <span className="as-stat-label">Reputation &amp; Rating</span>
+              <strong className="as-stat-value" style={{ color: (profile.review_count ?? userReviews.length) > 0 ? '#d97706' : 'var(--text-secondary)' }}>
+                {(profile.review_count ?? userReviews.length) > 0 && profile.average_rating !== null
+                  ? `★ ${profile.average_rating.toFixed(1)} (${profile.review_count} ${profile.review_count === 1 ? 'review' : 'reviews'})`
+                  : 'No reviews yet'}
+              </strong>
             </div>
             <div className="as-stat-item">
               <span className="as-stat-label">Skills &amp; Capabilities</span>
               <strong className="as-stat-value">{totalSkillsCount} Listed</strong>
-            </div>
-            <div className="as-stat-item">
-              <span className="as-stat-label">Lifetime Credits Earned</span>
-              <strong className="as-stat-value">{account ? `+${account.credits_earned}` : '0'} SkillCredits</strong>
             </div>
             <div className="as-stat-item">
               <span className="as-stat-label">Available Balance</span>
@@ -441,7 +446,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
           </p>
         </section>
 
-        {/* REPUTATION & REVIEWS SECTION (Honest Empty State) */}
+        {/* REPUTATION & REVIEWS SECTION */}
         <section className="profile-section-card" aria-label="Reputation & Reviews">
           <div className="profile-section-header">
             <div>
@@ -450,14 +455,100 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                 Feedback from peers and exchange partners across completed swaps
               </span>
             </div>
+
+            {userReviews.length > 0 && (
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#d97706' }}>
+                ★ {profile.average_rating ? profile.average_rating.toFixed(1) : '5.0'}{' '}
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                  ({userReviews.length} {userReviews.length === 1 ? 'review' : 'reviews'})
+                </span>
+              </div>
+            )}
           </div>
 
-          <div className="profile-reviews-wrapper" style={{ marginTop: '0.5rem' }}>
-            <div className="profile-empty-state" style={{ padding: '1.5rem', background: 'var(--card-bg, rgba(255, 255, 255, 0.02))', borderRadius: '10px', border: '1px dashed var(--border-color, rgba(255, 255, 255, 0.1))' }}>
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                No reviews yet. Complete skill swaps with community members to build your exchange reputation!
-              </p>
-            </div>
+          <div className="profile-reviews-wrapper" style={{ marginTop: '0.75rem' }}>
+            {userReviews.length > 0 ? (
+              <div className="reviews-list" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {userReviews.map((rev) => {
+                  const reviewerName = rev.reviewer_profile?.full_name || (rev.reviewer_profile?.username ? `@${rev.reviewer_profile.username}` : 'SkillSwap Member');
+                  const reviewerAvatar = rev.reviewer_profile?.avatar_url;
+                  const reviewerInitials = reviewerName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'SS';
+                  const dateFormatted = new Date(rev.created_at).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  });
+
+                  return (
+                    <div
+                      key={rev.id}
+                      className="review-card"
+                      style={{
+                        padding: '1rem 1.25rem',
+                        borderRadius: '12px',
+                        background: 'var(--card-bg, rgba(255, 255, 255, 0.02))',
+                        border: '1px solid var(--border-color, rgba(255, 255, 255, 0.08))',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                          {reviewerAvatar ? (
+                            <img
+                              src={reviewerAvatar}
+                              alt={reviewerName}
+                              className="swap-avatar swap-avatar-ring"
+                              style={{ width: '36px', height: '36px' }}
+                            />
+                          ) : (
+                            <div className="swap-avatar-fallback swap-avatar-ring" style={{ width: '36px', height: '36px', fontSize: '0.8rem' }}>
+                              {reviewerInitials}
+                            </div>
+                          )}
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                              <strong style={{ fontSize: '0.9rem', color: 'var(--text-color)' }}>{reviewerName}</strong>
+                              {rev.reviewer_profile?.username && (
+                                <span style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>@{rev.reviewer_profile.username}</span>
+                              )}
+                              {rev.reviewer_profile?.is_verified && (
+                                <span className="verification-badge" style={{ fontSize: '0.685rem', padding: '0.1rem 0.35rem' }}>✓ Verified</span>
+                              )}
+                            </div>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{dateFormatted}</span>
+                          </div>
+                        </div>
+
+                        {/* STAR RATING DISPLAY */}
+                        <div style={{ color: '#d97706', fontSize: '0.95rem', fontWeight: 700 }}>
+                          {'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)} <span style={{ fontSize: '0.85rem', marginLeft: '0.2rem' }}>({rev.rating}.0)</span>
+                        </div>
+                      </div>
+
+                      {rev.swap?.topic && (
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'rgba(17, 22, 28, 0.04)', padding: '0.25rem 0.6rem', borderRadius: '6px', width: 'fit-content' }}>
+                          Exchange: <strong>{rev.swap.topic}</strong>
+                        </div>
+                      )}
+
+                      {rev.review_text && (
+                        <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: 'var(--text-color)', lineHeight: 1.5, fontStyle: 'italic' }}>
+                          “{rev.review_text}”
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="profile-empty-state" style={{ padding: '1.5rem', background: 'var(--card-bg, rgba(255, 255, 255, 0.02))', borderRadius: '10px', border: '1px dashed var(--border-color, rgba(255, 255, 255, 0.1))' }}>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                  No reviews yet. Complete skill swaps with community members to build your exchange reputation!
+                </p>
+              </div>
+            )}
           </div>
         </section>
 

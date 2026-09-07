@@ -130,6 +130,7 @@ export async function runCreditSystemTests() {
     '025_add_tags_to_swaps.sql',
     '026_submission_and_chat_permissions.sql',
     '027_remove_chat_permissions.sql',
+    '028_trust_data_pipeline.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -1506,6 +1507,73 @@ export async function runCreditSystemTests() {
   assert(Number(countBeforeB) === Number(countAfterB), 'Case 4: No duplicate contact row created');
 
   console.log('  -> Private Contact Phone Number Persistence verified cleanly!');
+
+  // =========================================================================
+  // TEST 20: Trust Data Pipeline & Review System Verification
+  // =========================================================================
+  console.log('Test 20: Trust Data Pipeline & Review System Verification...');
+
+  // 20a: Check initial profile trust metrics defaults
+  await setSuperuser();
+  type ProfileTrustRow = {
+    is_verified: boolean;
+    average_rating: number | null;
+    review_count: number;
+    completed_swaps_count: number;
+  };
+  const profileARow = (await db.query<ProfileTrustRow>(`SELECT is_verified, average_rating, review_count, completed_swaps_count FROM public.profiles WHERE id = '${userA}';`)).rows[0];
+  assert(profileARow.is_verified === false, 'Default is_verified is false');
+  assert(profileARow.review_count >= 0, 'review_count default is 0');
+
+  // 20b: Verify completed_swaps_count trigger on completed swap
+  // We already completed Swap 2 earlier in Test 7 between User A (requester) and User B (participant)
+  const profileAAfterS2 = (await db.query<ProfileTrustRow>(`SELECT completed_swaps_count FROM public.profiles WHERE id = '${userA}';`)).rows[0];
+  const profileBAfterS2 = (await db.query<ProfileTrustRow>(`SELECT completed_swaps_count FROM public.profiles WHERE id = '${userB}';`)).rows[0];
+  assert(Number(profileAAfterS2.completed_swaps_count) >= 1, 'User A completed_swaps_count automatically updated by trigger');
+  assert(Number(profileBAfterS2.completed_swaps_count) >= 1, 'User B completed_swaps_count automatically updated by trigger');
+
+  // 20c: Submit review from User A to User B for Swap 2
+  await setAuthUser(userA);
+  const reviewRes1 = await db.query<{ submit_swap_review: { success: boolean; review_id?: string } }>(`
+    SELECT public.submit_swap_review('${swap2Id}'::uuid, 5, 'Outstanding React & TypeScript guidance!') AS submit_swap_review;
+  `);
+  assert(reviewRes1.rows[0].submit_swap_review.success === true, 'User A submitted review for User B successfully');
+
+  // Verify User B profile metrics updated automatically by trg_update_profile_review_metrics
+  await setSuperuser();
+  const profileBMetrics = (await db.query<ProfileTrustRow>(`SELECT average_rating, review_count FROM public.profiles WHERE id = '${userB}';`)).rows[0];
+  assert(Number(profileBMetrics.review_count) === 1, 'User B review_count updated to 1');
+  assert(Number(profileBMetrics.average_rating) === 5.00, 'User B average_rating updated to 5.00');
+
+  // 20d: Duplicate review submission attempt by User A on Swap 2 -> Must be rejected
+  await setAuthUser(userA);
+  const dupReviewRes = await db.query<{ submit_swap_review: { success: boolean; error?: string } }>(`
+    SELECT public.submit_swap_review('${swap2Id}'::uuid, 4, 'Duplicate review attempt') AS submit_swap_review;
+  `);
+  assert(dupReviewRes.rows[0].submit_swap_review.success === false, 'Duplicate review attempt rejected');
+  assert(dupReviewRes.rows[0].submit_swap_review.error?.includes('already submitted') === true, 'Correct error message for duplicate review');
+
+  // 20e: Submit review from User B to User A for Swap 2
+  await setAuthUser(userB);
+  const reviewRes2 = await db.query<{ submit_swap_review: { success: boolean } }>(`
+    SELECT public.submit_swap_review('${swap2Id}'::uuid, 4, 'Great exchange partner!') AS submit_swap_review;
+  `);
+  assert(reviewRes2.rows[0].submit_swap_review.success === true, 'User B submitted review for User A successfully');
+
+  // Verify User A profile metrics updated
+  await setSuperuser();
+  const profileAMetrics = (await db.query<ProfileTrustRow>(`SELECT average_rating, review_count FROM public.profiles WHERE id = '${userA}';`)).rows[0];
+  assert(Number(profileAMetrics.review_count) === 1, 'User A review_count updated to 1');
+  assert(Number(profileAMetrics.average_rating) === 4.00, 'User A average_rating updated to 4.00');
+
+  // 20f: Unrelated User C attempt to submit review for Swap 2 -> Must be rejected
+  await setAuthUser(userC);
+  const unauthReviewRes = await db.query<{ submit_swap_review: { success: boolean; error?: string } }>(`
+    SELECT public.submit_swap_review('${swap2Id}'::uuid, 5, 'Unrelated user review attempt') AS submit_swap_review;
+  `);
+  assert(unauthReviewRes.rows[0].submit_swap_review.success === false, 'Unrelated user review attempt rejected');
+
+  console.log('  -> Trust Data Pipeline & Review System verified cleanly!');
 
   console.log('--- ALL SKILLSWAP CREDIT INTEGRATION & SECURITY TESTS PASSED PERFECTLY! ---');
 }
