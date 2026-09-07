@@ -8,8 +8,31 @@ export interface Profile {
   bio: string | null;
   location: string | null;
   profile_completed: boolean;
+  is_verified: boolean;
+  average_rating: number | null;
+  review_count: number;
+  completed_swaps_count: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface SwapReview {
+  id: string;
+  swap_id: string;
+  reviewer_id: string;
+  reviewed_user_id: string;
+  rating: number;
+  review_text: string | null;
+  created_at: string;
+  reviewer_profile?: {
+    full_name: string;
+    username: string;
+    avatar_url: string | null;
+    is_verified: boolean;
+  } | null;
+  swap?: {
+    topic: string;
+  } | null;
 }
 
 export interface Account {
@@ -552,6 +575,36 @@ export async function removeUserSkill(skillType: 'predefined' | 'custom', skillI
 /**
  * Invoke atomic RPC `complete_profile` to safely set profile_completed = TRUE.
  */
+/**
+ * Fetch public reviews received by a user ID from swap_reviews table.
+ */
+export async function getUserReviews(userId: string): Promise<SwapReview[]> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase || !userId) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('swap_reviews')
+      .select(`
+        *,
+        reviewer_profile:profiles!swap_reviews_reviewer_id_fkey(full_name, username, avatar_url, is_verified),
+        swap:swaps!swap_reviews_swap_id_fkey(topic)
+      `)
+      .eq('reviewed_user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      console.error('Error fetching user reviews:', error);
+      return [];
+    }
+    return (data || []) as SwapReview[];
+  } catch (err) {
+    console.error('Unexpected error fetching user reviews:', err);
+    return [];
+  }
+}
+
 export async function completeProfile(): Promise<{ success: boolean; profile_completed?: boolean; error?: string }> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { success: false, error: 'We couldn’t complete your profile right now. Please try again.' };

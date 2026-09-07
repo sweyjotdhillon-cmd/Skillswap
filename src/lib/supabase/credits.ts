@@ -65,6 +65,10 @@ export interface SwapRecord {
     username: string;
     avatar_url?: string;
     profile_completed?: boolean;
+    is_verified?: boolean;
+    average_rating?: number | null;
+    review_count?: number;
+    completed_swaps_count?: number;
     created_at?: string;
   } | null;
   participant_profile?: {
@@ -72,6 +76,10 @@ export interface SwapRecord {
     username: string;
     avatar_url?: string;
     profile_completed?: boolean;
+    is_verified?: boolean;
+    average_rating?: number | null;
+    review_count?: number;
+    completed_swaps_count?: number;
     created_at?: string;
   } | null;
 }
@@ -656,7 +664,7 @@ export async function getOpenSwaps(): Promise<GetOpenSwapsResult> {
         swap_tag_links(
           tag:swap_tags(slug)
         ),
-        requester_profile:profiles!swaps_requester_id_fkey(full_name, username, avatar_url, profile_completed, created_at)
+        requester_profile:profiles!swaps_requester_id_fkey(full_name, username, avatar_url, profile_completed, is_verified, average_rating, review_count, completed_swaps_count, created_at)
       `)
       .eq('status', 'open')
       .order('created_at', { ascending: false });
@@ -684,8 +692,8 @@ export async function getUserSwaps(userId: string): Promise<GetUserSwapsResult> 
         swap_tag_links(
           tag:swap_tags(slug)
         ),
-        requester_profile:profiles!swaps_requester_id_fkey(full_name, username, avatar_url, profile_completed, created_at),
-        participant_profile:profiles!swaps_participant_id_fkey(full_name, username, avatar_url, profile_completed, created_at)
+        requester_profile:profiles!swaps_requester_id_fkey(full_name, username, avatar_url, profile_completed, is_verified, average_rating, review_count, completed_swaps_count, created_at),
+        participant_profile:profiles!swaps_participant_id_fkey(full_name, username, avatar_url, profile_completed, is_verified, average_rating, review_count, completed_swaps_count, created_at)
       `)
       .or(`requester_id.eq.${userId},participant_id.eq.${userId}`)
       .order('created_at', { ascending: false });
@@ -1157,5 +1165,58 @@ export async function getCreditTransactions(
   } catch (err) {
     console.error('Unexpected error fetching transaction history:', err);
     return [];
+  }
+}
+
+/**
+ * Invokes atomic RPC submit_swap_review to rate and review a swap participant upon swap completion.
+ */
+export async function submitSwapReview(
+  swapId: string,
+  rating: number,
+  reviewText?: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
+
+  try {
+    const { data, error } = await supabase.rpc('submit_swap_review', {
+      p_swap_id: swapId,
+      p_rating: rating,
+      p_review_text: reviewText?.trim() || null,
+    });
+
+    if (error) {
+      return { success: false, error: formatFriendlyErrorMessage(error) };
+    }
+
+    if (!data || data.success !== true) {
+      return { success: false, error: data?.error || 'Failed to submit review.' };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: formatFriendlyErrorMessage(err) };
+  }
+}
+
+/**
+ * Checks if the specified user has already submitted a review for a given swap.
+ */
+export async function hasUserReviewedSwap(swapId: string, userId: string): Promise<boolean> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase || !swapId || !userId) return false;
+
+  try {
+    const { data, error } = await supabase
+      .from('swap_reviews')
+      .select('id')
+      .eq('swap_id', swapId)
+      .eq('reviewer_id', userId)
+      .maybeSingle();
+
+    return !error && Boolean(data);
+  } catch {
+    return false;
   }
 }

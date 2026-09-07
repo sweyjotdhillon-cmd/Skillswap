@@ -13,6 +13,8 @@ import {
   getSubmissionFileSignedUrl,
   getSwapAttachmentSignedUrl,
   downloadFileFromSignedUrl,
+  submitSwapReview,
+  hasUserReviewedSwap,
   type SwapRecord,
   type SwapAttachment,
 } from '../lib/supabase/credits';
@@ -80,6 +82,14 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   // Profile Modal state
   const [selectedProfileModal, setSelectedProfileModal] = useState<SwapParticipant | null>(null);
   const [selectedGivenDetailsModal, setSelectedGivenDetailsModal] = useState<ActiveSwapItem | null>(null);
+
+  // Review Modal state
+  const [selectedSwapForReview, setSelectedSwapForReview] = useState<ActiveSwapItem | null>(null);
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [reviewText, setReviewText] = useState<string>('');
+  const [isReviewSubmitting, setIsReviewSubmitting] = useState<boolean>(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewedSwaps, setReviewedSwaps] = useState<Record<string, boolean>>({});
 
   // Chat Modal state
   const [activeChatSwap, setActiveChatSwap] = useState<ActiveSwapItem | null>(null);
@@ -175,6 +185,16 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
       setOpenSwaps(open);
       setSelectedOpenId((prev) => (prev && open.some((o) => o.swap.id === prev) ? prev : open[0]?.swap.id || ''));
+
+      // Check review status for completed swaps
+      const completedList = [...accepted, ...given].filter((i) => i.swap.status === 'completed');
+      for (const item of completedList) {
+        hasUserReviewedSwap(item.swap.id, user.id).then((alreadyReviewed) => {
+          if (alreadyReviewed) {
+            setReviewedSwaps((prev) => ({ ...prev, [item.swap.id]: true }));
+          }
+        });
+      }
     } catch (err) {
       console.error('Error loading real active swaps:', err);
       setFetchError('Failed to load active swaps.');
@@ -984,9 +1004,30 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     )}
 
                     {currentAcceptedItem.swap.status === 'completed' && (
-                      <span className="as-status-badge as-status-badge--large as-status-badge--completed">
-                        ✓ Completed & Credits Received
-                      </span>
+                      <>
+                        <span className="as-status-badge as-status-badge--large as-status-badge--completed">
+                          ✓ Completed & Credits Received
+                        </span>
+                        {reviewedSwaps[currentAcceptedItem.swap.id] ? (
+                          <span className="as-status-badge as-status-badge--completed" style={{ background: 'rgba(214, 166, 74, 0.12)', color: '#a8781d' }}>
+                            ★ Review Submitted
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="as-btn as-btn--primary"
+                            style={{ background: '#a8781d', borderColor: '#a8781d' }}
+                            onClick={() => {
+                              setSelectedSwapForReview(currentAcceptedItem);
+                              setReviewRating(5);
+                              setReviewText('');
+                              setReviewError(null);
+                            }}
+                          >
+                            ★ Leave a Review
+                          </button>
+                        )}
+                      </>
                     )}
 
                     <button
@@ -1233,9 +1274,30 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     )}
 
                     {currentGivenItem.swap.status === 'completed' && (
-                      <span className="as-status-badge as-status-badge--large as-status-badge--completed">
-                        ✓ Swap Completed & Credits Settled
-                      </span>
+                      <>
+                        <span className="as-status-badge as-status-badge--large as-status-badge--completed">
+                          ✓ Swap Completed & Credits Settled
+                        </span>
+                        {reviewedSwaps[currentGivenItem.swap.id] ? (
+                          <span className="as-status-badge as-status-badge--completed" style={{ background: 'rgba(214, 166, 74, 0.12)', color: '#a8781d' }}>
+                            ★ Review Submitted
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="as-btn as-btn--primary"
+                            style={{ background: '#a8781d', borderColor: '#a8781d' }}
+                            onClick={() => {
+                              setSelectedSwapForReview(currentGivenItem);
+                              setReviewRating(5);
+                              setReviewText('');
+                              setReviewError(null);
+                            }}
+                          >
+                            ★ Leave a Review
+                          </button>
+                        )}
+                      </>
                     )}
 
                     <button
@@ -1623,6 +1685,129 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                 Done
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUBMIT REVIEW MODAL */}
+      {selectedSwapForReview && (
+        <div className="modal-overlay" onClick={() => !isReviewSubmitting && setSelectedSwapForReview(null)}>
+          <div className="modal-content as-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="chat-modal-header">
+              <div>
+                <h3 className="chat-title">Leave a Review for {selectedSwapForReview.partner.name}</h3>
+                <p style={{ margin: '0.2rem 0 0', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                  Rate your skill exchange experience for "{selectedSwapForReview.swap.topic}".
+                </p>
+              </div>
+              <button
+                type="button"
+                className="chat-close-btn"
+                disabled={isReviewSubmitting}
+                onClick={() => setSelectedSwapForReview(null)}
+              >
+                ×
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (isReviewSubmitting) return;
+
+                setIsReviewSubmitting(true);
+                setReviewError(null);
+
+                const res = await submitSwapReview(
+                  selectedSwapForReview.swap.id,
+                  reviewRating,
+                  reviewText
+                );
+
+                setIsReviewSubmitting(false);
+
+                if (!res.success) {
+                  setReviewError(res.error || 'Failed to submit review.');
+                  return;
+                }
+
+                const targetSwapId = selectedSwapForReview.swap.id;
+                setReviewedSwaps((prev) => ({ ...prev, [targetSwapId]: true }));
+                setSelectedSwapForReview(null);
+                setSubmitSuccessToast(`Thank you! Your review for ${selectedSwapForReview.partner.name} was submitted.`);
+
+                if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+                toastTimerRef.current = setTimeout(() => {
+                  if (isMountedRef.current) setSubmitSuccessToast(null);
+                }, 5000);
+
+                await refreshAccount();
+                await loadRealActiveSwaps();
+              }}
+              className="as-modal-form"
+            >
+              {reviewError && (
+                <div className="error-alert" style={{ color: 'var(--error-color, #ef4444)', padding: '0.5rem', marginBottom: '0.5rem' }}>
+                  {reviewError}
+                </div>
+              )}
+
+              {/* STAR RATING PICKER */}
+              <div className="form-group" style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+                <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
+                  Rating
+                </label>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', fontSize: '2rem', cursor: 'pointer' }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      style={{
+                        color: star <= reviewRating ? '#d97706' : 'var(--border-color, #4b5563)',
+                        transition: 'transform 0.1s ease',
+                      }}
+                      onClick={() => setReviewRating(star)}
+                      role="button"
+                      aria-label={`${star} star${star > 1 ? 's' : ''}`}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+                <span style={{ fontSize: '0.85rem', color: '#d97706', fontWeight: 600, display: 'block', marginTop: '0.35rem' }}>
+                  {reviewRating} out of 5 stars
+                </span>
+              </div>
+
+              {/* REVIEW TEXTAREA */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="review-text">
+                  Your Feedback <span className="badge-optional">(Optional)</span>
+                </label>
+                <textarea
+                  id="review-text"
+                  className="form-textarea"
+                  placeholder="Share a few words about communication, quality, or collaboration during this exchange..."
+                  value={reviewText}
+                  onChange={(e) => setReviewText(e.target.value)}
+                  rows={4}
+                  maxLength={2000}
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="modal-btn modal-btn--cancel"
+                  disabled={isReviewSubmitting}
+                  onClick={() => setSelectedSwapForReview(null)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="modal-btn modal-btn--confirm" disabled={isReviewSubmitting}>
+                  {isReviewSubmitting ? 'Submitting Review...' : 'Submit Review'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

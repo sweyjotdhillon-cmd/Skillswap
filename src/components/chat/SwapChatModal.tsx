@@ -97,7 +97,7 @@ export function SwapChatModal({
     partnerProfile?.avatarUrl ||
     DEFAULT_AVATAR;
 
-  const isPartnerVerified = Boolean(partnerProfile?.profileCompleted);
+  const isPartnerVerified = Boolean(partnerProfile?.isVerified);
 
   // Load persisted submission and attachments for context
   useEffect(() => {
@@ -289,12 +289,21 @@ export function SwapChatModal({
                   Swap Workspace with {displayName}
                 </h3>
                 {isPartnerVerified && (
-                  <span className="verification-badge" title="Verified Profile">
+                  <span className="verification-badge" title="Verified Identity">
                     ✓ Verified
                   </span>
                 )}
               </div>
-              <p className="chat-subtitle" style={{ marginTop: '0.15rem' }}>{swap.topic}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.15rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                <span style={{ fontWeight: partnerProfile?.reviewCount && partnerProfile.reviewCount > 0 ? 600 : 400, color: partnerProfile?.reviewCount && partnerProfile.reviewCount > 0 ? '#d97706' : 'var(--text-muted)' }}>
+                  {partnerProfile?.reviewCount && partnerProfile.reviewCount > 0 && partnerProfile?.averageRating !== null && partnerProfile?.averageRating !== undefined
+                    ? `★ ${partnerProfile.averageRating.toFixed(1)} (${partnerProfile.reviewCount} ${partnerProfile.reviewCount === 1 ? 'review' : 'reviews'})`
+                    : 'No reviews yet'}
+                </span>
+                <span style={{ opacity: 0.4 }}>•</span>
+                <span>{partnerProfile?.completedSwapsCount ?? 0} swaps completed</span>
+              </div>
+              <p className="chat-subtitle" style={{ marginTop: '0.2rem' }}>{swap.topic}</p>
             </div>
           </div>
 

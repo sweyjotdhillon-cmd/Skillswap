@@ -2,12 +2,19 @@
 > skillswap@0.1.0 dev
 > vite --host 0.0.0.0
 
-(node:109233) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(node:29407) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
-  VITE v8.2.2  ready in 3216 ms
+  VITE v8.2.2  ready in 6860 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: http://192.168.0.2:5173/  eth0
   ➜  Debug:   http://localhost:5173/__debug
-12:50:03 PM [vite] (client) hmr update /src/App.tsx, /src/styles/global.css
+1:56:09 PM [vite] (client) hmr update /src/styles/global.css, /src/pages/ExploreSwaps.tsx, /src/pages/ActiveSwaps.tsx
+1:56:15 PM [vite] (client) hmr update /src/styles/global.css, /src/context/AuthContext.tsx, /src/pages/Login.tsx, /src/pages/Signup.tsx, /src/pages/VerifyEmail.tsx, /src/pages/ForgotPassword.tsx, /src/pages/ChangePassword.tsx, /src/pages/Onboarding.tsx, /src/pages/Profile.tsx, /src/pages/CreateSwap.tsx, /src/pages/ExploreSwaps.tsx, /src/pages/ActiveSwaps.tsx, /src/components/chat/SwapChatModal.tsx, /src/components/credits/CreditHistoryModal.tsx
+1:56:23 PM [vite] (client) hmr update /src/styles/global.css, /src/context/AuthContext.tsx, /src/pages/CreateSwap.tsx, /src/pages/ExploreSwaps.tsx, /src/pages/ActiveSwaps.tsx, /src/pages/Profile.tsx, /src/components/chat/SwapChatModal.tsx, /src/components/credits/CreditHistoryModal.tsx
+1:56:33 PM [vite] (client) hmr update /src/pages/ExploreSwaps.tsx, /src/styles/global.css
+1:56:51 PM [vite] (client) hmr update /src/pages/Profile.tsx, /src/styles/global.css
+1:56:56 PM [vite] (client) hmr update /src/styles/global.css, /src/components/chat/SwapChatModal.tsx
+1:57:09 PM [vite] (client) hmr update /src/pages/ActiveSwaps.tsx, /src/styles/global.css
+1:57:18 PM [vite] (client) hmr update /src/styles/global.css

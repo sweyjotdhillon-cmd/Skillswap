@@ -294,8 +294,10 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                 const requesterName = getRequesterName(swap);
                 const requesterAvatar = getRequesterAvatar(swap);
                 const requesterInitials = getRequesterInitials(swap);
-                const isVerifiedProfile = Boolean(swap.requesterProfile?.profileCompleted);
-                const completedCount = completedSwapsMap[swap.requesterId] ?? 0;
+                const isVerifiedUser = Boolean(swap.requesterProfile?.isVerified);
+                const completedCount = swap.requesterProfile?.completedSwapsCount ?? completedSwapsMap[swap.requesterId] ?? 0;
+                const reviewCount = swap.requesterProfile?.reviewCount ?? 0;
+                const avgRating = swap.requesterProfile?.averageRating ?? null;
 
                 return (
                   <div key={swap.id} className="swap-card">
@@ -327,24 +329,26 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                                 @{swap.requesterProfile.username}
                               </span>
                             )}
-                            {isVerifiedProfile && (
-                              <span className="verification-badge" title="Verified Profile: Completed onboarding identity setup">
+                            {isVerifiedUser && (
+                              <span className="verification-badge" title="Verified Identity">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11">
                                   <polyline points="20 6 9 17 4 12" />
                                 </svg>
-                                Verified Profile
+                                Verified
                               </span>
                             )}
                           </div>
 
-                          {/* SOCIAL PROOF SNAPSHOT (Real completed swaps count + Honest empty reviews state) */}
+                          {/* SOCIAL PROOF SNAPSHOT (Real rating, review count & completed swaps) */}
                           <div className="swap-trust-snapshot-row" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
-                            <span className="trust-activity-tag">
-                              <strong>{completedCount}</strong> {completedCount === 1 ? 'swap completed' : 'swaps completed'}
+                            <span className="trust-rating-text" style={{ color: reviewCount > 0 ? '#d97706' : 'var(--text-muted)', fontWeight: reviewCount > 0 ? 600 : 400 }}>
+                              {reviewCount > 0 && avgRating !== null
+                                ? `★ ${avgRating.toFixed(1)} (${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'})`
+                                : 'No reviews yet'}
                             </span>
                             <span style={{ opacity: 0.4 }}>•</span>
-                            <span className="trust-rating-text" style={{ color: 'var(--text-muted)' }}>
-                              No reviews yet
+                            <span className="trust-activity-tag">
+                              <strong>{completedCount}</strong> {completedCount === 1 ? 'swap completed' : 'swaps completed'}
                             </span>
                           </div>
 
@@ -488,14 +492,20 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                         {selectedSwapForAccept.requesterProfile?.username && (
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>@{selectedSwapForAccept.requesterProfile.username}</span>
                         )}
-                        {selectedSwapForAccept.requesterProfile?.profileCompleted && (
+                        {selectedSwapForAccept.requesterProfile?.isVerified && (
                           <span className="verification-badge">✓ Verified</span>
                         )}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                        <span>{completedSwapsMap[selectedSwapForAccept.requesterId] ?? 0} swaps completed</span>
+                        <span>
+                          {selectedSwapForAccept.requesterProfile?.reviewCount && selectedSwapForAccept.requesterProfile.reviewCount > 0 && selectedSwapForAccept.requesterProfile?.averageRating !== null && selectedSwapForAccept.requesterProfile?.averageRating !== undefined
+                            ? `★ ${selectedSwapForAccept.requesterProfile.averageRating.toFixed(1)} (${selectedSwapForAccept.requesterProfile.reviewCount} ${selectedSwapForAccept.requesterProfile.reviewCount === 1 ? 'review' : 'reviews'})`
+                            : 'No reviews yet'}
+                        </span>
                         <span style={{ margin: '0 0.35rem', opacity: 0.5 }}>•</span>
-                        <span>No reviews yet</span>
+                        <span>
+                          {selectedSwapForAccept.requesterProfile?.completedSwapsCount ?? completedSwapsMap[selectedSwapForAccept.requesterId] ?? 0} swaps completed
+                        </span>
                       </div>
                     </div>
                   </div>
