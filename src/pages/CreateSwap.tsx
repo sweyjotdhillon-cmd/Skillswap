@@ -128,13 +128,13 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
     }
 
     if (!formState.credits.trim()) {
-      newErrors.credits = "Enter the number of credits you're offering.";
+      newErrors.credits = "Enter the number of SkillCredits you're offering.";
     } else {
       const parsed = parseInt(formState.credits, 10);
       if (isNaN(parsed) || parsed <= 0) {
-        newErrors.credits = 'Credits must be a valid positive number.';
+        newErrors.credits = 'SkillCredits must be a valid positive number.';
       } else if (account && parsed > account.credits_balance) {
-        newErrors.credits = `Insufficient credits balance. You currently have ${account.credits_balance} credits available.`;
+        newErrors.credits = `Insufficient SkillCredits balance. You currently have ${account.credits_balance} SkillCredits available.`;
       }
     }
 

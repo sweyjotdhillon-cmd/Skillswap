@@ -808,25 +808,43 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     </div>
                   ) : null}
 
-                  {/* JOURNEY STATUS & NEXT STEP GUIDANCE */}
-                  <div className="as-detail-section">
-                    <h4 className="as-section-subheading">Exchange Progress</h4>
-                    <div className="as-callout-box" style={{ background: 'var(--card-bg, rgba(255, 255, 255, 0.03))', borderLeft: '3px solid var(--primary-color, #2563eb)', padding: '0.85rem 1rem' }}>
-                      <div className="as-callout-title" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {currentAcceptedItem.swap.status === 'completed'
-                          ? 'Exchange Complete'
+                  {/* NEXT ACTION GUIDANCE BANNER */}
+                  <div
+                    className="as-next-action-banner"
+                    style={{
+                      padding: '0.9rem 1.1rem',
+                      borderRadius: '12px',
+                      background: currentAcceptedItem.swap.status === 'completed'
+                        ? 'rgba(16, 185, 129, 0.08)'
+                        : currentAcceptedItem.swap.status === 'submitted'
+                        ? 'rgba(217, 119, 6, 0.08)'
+                        : 'rgba(37, 99, 235, 0.08)',
+                      borderLeft: `4px solid ${
+                        currentAcceptedItem.swap.status === 'completed'
+                          ? '#10b981'
                           : currentAcceptedItem.swap.status === 'submitted'
-                          ? 'Awaiting Requester Review'
-                          : 'In Progress'}
-                      </div>
-                      <p className="as-callout-text" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.35rem 0 0 0' }}>
+                          ? '#d97706'
+                          : '#2563eb'
+                      }`,
+                      marginBottom: '1.25rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-color)' }}>
+                      <span>
                         {currentAcceptedItem.swap.status === 'completed'
-                          ? 'Deliverables approved and SkillCredits transferred to your balance.'
+                          ? '✓ Exchange Complete & SkillCredits Settled'
                           : currentAcceptedItem.swap.status === 'submitted'
-                          ? 'Work submitted for requester review and credit release.'
-                          : 'Complete your deliverables and submit work when ready.'}
-                      </p>
+                          ? '⏳ Step 2 of 2: Awaiting Requester Review'
+                          : '⚡ Step 1 of 2: Complete Work & Submit Deliverables'}
+                      </span>
                     </div>
+                    <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                      {currentAcceptedItem.swap.status === 'completed'
+                        ? 'Deliverables were approved and SkillCredits have been added to your balance.'
+                        : currentAcceptedItem.swap.status === 'submitted'
+                        ? 'Your submission is now with the requester for review. Once approved, SkillCredits will be credited to your account.'
+                        : 'Coordinate details via Chat, fulfill the deliverables listed below, and click Submit Work when ready for review.'}
+                    </p>
                   </div>
 
                   {/* YOUR SUBMISSION / NEXT STEP */}
@@ -1034,17 +1052,51 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     </div>
                   ) : null}
 
-                  {/* CALLOUT / SUBMISSION DETAILS */}
+                  {/* NEXT ACTION GUIDANCE BANNER FOR GIVEN SWAP */}
+                  <div
+                    className="as-next-action-banner"
+                    style={{
+                      padding: '0.9rem 1.1rem',
+                      borderRadius: '12px',
+                      background: currentGivenItem.swap.status === 'completed'
+                        ? 'rgba(16, 185, 129, 0.08)'
+                        : currentGivenItem.swap.status === 'submitted'
+                        ? 'rgba(217, 119, 6, 0.08)'
+                        : 'rgba(214, 166, 74, 0.08)',
+                      borderLeft: `4px solid ${
+                        currentGivenItem.swap.status === 'completed'
+                          ? '#10b981'
+                          : currentGivenItem.swap.status === 'submitted'
+                          ? '#d97706'
+                          : '#d6a64a'
+                      }`,
+                      marginBottom: '1.25rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-color)' }}>
+                      <span>
+                        {currentGivenItem.swap.status === 'completed'
+                          ? '✓ Exchange Complete & SkillCredits Transferred'
+                          : currentGivenItem.swap.status === 'submitted'
+                          ? '🔍 Step 2 of 2: Review Work & Release SkillCredits'
+                          : '⌛ Step 1 of 2: Participant is Preparing Deliverables'}
+                      </span>
+                    </div>
+                    <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                      {currentGivenItem.swap.status === 'completed'
+                        ? 'You approved the work and reserved SkillCredits were transferred to the participant.'
+                        : currentGivenItem.swap.status === 'submitted'
+                        ? 'Work has been submitted! Inspect the notes and attached files below, then click "Approve Work & Transfer Credits" to finalize.'
+                        : 'The participant is currently working on your deliverables. Use Chat to communicate and check progress.'}
+                    </p>
+                  </div>
+
+                  {/* SUBMISSION DETAILS */}
                   <div className="as-detail-section">
                     {currentGivenItem.swap.status === 'accepted' ? (
-                      <div className="as-callout-box" style={{ background: 'var(--card-bg, rgba(255, 255, 255, 0.03))', borderLeft: '3px solid #d6a64a', padding: '0.85rem 1rem' }}>
-                        <div className="as-callout-title" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          Participant is preparing deliverables
-                        </div>
-                        <p className="as-callout-text" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.35rem 0 0 0' }}>
-                          The participant is currently preparing your deliverables. You will be notified when work is submitted for your approval.
-                        </p>
-                      </div>
+                      <p className="as-section-body-text">
+                        No work submitted yet. You will receive a notification here once deliverables are uploaded.
+                      </p>
                     ) : submissionLoading ? (
                       <p className="as-section-body-text">Loading submitted work...</p>
                     ) : currentSubmission ? (
@@ -1479,7 +1531,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                 <strong>{selectedGivenDetailsModal.swap.topic}</strong>
               </div>
               <div className="as-detail-row">
-                <span>Credits Offered:</span>
+                <span>SkillCredits Offered:</span>
                 <strong>{selectedGivenDetailsModal.swap.creditAmount} SkillCredits</strong>
               </div>
               <div className="as-detail-row">
