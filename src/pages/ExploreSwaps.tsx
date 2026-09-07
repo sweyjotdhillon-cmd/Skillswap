@@ -82,27 +82,66 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
     loadRealOpenSwaps();
   }, [loadRealOpenSwaps]);
 
-  const filteredSwaps = swaps.filter((swap) => {
-    const selectedSlug = getTagSlug(selectedCategory);
-    const hasTags = Array.isArray(swap.tags) && swap.tags.length > 0;
+  /**
+   * Reputation-Based Ranking Strategy for Explore Swaps:
+   * Uses a Bayesian Weighted Average formula to rank open swaps by requester credibility and activity,
+   * avoiding unfair penalization/burial of new users while prioritizing proven community members:
+   *
+   * Weighted Score = (v * R + m * C) / (v + m) + completed_bonus + verified_bonus
+   * - R = requester average rating (0 if no reviews)
+   * - v = review count
+   * - m = 3 (prior weight representing 3 baseline reviews)
+   * - C = 4.0 (prior mean rating across community)
+   * - completed_bonus = min(completed_swaps * 0.02, 0.30) (activity bonus up to +0.30)
+   * - verified_bonus = 0.20 if requester is_verified else 0.0
+   *
+   * Tiers are sorted descending by Weighted Score; equal scores sort by created_at descending.
+   */
+  const calculateSwapRankingScore = useCallback((swap: Swap): number => {
+    const R = swap.requesterProfile?.averageRating ?? 0;
+    const v = swap.requesterProfile?.reviewCount ?? 0;
+    const m = 3;
+    const C = 4.0;
 
-    let matchesTag = selectedCategory === 'All';
-    if (!matchesTag) {
-      matchesTag = hasTags && swap.tags.some((t) => getTagSlug(t) === selectedSlug);
-    }
+    const bayesianRating = v > 0 ? (v * R + m * C) / (v + m) : C * 0.85; // 3.4 baseline for new creators
+    const completedCount = swap.requesterProfile?.completedSwapsCount ?? completedSwapsMap[swap.requesterId] ?? 0;
+    const completedBonus = Math.min(completedCount * 0.02, 0.30);
+    const verifiedBonus = swap.requesterProfile?.isVerified ? 0.20 : 0.0;
 
-    const query = searchTerm.toLowerCase().trim();
-    const requesterName = (swap.requesterProfile?.fullName || swap.requesterProfile?.username || '').toLowerCase();
-    const matchesSearch =
-      !query ||
-      swap.topic.toLowerCase().includes(query) ||
-      swap.description.toLowerCase().includes(query) ||
-      requesterName.includes(query) ||
-      (Array.isArray(swap.tags) &&
-        swap.tags.some((t) => t.toLowerCase().includes(query) || getTagLabel(t).toLowerCase().includes(query) || getTagSlug(t).includes(query)));
+    return bayesianRating + completedBonus + verifiedBonus;
+  }, [completedSwapsMap]);
 
-    return matchesTag && matchesSearch;
-  });
+  const filteredSwaps = swaps
+    .filter((swap) => {
+      const selectedSlug = getTagSlug(selectedCategory);
+      const hasTags = Array.isArray(swap.tags) && swap.tags.length > 0;
+
+      let matchesTag = selectedCategory === 'All';
+      if (!matchesTag) {
+        matchesTag = hasTags && swap.tags.some((t) => getTagSlug(t) === selectedSlug);
+      }
+
+      const query = searchTerm.toLowerCase().trim();
+      const requesterName = (swap.requesterProfile?.fullName || swap.requesterProfile?.username || '').toLowerCase();
+      const matchesSearch =
+        !query ||
+        swap.topic.toLowerCase().includes(query) ||
+        swap.description.toLowerCase().includes(query) ||
+        requesterName.includes(query) ||
+        (Array.isArray(swap.tags) &&
+          swap.tags.some((t) => t.toLowerCase().includes(query) || getTagLabel(t).toLowerCase().includes(query) || getTagSlug(t).includes(query)));
+
+      return matchesTag && matchesSearch;
+    })
+    .sort((a, b) => {
+      const scoreA = calculateSwapRankingScore(a);
+      const scoreB = calculateSwapRankingScore(b);
+
+      if (Math.abs(scoreB - scoreA) > 0.001) {
+        return scoreB - scoreA;
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
   const handleOpenChat = (swap: Swap) => {
     setSelectedSwapForChat(swap);

@@ -20,7 +20,7 @@ export interface SwapReview {
   id: string;
   swap_id: string;
   reviewer_id: string;
-  reviewed_user_id: string;
+  reviewee_id: string;
   rating: number;
   review_text: string | null;
   created_at: string;
@@ -590,7 +590,7 @@ export async function getUserReviews(userId: string): Promise<SwapReview[]> {
         reviewer_profile:profiles!swap_reviews_reviewer_id_fkey(full_name, username, avatar_url, is_verified),
         swap:swaps!swap_reviews_swap_id_fkey(topic)
       `)
-      .eq('reviewed_user_id', userId)
+      .eq('reviewee_id', userId)
       .order('created_at', { ascending: false })
       .limit(20);
 
