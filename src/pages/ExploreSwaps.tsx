@@ -161,10 +161,10 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
             )}
           </div>
 
-          {/* Category Filter Chips (B2: Recognition over Recall) */}
+          {/* Category Filter Chips */}
           <div className="explore-categories-wrapper">
             <div className="explore-categories-label" style={{ fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
-              Select Skill Domain (Recognition Chips)
+              Filter by Skill Domain
             </div>
             <div className="explore-categories" role="tablist" aria-label="Skill Category Filter Chips">
               {CATEGORIES.map((category) => {
