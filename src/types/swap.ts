@@ -14,6 +14,9 @@ export interface SwapProfile {
   fullName: string;
   username: string;
   avatarUrl?: string;
+  profileCompleted?: boolean;
+  createdAt?: string;
+  completedSwapsCount?: number;
 }
 
 export interface Swap {
@@ -96,6 +99,8 @@ export function mapSwapRecordToSwap(record: SwapRecord): Swap {
           fullName: record.requester_profile.full_name,
           username: record.requester_profile.username,
           avatarUrl: record.requester_profile.avatar_url,
+          profileCompleted: record.requester_profile.profile_completed,
+          createdAt: record.requester_profile.created_at,
         }
       : null,
     participantProfile: record.participant_profile
@@ -103,6 +108,8 @@ export function mapSwapRecordToSwap(record: SwapRecord): Swap {
           fullName: record.participant_profile.full_name,
           username: record.participant_profile.username,
           avatarUrl: record.participant_profile.avatar_url,
+          profileCompleted: record.participant_profile.profile_completed,
+          createdAt: record.participant_profile.created_at,
         }
       : null,
   };

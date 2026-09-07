@@ -14,6 +14,7 @@ import {
   removeUserSkill,
   formatFriendlyErrorMessage,
 } from '../lib/supabase/profile';
+import { getUserCompletedSwapsCount } from '../lib/supabase/credits';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 
 type ProfilePageProps = {
@@ -21,11 +22,12 @@ type ProfilePageProps = {
 };
 
 export function ProfilePage({ onNavigate }: ProfilePageProps) {
-  const { user, profile: authProfile, account, connectedProviders, refreshProfile } = useAuth();
+  const { user, profile: authProfile, account, connectedProviders, refreshProfile, isVerified } = useAuth();
 
   const [profile, setProfile] = useState<Profile | null>(authProfile);
   const [predefinedSkills, setPredefinedSkills] = useState<UserSkill[]>([]);
   const [customSkills, setCustomSkills] = useState<UserCustomSkill[]>([]);
+  const [completedSwapsCount, setCompletedSwapsCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -56,9 +58,10 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     setErrorMsg(null);
 
     try {
-      const [fetchedProfile, skillsData] = await Promise.all([
+      const [fetchedProfile, skillsData, completedCount] = await Promise.all([
         getProfile(user.id),
         getUserSkills(user.id),
+        getUserCompletedSwapsCount(user.id),
       ]);
 
       if (fetchedProfile) {
@@ -73,6 +76,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
       setPredefinedSkills(skillsData.predefined);
       setCustomSkills(skillsData.custom);
+      setCompletedSwapsCount(completedCount);
     } catch (err: unknown) {
       console.error('Error loading profile page data:', err);
       setErrorMsg(formatFriendlyErrorMessage(err));
@@ -305,24 +309,45 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         {/* PROFILE HERO */}
         <section className="profile-hero-card" aria-label="Profile Hero">
           <div className="profile-hero-content">
+            {/* HUMAN FACE PRESENTATION (FFA Eye-Contact Focus) */}
             <div className="profile-avatar-container">
               {profile.avatar_url ? (
                 <img
                   src={profile.avatar_url}
                   alt={profile.full_name}
-                  className="profile-avatar-image"
+                  className="profile-avatar-image swap-avatar-ring"
                 />
               ) : (
-                <div className="profile-avatar-fallback">
+                <div className="profile-avatar-fallback swap-avatar-ring">
                   {initials}
                 </div>
               )}
             </div>
 
             <div className="profile-hero-identity">
-              <h1 className="profile-full-name">{profile.full_name}</h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <h1 className="profile-full-name" style={{ margin: 0 }}>{profile.full_name}</h1>
 
-              <div className="profile-username-row">
+                {/* VERIFIED IDENTITY CUE */}
+                {profile.profile_completed && (
+                  <span className="verification-badge" title="Verified Profile: Completed onboarding identity setup">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Verified Profile
+                  </span>
+                )}
+                {isVerified && !profile.profile_completed && (
+                  <span className="verification-badge" title="Verified Account">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Verified Account
+                  </span>
+                )}
+              </div>
+
+              <div className="profile-username-row" style={{ marginTop: '0.35rem' }}>
                 <span className="profile-username-tag">@{profile.username}</span>
                 <span className="profile-permanent-badge" title="Username is permanently tied to your account">
                   <svg
@@ -339,6 +364,11 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   </svg>
                   Permanent username
                 </span>
+                {profile.created_at && (
+                  <span className="trust-member-since-badge" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    • Member since {new Date(profile.created_at).getFullYear()}
+                  </span>
+                )}
               </div>
 
               {profile.bio && (
@@ -389,6 +419,10 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
           <div className="as-stats-row" style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
             <div className="as-stat-item">
+              <span className="as-stat-label">Completed Swaps</span>
+              <strong className="as-stat-value">{completedSwapsCount} Exchanges</strong>
+            </div>
+            <div className="as-stat-item">
               <span className="as-stat-label">Skills &amp; Capabilities</span>
               <strong className="as-stat-value">{totalSkillsCount} Listed</strong>
             </div>
@@ -405,6 +439,26 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
             Every exchange you participate in adds real experience to your journey. Share what you know to help peers and learn new skills to broaden your expertise.
           </p>
+        </section>
+
+        {/* REPUTATION & REVIEWS SECTION (Honest Empty State) */}
+        <section className="profile-section-card" aria-label="Reputation & Reviews">
+          <div className="profile-section-header">
+            <div>
+              <h2 className="profile-section-title">Community Reviews &amp; Social Proof</h2>
+              <span className="profile-section-subtitle">
+                Feedback from peers and exchange partners across completed swaps
+              </span>
+            </div>
+          </div>
+
+          <div className="profile-reviews-wrapper" style={{ marginTop: '0.5rem' }}>
+            <div className="profile-empty-state" style={{ padding: '1.5rem', background: 'var(--card-bg, rgba(255, 255, 255, 0.02))', borderRadius: '10px', border: '1px dashed var(--border-color, rgba(255, 255, 255, 0.1))' }}>
+              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                No reviews yet. Complete skill swaps with community members to build your exchange reputation!
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* MY SKILLS SECTION */}

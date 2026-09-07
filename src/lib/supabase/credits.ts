@@ -64,11 +64,15 @@ export interface SwapRecord {
     full_name: string;
     username: string;
     avatar_url?: string;
+    profile_completed?: boolean;
+    created_at?: string;
   } | null;
   participant_profile?: {
     full_name: string;
     username: string;
     avatar_url?: string;
+    profile_completed?: boolean;
+    created_at?: string;
   } | null;
 }
 
@@ -652,7 +656,7 @@ export async function getOpenSwaps(): Promise<GetOpenSwapsResult> {
         swap_tag_links(
           tag:swap_tags(slug)
         ),
-        requester_profile:profiles!swaps_requester_id_fkey(full_name, username, avatar_url)
+        requester_profile:profiles!swaps_requester_id_fkey(full_name, username, avatar_url, profile_completed, created_at)
       `)
       .eq('status', 'open')
       .order('created_at', { ascending: false });
@@ -680,8 +684,8 @@ export async function getUserSwaps(userId: string): Promise<GetUserSwapsResult> 
         swap_tag_links(
           tag:swap_tags(slug)
         ),
-        requester_profile:profiles!swaps_requester_id_fkey(full_name, username, avatar_url),
-        participant_profile:profiles!swaps_participant_id_fkey(full_name, username, avatar_url)
+        requester_profile:profiles!swaps_requester_id_fkey(full_name, username, avatar_url, profile_completed, created_at),
+        participant_profile:profiles!swaps_participant_id_fkey(full_name, username, avatar_url, profile_completed, created_at)
       `)
       .or(`requester_id.eq.${userId},participant_id.eq.${userId}`)
       .order('created_at', { ascending: false });
@@ -694,6 +698,28 @@ export async function getUserSwaps(userId: string): Promise<GetUserSwapsResult> 
   } catch (err) {
     console.error('Unexpected error fetching user swaps:', err);
     return { data: [], error: formatFriendlyErrorMessage(err) };
+  }
+}
+
+/** Fetches the count of completed swaps for a given user ID from real database records. */
+export async function getUserCompletedSwapsCount(userId: string): Promise<number> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase || !userId) return 0;
+  try {
+    const { count, error } = await supabase
+      .from('swaps')
+      .select('id', { count: 'exact', head: true })
+      .or(`requester_id.eq.${userId},participant_id.eq.${userId}`)
+      .eq('status', 'completed');
+
+    if (error) {
+      console.error('Error fetching completed swaps count:', error);
+      return 0;
+    }
+    return count || 0;
+  } catch (err) {
+    console.error('Unexpected error fetching completed swaps count:', err);
+    return 0;
   }
 }
 

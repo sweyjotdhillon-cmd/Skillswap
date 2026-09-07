@@ -85,19 +85,19 @@ export function SwapChatModal({
     recipientId = swap.requesterId;
   }
 
-  // Fallback names & avatar
+  // Partner profile metadata
+  const partnerProfile = isRequester ? swap.participantProfile : swap.requesterProfile;
+
   const displayName =
     partnerName ||
-    (isRequester
-      ? swap.participantProfile?.fullName || (swap.participantProfile?.username ? `@${swap.participantProfile.username}` : 'Participant')
-      : swap.requesterProfile?.fullName || (swap.requesterProfile?.username ? `@${swap.requesterProfile.username}` : 'Creator'));
+    (partnerProfile?.fullName || (partnerProfile?.username ? `@${partnerProfile.username}` : (isRequester ? 'Participant' : 'Creator')));
 
   const displayAvatar =
     partnerAvatar ||
-    (isRequester
-      ? swap.participantProfile?.avatarUrl
-      : swap.requesterProfile?.avatarUrl) ||
+    partnerProfile?.avatarUrl ||
     DEFAULT_AVATAR;
+
+  const isPartnerVerified = Boolean(partnerProfile?.profileCompleted);
 
   // Load persisted submission and attachments for context
   useEffect(() => {
@@ -282,12 +282,19 @@ export function SwapChatModal({
         {/* WORKSPACE HEADER */}
         <div className="chat-modal-header">
           <div className="chat-user-header-info">
-            <img src={displayAvatar} alt={displayName} className="chat-avatar" />
+            <img src={displayAvatar} alt={displayName} className="chat-avatar swap-avatar-ring" />
             <div>
-              <h3 className="chat-title">
-                Swap Workspace with {displayName}
-              </h3>
-              <p className="chat-subtitle">{swap.topic}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                <h3 className="chat-title" style={{ margin: 0 }}>
+                  Swap Workspace with {displayName}
+                </h3>
+                {isPartnerVerified && (
+                  <span className="verification-badge" title="Verified Profile">
+                    ✓ Verified
+                  </span>
+                )}
+              </div>
+              <p className="chat-subtitle" style={{ marginTop: '0.15rem' }}>{swap.topic}</p>
             </div>
           </div>
 
