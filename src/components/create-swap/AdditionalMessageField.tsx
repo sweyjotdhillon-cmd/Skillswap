@@ -15,7 +15,7 @@ export function AdditionalMessageField({ value, onChange }: AdditionalMessageFie
         <span className="badge-optional">(optional)</span>
       </div>
       <p className="form-helper-text">
-        Any preferred timezone, availability, or communication preferences.
+        Specify timezone, availability, or preferred communication channels.
       </p>
       <div className="input-wrapper">
         <textarea

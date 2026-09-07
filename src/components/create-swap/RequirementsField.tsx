@@ -16,7 +16,7 @@ export function RequirementsField({ value, onChange, error }: RequirementsFieldP
         <span className="badge-required">Required</span>
       </div>
       <p className="form-helper-text">
-        Specify tangible outcomes required from the partner (e.g., 45-min live session, code review notes, design mockup).
+        Specify tangible outcomes required from your partner (e.g., 45-min live session, code review notes, design mockup).
       </p>
       <div className="input-wrapper">
         <textarea

@@ -278,7 +278,7 @@ export function SwapChatModal({
         <div className="chat-messages-container">
           {messages.length === 0 ? (
             <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-              No messages yet. Send a message to start conversing!
+              No messages yet. Start the conversation to discuss exchange details.
             </p>
           ) : (
             messages.map((msg) => {
@@ -311,7 +311,7 @@ export function SwapChatModal({
           <input
             type="text"
             className="chat-input"
-            placeholder="Write a message..."
+            placeholder="Type your message..."
             value={input}
             disabled={sending || !recipientId}
             onChange={(e) => setInput(e.target.value)}

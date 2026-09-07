@@ -167,7 +167,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                 className={`category-pill ${selectedCategory === category ? 'category-pill--active' : ''}`}
                 onClick={() => setSelectedCategory(category)}
               >
-                {category === 'All' ? 'All Swaps' : `#${category}`}
+                {category === 'All' ? 'All Swaps' : category}
               </button>
             ))}
           </div>
@@ -176,7 +176,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
           <div className="explore-section-header">
             <h2 className="available-swaps-title">Available Swaps</h2>
             <p className="available-swaps-subtitle">
-              Find a skill you need. Exchange it for something you know.
+              Browse open skill exchange requests across the community.
             </p>
           </div>
 
@@ -214,6 +214,9 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                       <div className="swap-card-need-section">
                         <img src={requesterAvatar} alt={requesterName} className="swap-avatar" />
                         <div className="swap-need-details">
+                          <div className="swap-author-meta" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.2rem' }}>
+                            <span className="swap-user-name" style={{ fontSize: '0.825rem', fontWeight: 600, opacity: 0.85 }}>{requesterName}</span>
+                          </div>
                           <h3 className="swap-need-title">{swap.topic}</h3>
                           <p className="swap-description">{swap.description}</p>
 
@@ -253,11 +256,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                       </div>
                     </div>
 
-                    <div className="swap-card-footer">
-                      <div className="swap-user-info">
-                        <span className="swap-user-name">{requesterName}</span>
-                      </div>
-
+                    <div className="swap-card-footer" style={{ justifyContent: 'flex-end' }}>
                       <div className="swap-card-actions">
                         <button
                           type="button"
