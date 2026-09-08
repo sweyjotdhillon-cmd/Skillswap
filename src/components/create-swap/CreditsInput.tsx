@@ -94,7 +94,7 @@ export function CreditsInput({ value, onChange, error }: CreditsInputProps) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
         <span>Available Balance: <strong style={{ color: 'var(--text-color)' }}>{currentBalance} ⚡ SkillCredits</strong></span>
         {numValue !== null && !isNaN(numValue) && numValue > 0 && (
-          <span style={{ color: remainingBalance < 0 ? '#ef4444' : 'var(--text-muted)' }}>
+          <span style={{ color: remainingBalance < 0 ? 'var(--color-error)' : 'var(--color-text-muted)' }}>
             Remaining after swap: <strong>{remainingBalance} ⚡ SkillCredits</strong>
           </span>
         )}

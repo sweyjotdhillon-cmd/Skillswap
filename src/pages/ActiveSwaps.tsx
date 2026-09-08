@@ -542,7 +542,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
         {/* 5-SECOND TRANSACTIONAL UNDO TOAST FOR LISTING CANCELLATION (B3 Behavioral Feedback) */}
         {undoCancelItem && (
-          <div className="as-toast-banner" role="status" style={{ background: 'rgba(217, 119, 6, 0.12)', borderLeft: '4px solid #d97706' }}>
+          <div className="as-toast-banner" role="status" style={{ background: 'var(--color-accent-muted)', borderLeft: '4px solid var(--color-warning)' }}>
             <div className="as-toast-icon">↩️</div>
             <span>
               Cancelled listing "{undoCancelItem.item.swap.topic}". Reserved credits refunded.
@@ -550,7 +550,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
             <button
               type="button"
               className="as-btn as-btn--secondary"
-              style={{ marginLeft: 'auto', padding: '0.25rem 0.75rem', fontSize: '0.8rem', background: '#d97706', color: '#ffffff' }}
+              style={{ marginLeft: 'auto', padding: '0.25rem 0.75rem', fontSize: '0.8rem', background: 'var(--color-warning)', color: '#ffffff' }}
               onClick={async () => {
                 if (undoCancelTimerRef.current) clearInterval(undoCancelTimerRef.current);
                 const restoredSwap = undoCancelItem.item.swap;
@@ -616,7 +616,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                 <div className="as-empty-state"><p>Loading active swaps...</p></div>
               ) : fetchError ? (
                 <div className="as-empty-state">
-                  <p style={{ color: 'var(--error-color, #ef4444)' }}>{fetchError}</p>
+                  <p style={{ color: 'var(--color-error)' }}>{fetchError}</p>
                   <button type="button" className="as-btn as-btn--secondary" onClick={loadRealActiveSwaps} style={{ marginTop: '0.5rem' }}>
                     Retry
                   </button>
@@ -764,7 +764,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
           {/* RIGHT PANEL: SELECTED SWAP DETAILS */}
           <section className="as-right-panel" aria-label="Selected swap details">
             {downloadError && (
-              <div className="error-alert" style={{ color: 'var(--error-color, #ef4444)', padding: '0.75rem 1rem', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.08)', marginBottom: '1rem' }}>
+              <div className="error-alert" style={{ color: 'var(--color-error)', padding: '0.75rem 1rem', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.08)', marginBottom: '1rem' }}>
                 {downloadError}
               </div>
             )}
@@ -1179,7 +1179,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     ) : submissionLoading ? (
                       <p className="as-section-body-text">Loading submitted work...</p>
                     ) : currentSubmission ? (
-                      <div className="as-submitted-summary-box" style={{ borderColor: 'var(--primary-color, #2563eb)' }}>
+                      <div className="as-submitted-summary-box" style={{ borderColor: 'var(--color-structure)' }}>
                         <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>
                           Submitted Deliverables (Review Required)
                         </h4>
@@ -1418,7 +1418,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                       type="button"
                       className="as-btn as-btn--secondary"
                       disabled={isMutating}
-                      style={{ color: 'var(--error-color, #ef4444)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                      style={{ color: 'var(--color-error)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
                       onClick={() => handleCancelOpenSwap(currentOpenItem)}
                     >
                       {isMutating ? 'Cancelling...' : 'Cancel Listing'}
@@ -1458,7 +1458,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
             <form onSubmit={handleSubmitWork} className="as-modal-form">
               {submitError && (
-                <div className="error-alert" style={{ color: 'var(--error-color, #ef4444)', padding: '0.5rem', marginBottom: '0.5rem' }}>
+                <div className="error-alert" style={{ color: 'var(--color-error)', padding: '0.5rem', marginBottom: '0.5rem' }}>
                   {submitError}
                 </div>
               )}
@@ -1726,7 +1726,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
               className="as-modal-form"
             >
               {reviewError && (
-                <div className="error-alert" style={{ color: 'var(--error-color, #ef4444)', padding: '0.5rem', marginBottom: '0.5rem' }}>
+                <div className="error-alert" style={{ color: 'var(--color-error)', padding: '0.5rem', marginBottom: '0.5rem' }}>
                   {reviewError}
                 </div>
               )}
