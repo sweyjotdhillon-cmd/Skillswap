@@ -793,9 +793,9 @@
 }
 
 .credit-retry-btn {
-  background: #11161c;
-  color: #ffffff;
-  border: none;
+  background: var(--color-transactional, #d6a64a);
+  color: #11161c;
+  border: 1px solid var(--color-transactional, #d6a64a);
   padding: 0.5rem 1.25rem;
   border-radius: 999px;
   font-size: 0.85rem;
@@ -805,7 +805,8 @@
 }
 
 .credit-retry-btn:hover {
-  background: #202832;
+  background: var(--color-transactional-hover, #e4af48);
+  border-color: var(--color-transactional-hover, #e4af48);
   transform: translateY(-1px);
 }
 
@@ -814,7 +815,7 @@
 }
 
 [data-theme='dark'] .credit-retry-btn {
-  background: #d6a64a;
+  background: var(--color-transactional, #d6a64a);
   color: #11161c;
 }
 
@@ -828,9 +829,9 @@
 }
 
 .credit-close-action-btn {
-  background: #11161c;
-  color: #ffffff;
-  border: none;
+  background: var(--color-transactional, #d6a64a);
+  color: #11161c;
+  border: 1px solid var(--color-transactional, #d6a64a);
   padding: 0.65rem 1.5rem;
   border-radius: 999px;
   font-family: inherit;
@@ -841,12 +842,13 @@
 }
 
 .credit-close-action-btn:hover {
-  background: #202832;
+  background: var(--color-transactional-hover, #e4af48);
+  border-color: var(--color-transactional-hover, #e4af48);
   transform: translateY(-1px);
 }
 
 [data-theme='dark'] .credit-close-action-btn {
-  background: #d6a64a;
+  background: var(--color-transactional, #d6a64a);
   color: #11161c;
 }
 
