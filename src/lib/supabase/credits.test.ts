@@ -4,6 +4,7 @@ import path from 'path';
 import { getNormalizedMimeType, formatSubmissionErrorMessage, sanitizeFileName } from './credits';
 import { SWAP_TAG_OPTIONS, getTagSlug, getTagLabel, isValidSwapTag, validateSwapTags } from '../../constants/tags';
 import { runTransactionProgressUnitTests } from '../../components/transaction/TransactionProgress.test';
+import { runSwapChatModalAndDesignSystemTests } from '../../components/chat/SwapChatModal.test';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -16,6 +17,9 @@ export async function runCreditSystemTests() {
 
   // Run E.2 Transaction Progress Unit Tests
   runTransactionProgressUnitTests();
+
+  // Run E.3 Cognitive Color & E.4 Multi-Modal Chat Unit Tests
+  runSwapChatModalAndDesignSystemTests();
 
   // 1. Initialize embedded PostgreSQL engine (PGlite)
   const db = new PGlite();

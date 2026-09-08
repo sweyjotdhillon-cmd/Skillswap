@@ -7,16 +7,30 @@
   --color-surface: var(--color-surface);
   --color-surface-muted: var(--color-surface-muted);
 
+  --color-surface-primary: var(--surface-primary);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-surface-elevated: var(--surface-elevated);
+
   --color-structure: var(--color-structure);
   --color-structure-hover: var(--color-structure-hover);
   --color-structure-active: var(--color-structure-active);
   --color-structure-muted: var(--color-structure-muted);
   --color-structure-border: var(--color-structure-border);
 
+  --color-accent-structural: var(--accent-structural);
+  --color-accent-structural-hover: var(--accent-structural-hover);
+
   --color-accent: var(--color-accent);
   --color-accent-hover: var(--color-accent-hover);
   --color-accent-active: var(--color-accent-active);
   --color-accent-muted: var(--color-accent-muted);
+
+  --color-accent-credit: var(--accent-credit);
+  --color-accent-credit-hover: var(--accent-credit-hover);
+
+  --color-status-success: var(--status-success);
+  --color-status-warning: var(--status-warning);
+  --color-status-error: var(--status-error);
 
   --color-foundation: var(--color-foundation);
   --color-structural: var(--color-structural);
@@ -34,12 +48,19 @@
   --color-surface: #ffffff;
   --color-surface-muted: #f1f5f9;
 
+  --surface-primary: var(--color-canvas);
+  --surface-secondary: var(--color-surface);
+  --surface-elevated: var(--color-canvas-elevated);
+
   /* 30% Secondary Structure (Cool Blue / Teal Family) */
   --color-structure: #0284c7;
   --color-structure-hover: #0369a1;
   --color-structure-active: #075985;
   --color-structure-muted: rgba(2, 132, 199, 0.1);
   --color-structure-border: rgba(2, 132, 199, 0.22);
+
+  --accent-structural: var(--color-structure);
+  --accent-structural-hover: var(--color-structure-hover);
 
   /* Typography / Text Hierarchy */
   --color-text-primary: #0f172a;
@@ -55,6 +76,9 @@
   --color-accent-hover: #e4af48;
   --color-accent-active: #b88636;
   --color-accent-muted: rgba(214, 166, 74, 0.15);
+
+  --accent-credit: var(--color-accent);
+  --accent-credit-hover: var(--color-accent-hover);
 
   /* Explicit Section D Semantic Role Architecture Aliases */
   --color-foundation: var(--color-canvas);
@@ -74,6 +98,10 @@
   --color-success: #16a34a;
   --color-warning: #d97706;
   --color-error: #dc2626;
+
+  --status-success: var(--color-success);
+  --status-warning: var(--color-warning);
+  --status-error: var(--color-error);
 
   /* --- Legacy Variable Compatibility Mapping --- */
   --bg-color: var(--color-canvas);
@@ -101,12 +129,19 @@
   --color-surface: #1e293b;
   --color-surface-muted: #334155;
 
+  --surface-primary: var(--color-canvas);
+  --surface-secondary: var(--color-surface);
+  --surface-elevated: var(--color-canvas-elevated);
+
   /* 30% Secondary Structure (Reference Sky Blue #38BDF8) */
   --color-structure: #38bdf8;
   --color-structure-hover: #7dd3fc;
   --color-structure-active: #0284c7;
   --color-structure-muted: rgba(56, 189, 248, 0.12);
   --color-structure-border: rgba(56, 189, 248, 0.3);
+
+  --accent-structural: var(--color-structure);
+  --accent-structural-hover: var(--color-structure-hover);
 
   /* Typography / Text Hierarchy */
   --color-text-primary: #f8fafc;
@@ -122,6 +157,9 @@
   --color-accent-hover: #e4af48;
   --color-accent-active: #f3c969;
   --color-accent-muted: rgba(214, 166, 74, 0.2);
+
+  --accent-credit: var(--color-accent);
+  --accent-credit-hover: var(--color-accent-hover);
 
   /* Explicit Section D Semantic Role Architecture Aliases */
   --color-foundation: var(--color-canvas);
@@ -141,6 +179,10 @@
   --color-success: #4ade80;
   --color-warning: #facc15;
   --color-error: #f87171;
+
+  --status-success: var(--color-success);
+  --status-warning: var(--color-warning);
+  --status-error: var(--color-error);
 
   /* --- Legacy Variable Compatibility Mapping --- */
   --bg-color: var(--color-canvas);

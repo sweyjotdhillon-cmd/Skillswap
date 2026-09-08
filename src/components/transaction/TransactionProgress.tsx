@@ -127,7 +127,6 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
         {LIFECYCLE_STAGES.map((stage, idx) => {
           const isCompleted = !isTerminated && idx < currentIndex;
           const isCurrent = !isTerminated && idx === currentIndex;
-          const isFuture = isTerminated || idx > currentIndex;
 
           let badgeIcon = '○';
           let badgeClass = 'tx-step--future';
