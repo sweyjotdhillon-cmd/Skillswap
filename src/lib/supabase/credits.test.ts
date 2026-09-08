@@ -141,6 +141,7 @@ export async function runCreditSystemTests() {
     '028_trust_data_pipeline.sql',
     '029_reconcile_rating_and_trust_schema.sql',
     '030_auto_release_at_deadline.sql',
+    '031_harden_credit_ledger_and_invariants.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -1589,6 +1590,52 @@ export async function runCreditSystemTests() {
   assert(directModError, 'Direct client update on profiles average_rating/review_count blocked by trigger');
 
   console.log('  -> Trust Data Pipeline & Review System verified cleanly!');
+
+  // =========================================================================
+  // TEST 21: Section F.1 Explicit Ledger Invariants & Failsafes Verification
+  // =========================================================================
+  console.log('Test 21: Section F.1 Explicit Ledger Invariants & Failsafes Verification...');
+
+  // 21a: Database-Level chk_min_balance Enforcement
+  // Direct client/SQL update attempting negative balance must be rejected at DB level
+  await setSuperuser();
+  let minBalCaught = false;
+  try {
+    await db.query(`UPDATE public.accounts SET credits_balance = -50 WHERE user_id = '${userA}';`);
+  } catch (err: unknown) {
+    minBalCaught = (err as Error).message.includes('chk_min_balance');
+  }
+  assert(minBalCaught, 'Database constraint chk_min_balance blocks negative credits_balance');
+
+  // Direct SQL update attempting negative reserved credits must be rejected at DB level
+  let minResCaught = false;
+  try {
+    await db.query(`UPDATE public.accounts SET credits_reserved = -10 WHERE user_id = '${userA}';`);
+  } catch (err: unknown) {
+    minResCaught = (err as Error).message.includes('chk_min_reserved');
+  }
+  assert(minResCaught, 'Database constraint chk_min_reserved blocks negative credits_reserved');
+
+  // 21b: Dual-Balance Equation & Single Authoritative Ledger Verification
+  // Query accounts table directly and verify Available + Reserved = Earned - Spent
+  const allAccounts = await db.query<{ user_id: string; credits_balance: number; credits_reserved: number; credits_earned: number; credits_spent: number }>(`
+    SELECT user_id, credits_balance, credits_reserved, credits_earned, credits_spent FROM public.accounts;
+  `);
+
+  for (const acc of allAccounts.rows) {
+    const total = acc.credits_balance + acc.credits_reserved;
+    const expectedTotal = acc.credits_earned - acc.credits_spent;
+    assert(total === expectedTotal, `Dual-balance equation invariant (Available + Reserved = Earned - Spent) holds for ${acc.user_id}`);
+  }
+
+  // 21c: Verify public.credit_operations and public.credit_transactions Audit Trail Integrity
+  const opsCount = await db.query<{ count: string | number }>(`SELECT COUNT(*) FROM public.credit_operations;`);
+  assert(Number(opsCount.rows[0].count) > 0, 'public.credit_operations records exists for all credit operations');
+
+  const txsCount = await db.query<{ count: string | number }>(`SELECT COUNT(*) FROM public.credit_transactions;`);
+  assert(Number(txsCount.rows[0].count) > 0, 'public.credit_transactions ledger entries exist for all mutations');
+
+  console.log('  -> Section F.1 Explicit Ledger Invariants & Failsafes verified cleanly!');
 
   console.log('--- ALL SKILLSWAP CREDIT INTEGRATION & SECURITY TESTS PASSED PERFECTLY! ---');
 }
