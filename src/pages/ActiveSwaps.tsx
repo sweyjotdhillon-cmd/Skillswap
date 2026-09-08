@@ -21,6 +21,7 @@ import {
 import { getTagLabel } from '../constants/tags';
 import { mapSwapRecordToSwap, type Swap, type SwapSubmission } from '../types/swap';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
+import { TransactionProgress } from '../components/transaction/TransactionProgress';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 
@@ -887,44 +888,14 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     </div>
                   ) : null}
 
-                  {/* NEXT ACTION GUIDANCE BANNER */}
-                  <div
-                    className="as-next-action-banner"
-                    style={{
-                      padding: '0.9rem 1.1rem',
-                      borderRadius: '12px',
-                      background: currentAcceptedItem.swap.status === 'completed'
-                        ? 'rgba(16, 185, 129, 0.08)'
-                        : currentAcceptedItem.swap.status === 'submitted'
-                        ? 'rgba(217, 119, 6, 0.08)'
-                        : 'rgba(37, 99, 235, 0.08)',
-                      borderLeft: `4px solid ${
-                        currentAcceptedItem.swap.status === 'completed'
-                          ? '#10b981'
-                          : currentAcceptedItem.swap.status === 'submitted'
-                          ? '#d97706'
-                          : '#2563eb'
-                      }`,
-                      marginBottom: '1.25rem',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-color)' }}>
-                      <span>
-                        {currentAcceptedItem.swap.status === 'completed'
-                          ? '✓ Exchange Complete & SkillCredits Settled'
-                          : currentAcceptedItem.swap.status === 'submitted'
-                          ? '⏳ Step 2 of 2: Awaiting Requester Review'
-                          : '⚡ Step 1 of 2: Complete Work & Submit Deliverables'}
-                      </span>
-                    </div>
-                    <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                      {currentAcceptedItem.swap.status === 'completed'
-                        ? 'Deliverables were approved and SkillCredits have been added to your balance.'
-                        : currentAcceptedItem.swap.status === 'submitted'
-                        ? 'Your submission is now with the requester for review. Once approved, SkillCredits will be credited to your account.'
-                        : 'Coordinate details via Chat, fulfill the deliverables listed below, and click Submit Work when ready for review.'}
-                    </p>
-                  </div>
+                  {/* CANONICAL TRANSACTION LIFECYCLE PROGRESS & AUTO-RELEASE COUNTDOWN */}
+                  <TransactionProgress
+                    status={currentAcceptedItem.swap.status}
+                    submittedAt={currentAcceptedItem.swap.submittedAt}
+                    completedAt={currentAcceptedItem.swap.completedAt}
+                    creditAmount={currentAcceptedItem.swap.creditAmount}
+                    autoReleaseDays={7}
+                  />
 
                   {/* YOUR SUBMISSION / NEXT STEP */}
                   <div className="as-detail-section">
@@ -1131,44 +1102,14 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     </div>
                   ) : null}
 
-                  {/* NEXT ACTION GUIDANCE BANNER FOR GIVEN SWAP */}
-                  <div
-                    className="as-next-action-banner"
-                    style={{
-                      padding: '0.9rem 1.1rem',
-                      borderRadius: '12px',
-                      background: currentGivenItem.swap.status === 'completed'
-                        ? 'rgba(16, 185, 129, 0.08)'
-                        : currentGivenItem.swap.status === 'submitted'
-                        ? 'rgba(217, 119, 6, 0.08)'
-                        : 'rgba(214, 166, 74, 0.08)',
-                      borderLeft: `4px solid ${
-                        currentGivenItem.swap.status === 'completed'
-                          ? '#10b981'
-                          : currentGivenItem.swap.status === 'submitted'
-                          ? '#d97706'
-                          : '#d6a64a'
-                      }`,
-                      marginBottom: '1.25rem',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-color)' }}>
-                      <span>
-                        {currentGivenItem.swap.status === 'completed'
-                          ? '✓ Exchange Complete & SkillCredits Transferred'
-                          : currentGivenItem.swap.status === 'submitted'
-                          ? '🔍 Step 2 of 2: Review Work & Release SkillCredits'
-                          : '⌛ Step 1 of 2: Participant is Preparing Deliverables'}
-                      </span>
-                    </div>
-                    <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                      {currentGivenItem.swap.status === 'completed'
-                        ? 'You approved the work and reserved SkillCredits were transferred to the participant.'
-                        : currentGivenItem.swap.status === 'submitted'
-                        ? 'Work has been submitted! Inspect the notes and attached files below, then click "Approve Work & Transfer Credits" to finalize.'
-                        : 'The participant is currently working on your deliverables. Use Chat to communicate and check progress.'}
-                    </p>
-                  </div>
+                  {/* CANONICAL TRANSACTION LIFECYCLE PROGRESS & AUTO-RELEASE COUNTDOWN FOR GIVEN SWAP */}
+                  <TransactionProgress
+                    status={currentGivenItem.swap.status}
+                    submittedAt={currentGivenItem.swap.submittedAt}
+                    completedAt={currentGivenItem.swap.completedAt}
+                    creditAmount={currentGivenItem.swap.creditAmount}
+                    autoReleaseDays={7}
+                  />
 
                   {/* SUBMISSION DETAILS */}
                   <div className="as-detail-section">
@@ -1350,6 +1291,15 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                       <strong className="as-stat-value">Available on Explore</strong>
                     </div>
                   </div>
+
+                  {/* CANONICAL TRANSACTION LIFECYCLE PROGRESS FOR MY OPEN SWAPS */}
+                  <TransactionProgress
+                    status={currentOpenItem.swap.status}
+                    submittedAt={currentOpenItem.swap.submittedAt}
+                    completedAt={currentOpenItem.swap.completedAt}
+                    creditAmount={currentOpenItem.swap.creditAmount}
+                    autoReleaseDays={7}
+                  />
 
                   {/* REQUIREMENTS */}
                   {currentOpenItem.swap.requirements && (
