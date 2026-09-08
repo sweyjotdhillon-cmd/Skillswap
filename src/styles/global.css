@@ -2727,6 +2727,8 @@ h1 span { color: #a8781d; }
   font-weight: 700;
   color: #11161c;
   line-height: 1.25;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .swap-description {
@@ -2738,6 +2740,24 @@ h1 span { color: #a8781d; }
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .swap-card-main-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .swap-card-action-block {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-border);
+  }
 }
 
 

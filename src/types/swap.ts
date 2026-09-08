@@ -35,6 +35,7 @@ export interface Swap {
   status: SwapStatus;
   idempotencyKey?: string | null;
   submittedAt: string | null;
+  autoReleaseAt?: string | null;
   completedAt: string | null;
   cancelledAt: string | null;
   createdAt: string;
@@ -93,6 +94,7 @@ export function mapSwapRecordToSwap(record: SwapRecord): Swap {
     status: record.status,
     idempotencyKey: record.idempotency_key ?? null,
     submittedAt: record.submitted_at,
+    autoReleaseAt: record.auto_release_at ?? null,
     completedAt: record.completed_at,
     cancelledAt: record.cancelled_at,
     createdAt: record.created_at,

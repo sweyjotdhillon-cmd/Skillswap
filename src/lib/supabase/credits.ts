@@ -56,6 +56,7 @@ export interface SwapRecord {
   status: 'open' | 'accepted' | 'submitted' | 'completed' | 'cancelled' | 'declined' | 'withdrawn' | 'expired';
   idempotency_key?: string | null;
   submitted_at: string | null;
+  auto_release_at?: string | null;
   completed_at: string | null;
   cancelled_at: string | null;
   created_at: string;

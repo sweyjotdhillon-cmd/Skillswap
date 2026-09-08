@@ -891,6 +891,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                   {/* CANONICAL TRANSACTION LIFECYCLE PROGRESS & AUTO-RELEASE COUNTDOWN */}
                   <TransactionProgress
                     status={currentAcceptedItem.swap.status}
+                    autoReleaseAt={currentAcceptedItem.swap.autoReleaseAt}
                     submittedAt={currentAcceptedItem.swap.submittedAt}
                     completedAt={currentAcceptedItem.swap.completedAt}
                     creditAmount={currentAcceptedItem.swap.creditAmount}
@@ -1105,6 +1106,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                   {/* CANONICAL TRANSACTION LIFECYCLE PROGRESS & AUTO-RELEASE COUNTDOWN FOR GIVEN SWAP */}
                   <TransactionProgress
                     status={currentGivenItem.swap.status}
+                    autoReleaseAt={currentGivenItem.swap.autoReleaseAt}
                     submittedAt={currentGivenItem.swap.submittedAt}
                     completedAt={currentGivenItem.swap.completedAt}
                     creditAmount={currentGivenItem.swap.creditAmount}
@@ -1295,6 +1297,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                   {/* CANONICAL TRANSACTION LIFECYCLE PROGRESS FOR MY OPEN SWAPS */}
                   <TransactionProgress
                     status={currentOpenItem.swap.status}
+                    autoReleaseAt={currentOpenItem.swap.autoReleaseAt}
                     submittedAt={currentOpenItem.swap.submittedAt}
                     completedAt={currentOpenItem.swap.completedAt}
                     creditAmount={currentOpenItem.swap.creditAmount}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { calculateRemainingAutoReleaseMs, formatRemainingTime } from '../transaction/TransactionProgress';
 
 // ==========================================
 // 1. PROTOTYPICAL MARKETPLACE CARD (SPOTTED PATTERN - SECTION K.1)
@@ -13,6 +14,11 @@ export interface MarketplaceCardProps {
   creatorAvatar: string;
   timeAgo: string;
   onAccept: () => void;
+  username?: string;
+  isVerified?: boolean;
+  averageRating?: number | null;
+  reviewCount?: number;
+  completedSwapsCount?: number;
 }
 
 export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
@@ -24,12 +30,17 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
   creatorAvatar,
   timeAgo,
   onAccept,
+  username,
+  isVerified = false,
+  averageRating = null,
+  reviewCount = 0,
+  completedSwapsCount = 0,
 }) => {
   return (
     <div className="w-full bg-[#1E293B] border border-slate-700 hover:border-slate-500 rounded-xl p-5 transition-all duration-300 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
       {/* Left Anchor: Identity & Context (Gestalt Proximity) */}
-      <div className="flex items-start gap-4 flex-1">
-        <div className="relative">
+      <div className="flex items-start gap-4 flex-1 min-w-0">
+        <div className="relative flex-shrink-0">
           <img
             src={creatorAvatar}
             alt={creatorName}
@@ -38,15 +49,33 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
           <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-[#1E293B] rounded-full"></span>
         </div>
         {/* Text Details (Left-aligned reading anchors to prevent eye fatigue) */}
-        <div className="flex flex-col gap-1 text-left">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-1 text-left min-w-0 flex-1">
+          <div className="flex items-center flex-wrap gap-2">
             <span className="text-sm font-semibold text-slate-300">{creatorName}</span>
+            {username && <span className="text-xs text-slate-400">@{username}</span>}
             <span className="text-xs text-slate-500">• {timeAgo}</span>
+            {isVerified && (
+              <span className="verification-badge" title="Verified Identity">
+                ✓ Verified
+              </span>
+            )}
           </div>
-          <h3 className="text-lg font-bold text-slate-100 tracking-tight">{title}</h3>
-          <p className="text-sm text-slate-400 line-clamp-2 max-w-2xl">{description}</p>
+
+          {/* Social Proof Row */}
+          <div className="flex items-center flex-wrap gap-2 text-xs text-slate-400">
+            <span style={{ color: reviewCount > 0 ? '#d97706' : 'var(--text-muted)' }}>
+              {reviewCount > 0 && averageRating !== null
+                ? `★ ${averageRating.toFixed(1)} (${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'})`
+                : 'No reviews yet'}
+            </span>
+            <span>•</span>
+            <span><strong>{completedSwapsCount}</strong> completed</span>
+          </div>
+
+          <h3 className="text-lg font-bold text-slate-100 tracking-tight break-words">{title}</h3>
+          <p className="text-sm text-slate-400 line-clamp-2 max-w-2xl break-words">{description}</p>
           {/* Metadata Row */}
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
             <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-slate-800 text-[#38BDF8] border border-slate-700">
               {category}
             </span>
@@ -55,16 +84,12 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
       </div>
 
       {/* Right Anchor: Saliency, Value & Action (Von Restorff Effect) */}
-      <div className="flex md:flex-col items-end justify-between md:justify-center gap-3 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-slate-800">
-        {/* High-Contrast Numerals Badge (Ticks visual attention instantly in 50ms) */}
+      <div className="flex md:flex-col items-end justify-between md:justify-center gap-3 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-slate-800 flex-shrink-0">
+        {/* High-Contrast Numerals Badge */}
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 shadow-sm shadow-amber-500/5">
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="8"/>
-            <line x1="3" x2="21" y1="12" y2="12"/>
-            <line x1="12" x2="12" y1="3" y2="21"/>
-          </svg>
-          <span className="text-lg font-extrabold tracking-tight">{credits}</span>
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-500/80">Credits</span>
+          <span className="text-sm" aria-hidden="true">⚡</span>
+          <span className="text-lg font-extrabold tracking-tight text-amber-400">{credits}</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-500/80">SkillCredits</span>
         </div>
         <button
           onClick={onAccept}
@@ -93,11 +118,15 @@ export interface ChatMessagePayload {
     fileName?: string;
     fileSize?: string;
     creditsTransferred?: number;
-    timerSecondsRemaining?: number;
+    autoReleaseAt?: string;
   };
 }
 
 export const MultiModalChat: React.FC = () => {
+  // Target deadline 7 days in the future from fixed simulated submission
+  const simulatedSubmissionTime = '2026-09-06T10:15:00Z';
+  const simulatedAutoReleaseAt = '2026-09-13T10:15:00Z';
+
   const [messages, setMessages] = useState<ChatMessagePayload[]>([
     {
       id: '1',
@@ -117,28 +146,22 @@ export const MultiModalChat: React.FC = () => {
       systemEventDetails: {
         fileName: 'skillswap-responsive-v2.zip',
         fileSize: '4.2 MB',
-        timerSecondsRemaining: 172800, // 48 Hours
+        autoReleaseAt: simulatedAutoReleaseAt,
       },
     },
   ]);
 
   const [inputText, setInputText] = useState('');
-  const [countdown, setCountdown] = useState(172800);
+  const [nowMs, setNowMs] = useState(Date.now());
 
-  // Simulating countdown timers inline to relieve the Zeigarnik "Open Loop" anxiety
   useEffect(() => {
     const interval = setInterval(() => {
-      setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+      setNowMs(Date.now());
     }, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  const formatTimer = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hrs}h ${mins}m ${secs}s`;
-  };
+  const remainingMs = calculateRemainingAutoReleaseMs(simulatedAutoReleaseAt, simulatedSubmissionTime, nowMs);
 
   const handleSendMessage = () => {
     if (!inputText.trim()) return;
@@ -210,7 +233,9 @@ export const MultiModalChat: React.FC = () => {
                   <div className="flex items-center justify-between text-xs border-t border-slate-800 pt-2.5">
                     <div className="text-slate-400">
                       Auto-release Timer:{' '}
-                      <span className="font-mono font-bold text-amber-500">{formatTimer(countdown)}</span>
+                      <span className="font-mono font-bold text-amber-500">
+                        {remainingMs > 0 ? formatRemainingTime(remainingMs) : 'Ready for release'}
+                      </span>
                     </div>
                     <button
                       onClick={handleReleaseCredits}

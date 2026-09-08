@@ -3,6 +3,7 @@ import type { SwapStatus } from '../../types/swap';
 
 export interface TransactionProgressProps {
   status: SwapStatus;
+  autoReleaseAt?: string | null;
   submittedAt?: string | null;
   completedAt?: string | null;
   creditAmount?: number;
@@ -18,19 +19,54 @@ const LIFECYCLE_STAGES: Array<{ key: SwapStatus; label: string }> = [
 ];
 
 /**
- * Calculates remaining time in milliseconds from a submittedAt ISO timestamp and autoReleaseDays.
+ * Single Canonical Auto-Release Deadline Utility
+ * Calculates remaining time in milliseconds from a backend autoReleaseAt (or submittedAt fallback) timestamp relative to an absolute timestamp.
  */
 export function calculateRemainingAutoReleaseMs(
-  submittedAt: string | null | undefined,
-  autoReleaseDays: number = 7,
+  autoReleaseAtOrSubmittedAt: string | null | undefined,
+  submittedAtOrDays?: string | number | null,
   nowMs: number = Date.now()
 ): number {
-  if (!submittedAt) return 0;
-  const submittedMs = new Date(submittedAt).getTime();
-  if (isNaN(submittedMs)) return 0;
+  if (!autoReleaseAtOrSubmittedAt) {
+    if (typeof submittedAtOrDays === 'string' && submittedAtOrDays) {
+      const subMs = new Date(submittedAtOrDays).getTime();
+      if (!isNaN(subMs)) {
+        return Math.max(0, subMs + 7 * 24 * 60 * 60 * 1000 - nowMs);
+      }
+    }
+    return 0;
+  }
 
-  const targetMs = submittedMs + autoReleaseDays * 24 * 60 * 60 * 1000;
-  return Math.max(0, targetMs - nowMs);
+  // Case A: Second arg is number (legacy autoReleaseDays parameter e.g. 7)
+  if (typeof submittedAtOrDays === 'number') {
+    const submittedMs = new Date(autoReleaseAtOrSubmittedAt).getTime();
+    if (isNaN(submittedMs)) return 0;
+    const targetMs = submittedMs + submittedAtOrDays * 24 * 60 * 60 * 1000;
+    return Math.max(0, targetMs - nowMs);
+  }
+
+  // Case B: First arg is autoReleaseAt timestamp
+  const targetMs = new Date(autoReleaseAtOrSubmittedAt).getTime();
+  if (!isNaN(targetMs)) {
+    // If first arg and second arg are identical ISO strings, first arg was submittedAt
+    if (typeof submittedAtOrDays === 'string' && submittedAtOrDays) {
+      const subMs = new Date(submittedAtOrDays).getTime();
+      if (!isNaN(subMs) && targetMs === subMs) {
+        return Math.max(0, subMs + 7 * 24 * 60 * 60 * 1000 - nowMs);
+      }
+    }
+    return Math.max(0, targetMs - nowMs);
+  }
+
+  // Case C: Second arg is submittedAt string fallback
+  if (typeof submittedAtOrDays === 'string' && submittedAtOrDays) {
+    const subMs = new Date(submittedAtOrDays).getTime();
+    if (!isNaN(subMs)) {
+      return Math.max(0, subMs + 7 * 24 * 60 * 60 * 1000 - nowMs);
+    }
+  }
+
+  return 0;
 }
 
 /**
@@ -54,8 +90,26 @@ export function formatRemainingTime(ms: number): string {
   return `${minutes}m ${seconds}s`;
 }
 
+/**
+ * Formats remaining seconds into standardized timer display string.
+ */
+export function formatCountdown(seconds: number): string {
+  if (seconds <= 0) return '00h 00m 00s';
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  if (hrs >= 24) {
+    const days = Math.floor(hrs / 24);
+    const remHrs = hrs % 24;
+    return `${days}d ${pad(remHrs)}h ${pad(mins)}m ${pad(secs)}s`;
+  }
+  return `${pad(hrs)}h ${pad(mins)}m ${pad(secs)}s`;
+}
+
 export const TransactionProgress: React.FC<TransactionProgressProps> = ({
   status,
+  autoReleaseAt,
   submittedAt,
   creditAmount,
   autoReleaseDays = 7,
@@ -64,14 +118,14 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
   const [now, setNow] = useState<number>(Date.now());
 
   useEffect(() => {
-    if (status !== 'submitted' || !submittedAt) return;
+    if (status !== 'submitted' || (!autoReleaseAt && !submittedAt)) return;
 
     const interval = setInterval(() => {
       setNow(Date.now());
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [status, submittedAt]);
+  }, [status, autoReleaseAt, submittedAt]);
 
   const getStageIndex = (s: SwapStatus): number => {
     switch (s) {
@@ -96,7 +150,9 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
   const currentIndex = getStageIndex(status);
   const isTerminated = currentIndex === -1;
 
-  const remainingMs = status === 'submitted' ? calculateRemainingAutoReleaseMs(submittedAt, autoReleaseDays, now) : 0;
+  const remainingMs = status === 'submitted'
+    ? calculateRemainingAutoReleaseMs(autoReleaseAt, submittedAt || autoReleaseDays, now)
+    : 0;
   const isAutoReleaseExpired = status === 'submitted' && remainingMs === 0;
 
   return (
@@ -250,7 +306,7 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
             </div>
             <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary, #cbd5e1)', lineHeight: 1.4 }}>
               {!isAutoReleaseExpired
-                ? `The requester has ${autoReleaseDays} days to review submitted deliverables. If unreviewed, credits auto-release to participant.`
+                ? 'The requester has time to review submitted deliverables before credits auto-release to participant.'
                 : 'The review window has passed. The backend scheduler or next action will finalize credit settlement.'}
             </p>
           </div>
