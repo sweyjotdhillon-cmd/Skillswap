@@ -3,6 +3,7 @@ import { Navbar } from '../components/navigation/Navbar';
 import { CreateSwapHeader } from '../components/create-swap/CreateSwapHeader';
 import { TopicField } from '../components/create-swap/TopicField';
 import { TagSelectionField } from '../components/create-swap/TagSelectionField';
+import { useScaffolding } from '../hooks/useScaffolding';
 import { DescriptionField } from '../components/create-swap/DescriptionField';
 import { AttachmentUploader, AttachmentItem } from '../components/create-swap/AttachmentUploader';
 import { CreditsInput } from '../components/create-swap/CreditsInput';
@@ -73,6 +74,7 @@ const QUICK_TEMPLATES = [
 
 export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
   const { user, profile, account, refreshAccount } = useAuth();
+  const templateScaffold = useScaffolding('create_swap_templates');
   const draftKey = user ? `skillswap_create_swap_draft_${user.id}` : 'skillswap_create_swap_draft_guest';
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
@@ -510,25 +512,51 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
                       Skill Request Overview
                     </legend>
 
-                    {/* QUICK WORKED EXAMPLE TEMPLATES */}
-                    <div className="cs-templates-section">
-                      <span className="cs-templates-label">💡 Worked Examples / Quick Templates</span>
-                      <p style={{ margin: 0, fontSize: '0.785rem', color: 'var(--text-secondary)' }}>
-                        Select a template to pre-fill common swap parameters with sensible defaults:
-                      </p>
-                      <div className="cs-templates-grid">
-                        {QUICK_TEMPLATES.map((tpl) => (
+                    {/* QUICK WORKED EXAMPLE TEMPLATES (H.3 Visual Scaffolding Fading) */}
+                    {templateScaffold.shouldShow ? (
+                      <div className="cs-templates-section" style={{ position: 'relative' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span className="cs-templates-label">💡 Worked Examples / Quick Templates</span>
                           <button
-                            key={tpl.label}
                             type="button"
-                            className="cs-template-chip"
-                            onClick={() => handleApplyTemplate(tpl)}
+                            className="as-toast-close"
+                            title="Don't show this again"
+                            aria-label="Don't show template suggestions again"
+                            onClick={templateScaffold.dismissScaffold}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem', opacity: 0.7 }}
                           >
-                            {tpl.label}
+                            ×
                           </button>
-                        ))}
+                        </div>
+                        <p style={{ margin: 0, fontSize: '0.785rem', color: 'var(--text-secondary)' }}>
+                          Select a template to pre-fill common swap parameters with sensible defaults:
+                        </p>
+                        <div className="cs-templates-grid">
+                          {QUICK_TEMPLATES.map((tpl) => (
+                            <button
+                              key={tpl.label}
+                              type="button"
+                              className="cs-template-chip"
+                              onClick={() => handleApplyTemplate(tpl)}
+                            >
+                              {tpl.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      /* Minimized Scaffold Toggle for Experienced/Dismissed Users */
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+                        <button
+                          type="button"
+                          className="reset-filter-btn"
+                          onClick={templateScaffold.toggleExpanded}
+                          style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '6px' }}
+                        >
+                          💡 Show Quick Templates
+                        </button>
+                      </div>
+                    )}
 
                     <TopicField
                       value={formState.topic}

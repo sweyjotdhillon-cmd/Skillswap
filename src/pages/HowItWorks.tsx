@@ -1,4 +1,5 @@
 import { Navbar } from '../components/navigation/Navbar';
+import { Footer } from '../components/navigation/Footer';
 
 type HowItWorksPageProps = {
   onNavigate?: (path: string) => void;
@@ -450,6 +451,8 @@ export function HowItWorksPage({ onNavigate }: HowItWorksPageProps) {
           </div>
         </section>
       </main>
+
+      <Footer onNavigate={onNavigate} />
     </div>
   );
 }

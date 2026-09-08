@@ -1,4 +1,5 @@
 import { Navbar } from '../components/navigation/Navbar';
+import { Footer } from '../components/navigation/Footer';
 
 type AboutPageProps = {
   onNavigate?: (path: string) => void;
@@ -402,6 +403,8 @@ export function AboutPage({ onNavigate }: AboutPageProps) {
           </div>
         </section>
       </main>
+
+      <Footer onNavigate={onNavigate} />
     </div>
   );
 }

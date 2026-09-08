@@ -22,6 +22,7 @@ import { getTagLabel } from '../constants/tags';
 import { mapSwapRecordToSwap, type Swap, type SwapSubmission } from '../types/swap';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
 import { TransactionProgress } from '../components/transaction/TransactionProgress';
+import { useScaffolding } from '../hooks/useScaffolding';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 
@@ -48,6 +49,7 @@ type ActiveSwapsPageProps = {
 
 export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   const { user, account, refreshAccount } = useAuth();
+  const journeyScaffold = useScaffolding('active_swaps_journey');
   const [activeTab, setActiveTab] = useState<'accepted' | 'given' | 'open'>('accepted');
 
   const [acceptedSwaps, setAcceptedSwaps] = useState<ActiveSwapItem[]>([]);
@@ -512,19 +514,43 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
           <p className="active-swaps-subtitle">Manage your ongoing skill exchanges and active escrow allocations.</p>
         </header>
 
-        {/* EMPOWERED JOURNEY CAPITAL SUMMARY BANNER (B1) */}
-        <div className="as-journey-banner">
-          <div className="as-journey-icon" aria-hidden="true">⚡</div>
-          <div className="as-journey-text-group">
-            <span className="as-journey-label">YOUR SKILLSWAP JOURNEY IS UNDERWAY</span>
-            <strong className="as-journey-balance">
-              Available Trading Capital: {account?.credits_balance ?? 0} SkillCredits
-            </strong>
-            <p className="as-journey-subtext">
-              Your exchange capital is active in your ledger. You have already started — request new expertise or complete active swaps to build your skills portfolio.
-            </p>
+        {/* EMPOWERED JOURNEY CAPITAL SUMMARY BANNER (B1 / H.3 Scaffolding Fading) */}
+        {journeyScaffold.shouldShow ? (
+          <div className="as-journey-banner">
+            <div className="as-journey-icon" aria-hidden="true">⚡</div>
+            <div className="as-journey-text-group" style={{ flex: 1 }}>
+              <span className="as-journey-label">YOUR SKILLSWAP JOURNEY IS UNDERWAY</span>
+              <strong className="as-journey-balance">
+                Available Trading Capital: {account?.credits_balance ?? 0} SkillCredits
+              </strong>
+              <p className="as-journey-subtext">
+                Your exchange capital is active in your ledger. You have already started — request new expertise or complete active swaps to build your skills portfolio.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="as-toast-close"
+              title="Don't show this again"
+              aria-label="Don't show this onboarding banner again"
+              onClick={journeyScaffold.dismissScaffold}
+              style={{ alignSelf: 'flex-start', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.1rem', opacity: 0.7 }}
+            >
+              ×
+            </button>
           </div>
-        </div>
+        ) : (
+          /* Minimized Scaffold Toggle for Experienced/Dismissed Users */
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
+            <button
+              type="button"
+              className="reset-filter-btn"
+              onClick={journeyScaffold.toggleExpanded}
+              style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '6px' }}
+            >
+              💡 Show Onboarding Capital Info
+            </button>
+          </div>
+        )}
 
         {/* TOAST NOTIFICATION */}
         {submitSuccessToast && (

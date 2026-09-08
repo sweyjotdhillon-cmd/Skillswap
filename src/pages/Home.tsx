@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Hero } from '../components/hero/Hero';
 import { Navbar } from '../components/navigation/Navbar';
+import { Footer } from '../components/navigation/Footer';
 
 type HomeProps = {
   onNavigate?: (path: string) => void;
@@ -219,6 +220,8 @@ export function Home({ onNavigate }: HomeProps) {
           </div>
         </div>
       </section>
+
+      <Footer onNavigate={onNavigate} />
     </div>
   );
 }
