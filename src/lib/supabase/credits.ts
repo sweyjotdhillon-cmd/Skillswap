@@ -655,7 +655,7 @@ export interface GetUserSwapsResult {
 /** Fetches open swaps for the explore catalog. */
 export async function getOpenSwaps(): Promise<GetOpenSwapsResult> {
   const supabase = getSupabaseBrowserClient();
-  if (!supabase) return { data: [], error: 'Supabase client is unavailable.' };
+  if (!supabase) return { data: [] };
   try {
     const { data, error } = await supabase
       .from('swaps')
@@ -671,12 +671,12 @@ export async function getOpenSwaps(): Promise<GetOpenSwapsResult> {
 
     if (error) {
       console.error('Error fetching open swaps:', error);
-      return { data: [], error: formatFriendlyErrorMessage(error) };
+      return { data: [] };
     }
     return { data: (data || []) as SwapRecord[] };
   } catch (err) {
     console.error('Unexpected error fetching open swaps:', err);
-    return { data: [], error: formatFriendlyErrorMessage(err) };
+    return { data: [] };
   }
 }
 

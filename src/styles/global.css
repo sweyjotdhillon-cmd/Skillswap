@@ -1,6 +1,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
 @import "tailwindcss";
 
+@theme {
+  --color-canvas: var(--color-canvas);
+  --color-canvas-elevated: var(--color-canvas-elevated);
+  --color-surface: var(--color-surface);
+  --color-surface-muted: var(--color-surface-muted);
+
+  --color-structure: var(--color-structure);
+  --color-structure-hover: var(--color-structure-hover);
+  --color-structure-active: var(--color-structure-active);
+  --color-structure-muted: var(--color-structure-muted);
+  --color-structure-border: var(--color-structure-border);
+
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-active: var(--color-accent-active);
+  --color-accent-muted: var(--color-accent-muted);
+}
+
 :root {
   /* --- 60-30-10 Semantic Color System Tokens --- */
   /* 60% Dominant Base */
@@ -101,6 +119,34 @@
   --radial-gold: rgba(214, 166, 74, 0.18);
 
   color-scheme: dark;
+}
+
+/* --- 60-30-10 Color Architecture Utility Classes (Section D.1 - D.6) --- */
+/* 60% Dominant Base Utilities */
+.bg-canvas { background-color: var(--color-canvas); }
+.bg-surface { background-color: var(--color-surface); }
+.bg-surface-elevated { background-color: var(--color-canvas-elevated); }
+.bg-surface-muted { background-color: var(--color-surface-muted); }
+
+/* 30% Secondary Structure Utilities */
+.text-structure { color: var(--color-structure); }
+.bg-structure-muted { background-color: var(--color-structure-muted); }
+.border-structure { border-color: var(--color-structure-border); }
+.border-structure-active { border-color: var(--color-structure); }
+
+/* 10% Salient Accent Utilities (Transactional Triggers) */
+.text-accent { color: var(--color-accent); }
+.bg-accent { background-color: var(--color-accent); color: #0f172a; }
+.bg-accent-muted { background-color: var(--color-accent-muted); }
+.border-accent { border-color: var(--color-accent); }
+
+/* Red-Blue High-Saturation Adjacency Mitigation (Section D.6) */
+.error-alert, .alert-error {
+  border-left: 4px solid var(--color-error);
+  background: rgba(239, 68, 68, 0.08);
+}
+[data-theme='dark'] .error-alert, [data-theme='dark'] .alert-error {
+  background: rgba(248, 113, 113, 0.12);
 }
 
 * { box-sizing: border-box; }
