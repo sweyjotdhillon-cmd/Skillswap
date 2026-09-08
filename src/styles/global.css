@@ -2,17 +2,53 @@
 @import "tailwindcss";
 
 :root {
-  --bg-color: #f7f5f0;
-  --text-color: #11161c;
-  --shell-bg: #f7f5f0;
-  --shell-border: rgba(17, 22, 28, 0.08);
-  --shell-shadow: 0 24px 80px rgba(17, 22, 28, 0.08);
-  --card-bg: #ffffff;
-  --card-border: rgba(17, 22, 28, 0.09);
-  --text-muted: rgba(17, 22, 28, 0.65);
+  /* --- 60-30-10 Semantic Color System Tokens --- */
+  /* 60% Dominant Base */
+  --color-canvas: #f8fafc;
+  --color-canvas-elevated: #f1f5f9;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f5f9;
+
+  /* 30% Secondary Structure (Cool Blue / Teal Family) */
+  --color-structure: #0284c7;
+  --color-structure-hover: #0369a1;
+  --color-structure-active: #075985;
+  --color-structure-muted: rgba(2, 132, 199, 0.1);
+  --color-structure-border: rgba(2, 132, 199, 0.22);
+
+  /* Typography / Text Hierarchy */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+
+  /* Boundaries & Dividers */
+  --color-border: rgba(15, 23, 42, 0.12);
+  --color-border-strong: rgba(15, 23, 42, 0.25);
+
+  /* 10% Salient Accent (Prepared for D4) */
+  --color-accent: #d6a64a;
+  --color-accent-hover: #e4af48;
+  --color-accent-active: #b88636;
+  --color-accent-muted: rgba(214, 166, 74, 0.15);
+
+  /* System States */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+
+  /* --- Legacy Variable Compatibility Mapping --- */
+  --bg-color: var(--color-canvas);
+  --text-color: var(--color-text-primary);
+  --shell-bg: var(--color-canvas);
+  --shell-border: var(--color-border);
+  --shell-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  --card-bg: var(--color-surface);
+  --card-border: var(--color-border);
+  --text-muted: var(--color-text-muted);
   --radial-gold: rgba(214, 166, 74, 0.11);
-  color: var(--text-color);
-  background: var(--bg-color);
+
+  color: var(--color-text-primary);
+  background: var(--color-canvas);
   font-family: Inter, system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -20,15 +56,50 @@
 }
 
 [data-theme='dark'] {
-  --bg-color: #0d1117;
-  --text-color: #f0f6fc;
-  --shell-bg: #161b22;
-  --shell-border: rgba(240, 246, 252, 0.1);
+  /* 60% Dominant Base (Deep desaturated slate neutrals) */
+  --color-canvas: #0f172a;
+  --color-canvas-elevated: #1e293b;
+  --color-surface: #1e293b;
+  --color-surface-muted: #334155;
+
+  /* 30% Secondary Structure (Reference Sky Blue #38BDF8) */
+  --color-structure: #38bdf8;
+  --color-structure-hover: #7dd3fc;
+  --color-structure-active: #0284c7;
+  --color-structure-muted: rgba(56, 189, 248, 0.12);
+  --color-structure-border: rgba(56, 189, 248, 0.3);
+
+  /* Typography / Text Hierarchy */
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
+
+  /* Boundaries & Dividers */
+  --color-border: rgba(248, 250, 252, 0.12);
+  --color-border-strong: rgba(56, 189, 248, 0.35);
+
+  /* 10% Salient Accent (Prepared for D4) */
+  --color-accent: #d6a64a;
+  --color-accent-hover: #e4af48;
+  --color-accent-active: #f3c969;
+  --color-accent-muted: rgba(214, 166, 74, 0.2);
+
+  /* System States */
+  --color-success: #4ade80;
+  --color-warning: #facc15;
+  --color-error: #f87171;
+
+  /* --- Legacy Variable Compatibility Mapping --- */
+  --bg-color: var(--color-canvas);
+  --text-color: var(--color-text-primary);
+  --shell-bg: var(--color-canvas);
+  --shell-border: var(--color-border);
   --shell-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
-  --card-bg: #21262d;
-  --card-border: rgba(240, 246, 252, 0.12);
-  --text-muted: rgba(240, 246, 252, 0.7);
+  --card-bg: var(--color-surface);
+  --card-border: var(--color-border);
+  --text-muted: var(--color-text-muted);
   --radial-gold: rgba(214, 166, 74, 0.18);
+
   color-scheme: dark;
 }
 
@@ -3959,7 +4030,7 @@ h1 span { color: #a8781d; }
 }
 
 [data-theme='dark'] .profile-avatar-fallback {
-  background: #21262d;
+  background: var(--color-surface-muted);
   color: #d6a64a;
 }
 
@@ -6688,21 +6759,21 @@ h1 span { color: #a8781d; }
 .swap-avatar-ring {
   border-radius: 50% !important;
   object-fit: cover !important;
-  border: 2px solid #38bdf8 !important;
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+  border: 2px solid var(--color-structure) !important;
+  box-shadow: 0 0 0 2px var(--color-structure-muted);
 }
 
 [data-theme='dark'] .swap-avatar-ring {
-  border-color: #38bdf8 !important;
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.35);
+  border-color: var(--color-structure) !important;
+  box-shadow: 0 0 0 2px var(--color-structure-border);
 }
 
 .swap-avatar-fallback {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: rgba(3, 105, 161, 0.12);
-  color: #0284c7;
+  background: var(--color-structure-muted);
+  color: var(--color-structure);
   font-size: 0.95rem;
   font-weight: 800;
   display: grid;
@@ -6711,17 +6782,17 @@ h1 span { color: #a8781d; }
 }
 
 [data-theme='dark'] .swap-avatar-fallback {
-  background: rgba(56, 189, 248, 0.18);
-  color: #38bdf8;
+  background: var(--color-structure-muted);
+  color: var(--color-structure);
 }
 
 .verification-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  background: rgba(3, 105, 161, 0.08);
-  border: 1px solid rgba(3, 105, 161, 0.25);
-  color: #0284c7;
+  background: var(--color-structure-muted);
+  border: 1px solid var(--color-structure-border);
+  color: var(--color-structure);
   font-size: 0.725rem;
   font-weight: 700;
   padding: 0.15rem 0.5rem;
@@ -6731,9 +6802,9 @@ h1 span { color: #a8781d; }
 }
 
 [data-theme='dark'] .verification-badge {
-  background: rgba(56, 189, 248, 0.15);
-  border-color: rgba(56, 189, 248, 0.35);
-  color: #38bdf8;
+  background: var(--color-structure-muted);
+  border-color: var(--color-structure-border);
+  color: var(--color-structure);
 }
 
 .trust-activity-tag {
@@ -7191,25 +7262,25 @@ input.username-input:-webkit-autofill:active,
 
 [data-theme='dark'] input.username-input,
 [data-theme='dark'] .username-input {
-  background-color: #161b22 !important;
-  background: #161b22 !important;
-  color: #f0f6fc !important;
-  caret-color: #f0f6fc !important;
-  border-color: rgba(240, 246, 252, 0.25) !important;
-  -webkit-text-fill-color: #f0f6fc !important;
+  background-color: var(--color-surface) !important;
+  background: var(--color-surface) !important;
+  color: var(--color-text-primary) !important;
+  caret-color: var(--color-text-primary) !important;
+  border-color: var(--color-border) !important;
+  -webkit-text-fill-color: var(--color-text-primary) !important;
 }
 
 [data-theme='dark'] input.username-input::placeholder,
 [data-theme='dark'] .username-input::placeholder {
-  color: rgba(240, 246, 252, 0.45) !important;
+  color: var(--color-text-muted) !important;
   opacity: 1;
 }
 
 [data-theme='dark'] input.username-input:focus,
 [data-theme='dark'] .username-input:focus {
-  background-color: #21262d !important;
-  background: #21262d !important;
-  color: #f0f6fc !important;
+  background-color: var(--color-surface) !important;
+  background: var(--color-surface) !important;
+  color: var(--color-text-primary) !important;
   border-color: #d6a64a !important;
   box-shadow: 0 0 0 4px rgba(214, 166, 74, 0.25) !important;
 }
@@ -7217,14 +7288,14 @@ input.username-input:-webkit-autofill:active,
 [data-theme='dark'] input.username-input.input-error,
 [data-theme='dark'] .username-input.input-error {
   border-color: #ef4444 !important;
-  background-color: #161b22 !important;
-  color: #f0f6fc !important;
+  background-color: var(--color-surface) !important;
+  color: var(--color-text-primary) !important;
 }
 
 [data-theme='dark'] input.username-input:disabled,
 [data-theme='dark'] .username-input:disabled {
-  background-color: #0d1117 !important;
-  color: #484f58 !important;
+  background-color: var(--color-canvas) !important;
+  color: var(--color-text-muted) !important;
   cursor: not-allowed;
 }
 
@@ -7237,9 +7308,9 @@ input.username-input:-webkit-autofill:active,
 [data-theme='dark'] .username-input:-webkit-autofill:hover,
 [data-theme='dark'] .username-input:-webkit-autofill:focus,
 [data-theme='dark'] .username-input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px #161b22 inset !important;
-  -webkit-text-fill-color: #f0f6fc !important;
-  caret-color: #f0f6fc !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--color-surface) inset !important;
+  -webkit-text-fill-color: var(--color-text-primary) !important;
+  caret-color: var(--color-text-primary) !important;
   transition: background-color 50000s ease-in-out 0s;
 }
 

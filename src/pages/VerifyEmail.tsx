@@ -158,7 +158,7 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
           <div className="auth-card-header">
             <h2 className="auth-card-title">Enter Verification Code</h2>
             <p className="auth-card-subtitle">
-              Sent to <strong style={{ color: 'var(--color-primary, #d6a64a)' }}>{email || 'your email'}</strong>
+              Sent to <strong style={{ color: 'var(--color-accent)' }}>{email || 'your email'}</strong>
             </p>
           </div>
 

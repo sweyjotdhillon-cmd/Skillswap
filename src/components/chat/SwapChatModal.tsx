@@ -302,8 +302,8 @@ export function SwapChatModal({
                   </span>
                 )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.15rem', fontSize: '0.75rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: (partnerProfile?.reviewCount ?? 0) > 0 ? 600 : 400, color: (partnerProfile?.reviewCount ?? 0) > 0 ? '#d97706' : 'var(--text-muted)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.15rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: (partnerProfile?.reviewCount ?? 0) > 0 ? 600 : 400, color: (partnerProfile?.reviewCount ?? 0) > 0 ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>
                   {partnerProfile?.reviewCount && partnerProfile.reviewCount > 0 && partnerProfile?.averageRating !== null && partnerProfile?.averageRating !== undefined
                     ? `★ ${partnerProfile.averageRating.toFixed(1)} (${partnerProfile.reviewCount} ${partnerProfile.reviewCount === 1 ? 'review' : 'reviews'})`
                     : 'No reviews yet'}
@@ -318,7 +318,7 @@ export function SwapChatModal({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontWeight: 700, color: '#d97706', fontSize: '0.9rem', background: 'rgba(214, 166, 74, 0.12)', padding: '0.25rem 0.65rem', borderRadius: '999px' }}>
+            <span style={{ fontWeight: 700, color: 'var(--color-warning)', fontSize: '0.9rem', background: 'var(--color-accent-muted)', padding: '0.25rem 0.65rem', borderRadius: '999px' }}>
               ⚡ {swap.creditAmount} SkillCredits
             </span>
             <span className={`as-status-badge as-status-badge--${swap.status}`}>
@@ -432,7 +432,7 @@ export function SwapChatModal({
             </div>
 
             {chatError && (
-              <div style={{ color: 'var(--error-color, #ef4444)', padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
+              <div style={{ color: 'var(--color-error)', padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
                 {chatError}
               </div>
             )}
@@ -513,7 +513,7 @@ export function SwapChatModal({
                     padding: '0.75rem',
                     borderRadius: '12px',
                     background: 'rgba(16, 185, 129, 0.1)',
-                    color: '#10b981',
+                    color: 'var(--color-success)',
                     fontWeight: 700,
                     fontSize: '0.85rem',
                     textAlign: 'center',
