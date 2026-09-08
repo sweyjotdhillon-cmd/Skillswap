@@ -12,6 +12,11 @@ import {
   type SwapAttachment,
 } from '../../lib/supabase/credits';
 import type { Swap, SwapMessage, SwapSubmission } from '../../types/swap';
+import {
+  SubmissionEventCard,
+  SettlementEventCard,
+  StatusChangeEventCard,
+} from './TransactionEventCards';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 
@@ -335,7 +340,7 @@ export function SwapChatModal({
           {/* MAIN / LEFT AREA: CHAT TIMELINE WITH EMBEDDED SYSTEM CARDS */}
           <div className="chat-workspace-main">
             <div className="chat-messages-container">
-              {/* SYSTEM CARD 1: ESCROW ALLOCATION */}
+              {/* SYSTEM CARD 1: ESCROW ALLOCATION INITIALIZATION */}
               <div className="chat-system-card chat-system-card--reserved">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
                   <span>⚡ Escrow Allocation Active</span>
@@ -345,8 +350,18 @@ export function SwapChatModal({
                 </span>
               </div>
 
-              {/* MESSAGES LIST */}
-              {messages.length === 0 ? (
+              {/* STATUS CHANGE: ACCEPTED */}
+              {isAccepted && (
+                <StatusChangeEventCard
+                  title="Swap Agreement Active"
+                  description="Participant joined the swap. Escrow locked."
+                  timestamp={swap.updatedAt}
+                  iconType="accepted"
+                />
+              )}
+
+              {/* MESSAGES & INTERLEAVED EVENTS */}
+              {messages.length === 0 && !submission && !isCompleted ? (
                 <p style={{ textAlign: 'center', color: 'var(--text-secondary)', margin: '1.5rem 0' }}>
                   No messages yet. Use this space to discuss exchange terms and deliverables.
                 </p>
@@ -369,63 +384,25 @@ export function SwapChatModal({
                 })
               )}
 
-              {/* SYSTEM CARD 2: WORK SUBMISSION EVENT */}
+              {/* SUBMISSION EVENT CARD (Spatially Contiguous in Chat Timeline) */}
               {submission && (
-                <div className="chat-system-card chat-system-card--submission">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', fontWeight: 700 }}>
-                    <span>📎 Work Submitted for Review</span>
-                    <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>
-                      {new Date(submission.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-
-                  {submission.notes && <p style={{ margin: '0.2rem 0 0', fontStyle: 'italic' }}>“{submission.notes}”</p>}
-
-                  {submission.files && submission.files.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.35rem' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Attached Deliverables:</span>
-                      {submission.files.map((f) => (
-                        <div key={f.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.15)', padding: '0.3rem 0.6rem', borderRadius: '8px', fontSize: '0.8rem' }}>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, paddingRight: '0.5rem' }}>
-                            {f.fileName}
-                          </span>
-                          <button
-                            type="button"
-                            className="as-btn as-btn--secondary"
-                            style={{ padding: '0.15rem 0.5rem', fontSize: '0.7rem' }}
-                            disabled={downloadingFileId === f.id}
-                            onClick={() => handleDownloadFile(f.storagePath, f.fileName, f.id, true)}
-                          >
-                            {downloadingFileId === f.id ? '...' : 'Download'}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* ACTION CTA INSIDE TIMELINE FOR REQUESTER */}
-                  {isRequester && swap.status === 'submitted' && onApproveSwap && (
-                    <button
-                      type="button"
-                      className="as-btn as-btn--primary"
-                      style={{ marginTop: '0.5rem', width: '100%', fontSize: '0.85rem' }}
-                      disabled={isApproving}
-                      onClick={onApproveSwap}
-                    >
-                      {isApproving ? 'Settling...' : 'Approve Work & Transfer Credits'}
-                    </button>
-                  )}
-                </div>
+                <SubmissionEventCard
+                  swap={swap}
+                  submission={submission}
+                  isRequester={isRequester}
+                  onApproveSwap={onApproveSwap}
+                  isApproving={isApproving}
+                  onDownloadFile={(path, name, id) => handleDownloadFile(path, name, id, true)}
+                  downloadingFileId={downloadingFileId}
+                />
               )}
 
-              {/* SYSTEM CARD 3: SWAP COMPLETED SETTLEMENT */}
+              {/* SETTLEMENT EVENT CARD (Spatially Contiguous in Chat Timeline) */}
               {isCompleted && (
-                <div className="chat-system-card chat-system-card--completed">
-                  <div style={{ fontWeight: 700 }}>✓ Swap Completed &amp; Settled</div>
-                  <span>
-                    Work approved! {swap.creditAmount} SkillCredits transferred to the participant.
-                  </span>
-                </div>
+                <SettlementEventCard
+                  swap={swap}
+                  timestamp={swap.completedAt || undefined}
+                />
               )}
 
               <div ref={messagesEndRef} />
