@@ -2628,6 +2628,11 @@ h1 span { color: #a8781d; }
   background: rgba(255, 255, 255, 0.9);
 }
 
+.category-pill:focus-visible {
+  outline: 2px solid var(--color-structure, #0284c7);
+  outline-offset: 2px;
+}
+
 .category-pill--active {
   background: #11161c;
   color: #ffffff;

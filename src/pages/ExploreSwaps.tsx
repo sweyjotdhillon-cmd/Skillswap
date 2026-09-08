@@ -11,6 +11,7 @@ import {
 import { mapSwapRecordToSwap, type Swap } from '../types/swap';
 import { SWAP_TAG_OPTIONS, getTagLabel, getTagSlug } from '../constants/tags';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
+import { Footer } from '../components/navigation/Footer';
 
 const CATEGORIES = ['All', ...SWAP_TAG_OPTIONS.map((t) => t.label)];
 
@@ -224,12 +225,16 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
             )}
           </div>
 
-          {/* Category Filter Chips */}
+          {/* Category Filter Chips — Recognition over Recall (H.1) */}
           <div className="explore-categories-wrapper">
             <div className="explore-categories-label" style={{ fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
               Filter by Skill Domain
             </div>
-            <div className="explore-categories" role="tablist" aria-label="Skill Category Filter Chips">
+            <div
+              className="explore-categories"
+              role="tablist"
+              aria-label="Skill Category Filter Chips"
+            >
               {CATEGORIES.map((category) => {
                 const isActive = selectedCategory === category;
                 return (
@@ -238,6 +243,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                     type="button"
                     role="tab"
                     aria-selected={isActive}
+                    aria-controls="swaps-results-grid"
                     className={`category-pill ${isActive ? 'category-pill--active' : ''}`}
                     onClick={() => setSelectedCategory(category)}
                   >
@@ -711,6 +717,8 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
           onClose={() => setSelectedSwapForChat(null)}
         />
       )}
+
+      <Footer onNavigate={onNavigate} />
     </div>
   );
 }
