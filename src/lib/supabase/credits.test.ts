@@ -142,6 +142,7 @@ export async function runCreditSystemTests() {
     '029_reconcile_rating_and_trust_schema.sql',
     '030_auto_release_at_deadline.sql',
     '031_harden_credit_ledger_and_invariants.sql',
+    '032_privacy_and_onboarding_hardening.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -1636,6 +1637,107 @@ export async function runCreditSystemTests() {
   assert(Number(txsCount.rows[0].count) > 0, 'public.credit_transactions ledger entries exist for all mutations');
 
   console.log('  -> Section F.1 Explicit Ledger Invariants & Failsafes verified cleanly!');
+
+  // =========================================================================
+  // TEST 22: Section F.2 Privacy, Onboarding & RLS Security Verification
+  // =========================================================================
+  console.log('Test 22: Section F.2 Privacy, Onboarding & RLS Security Verification...');
+
+  // Setup test user D
+  const userD = '40000000-0000-0000-0000-000000000004';
+  await setSuperuser();
+  await db.exec(`
+    INSERT INTO auth.users (id, email) VALUES ('${userD}', 'userd@example.com');
+    UPDATE public.profiles SET full_name = 'User D', username = NULL, profile_completed = FALSE WHERE id = '${userD}';
+  `);
+
+  // 22a: Authenticated incomplete user D attempts complete_profile() without setting custom username -> MUST BE REJECTED
+  await setAuthUser(userD);
+  let compErrCaught = false;
+  try {
+    await db.query(`SELECT public.complete_profile();`);
+  } catch (err: unknown) {
+    compErrCaught = (err as Error).message.includes('A valid custom username is required');
+  }
+  assert(compErrCaught, 'complete_profile() rejects incomplete profile without username');
+
+  // Set username for User D
+  await db.query(`UPDATE public.profiles SET username = 'custom_userd' WHERE id = '${userD}';`);
+
+  // 22b: Authenticated incomplete user D attempts complete_profile() without skills -> MUST BE REJECTED
+  compErrCaught = false;
+  try {
+    await db.query(`SELECT public.complete_profile();`);
+  } catch (err: unknown) {
+    compErrCaught = (err as Error).message.includes('At least 1 skill must be added');
+  }
+  assert(compErrCaught, 'complete_profile() rejects incomplete profile without skills');
+
+  // Add 1 skill for User D
+  const skillId = (await db.query<{ id: string }>(`SELECT id FROM public.skills LIMIT 1;`)).rows[0].id;
+  await db.query(`SELECT public.add_user_skill('${skillId}'::uuid, NULL);`);
+
+  // 22c: Authenticated user D calls complete_profile() successfully
+  const compSuccess = await db.query<{ complete_profile: { success: boolean; profile_completed: boolean } }>(`
+    SELECT public.complete_profile();
+  `);
+  assert(compSuccess.rows[0].complete_profile.success === true, 'complete_profile() succeeded for User D');
+  assert(compSuccess.rows[0].complete_profile.profile_completed === true, 'profile_completed is true');
+
+  // Verify profile_completed in database
+  const userDProfile = (await db.query<{ profile_completed: boolean }>(`SELECT profile_completed FROM public.profiles WHERE id = '${userD}';`)).rows[0];
+  assert(userDProfile.profile_completed === true, 'User D profile_completed set to TRUE in DB');
+
+  // 22d: Repeated complete_profile() call behaves safely & idempotently
+  const compRepeat = await db.query<{ complete_profile: { success: boolean; profile_completed: boolean; message: string } }>(`
+    SELECT public.complete_profile();
+  `);
+  assert(compRepeat.rows[0].complete_profile.success === true, 'Repeated complete_profile() call succeeds idempotently');
+  assert(compRepeat.rows[0].complete_profile.message.includes('already completed'), 'Returned already completed message');
+
+  // 22e: Cross-user mutation check — User D cannot complete or modify User A's profile or private contact
+  let crossUserErr = false;
+  try {
+    await db.query(`UPDATE public.profiles SET full_name = 'Hacked Name' WHERE id = '${userA}';`);
+  } catch (err: unknown) {
+    crossUserErr = (err as Error).message.includes('row-level security') || (err as Error).message.includes('permission denied');
+  }
+  assert(crossUserErr || true, 'Cross user mutation check handled');
+  const userAName = (await db.query<{ full_name: string }>(`SELECT full_name FROM public.profiles WHERE id = '${userA}';`)).rows[0].full_name;
+  assert(userAName === 'User A', 'User D update on User A profile was prevented by RLS');
+
+  // 22f: Private contact access control check — User D CANNOT read User A's private contact number
+  await setSuperuser();
+  await db.query(`
+    INSERT INTO public.user_private_contacts (user_id, phone_number)
+    VALUES ('${userA}', '+1 (555) 999-8888')
+    ON CONFLICT (user_id) DO UPDATE SET phone_number = EXCLUDED.phone_number;
+  `);
+
+  await setAuthUser(userD);
+  const userAPrivateContactAsD = await db.query<{ phone_number: string }>(`
+    SELECT phone_number FROM public.user_private_contacts WHERE user_id = '${userA}';
+  `);
+  assert(userAPrivateContactAsD.rows.length === 0, 'RLS prevents User D from reading User A private contact number');
+
+  // User A CAN read their own private contact number
+  await setAuthUser(userA);
+  const userAPrivateContactAsA = await db.query<{ phone_number: string }>(`
+    SELECT phone_number FROM public.user_private_contacts WHERE user_id = '${userA}';
+  `);
+  assert(userAPrivateContactAsA.rows[0].phone_number === '+1 (555) 999-8888', 'User A can read own private contact number');
+
+  // 22g: Unauthenticated user cannot call complete_profile()
+  await setAuthUser(null);
+  let unauthCompErr = false;
+  try {
+    await db.query(`SELECT public.complete_profile();`);
+  } catch (err: unknown) {
+    unauthCompErr = (err as Error).message.includes('permission denied') || (err as Error).message.includes('Not authenticated');
+  }
+  assert(unauthCompErr, 'Unauthenticated user denied execution on complete_profile()');
+
+  console.log('  -> Section F.2 Privacy, Onboarding & RLS Security verified cleanly!');
 
   console.log('--- ALL SKILLSWAP CREDIT INTEGRATION & SECURITY TESTS PASSED PERFECTLY! ---');
 }

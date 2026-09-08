@@ -658,8 +658,8 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
             </div>
           </div>
 
-          {/* Step Scaffolding Checklist */}
-          <div className="empowered-step-checklist">
+          {/* Step Scaffolding Checklist & Symmetrical Navigation */}
+          <div className="empowered-step-checklist" style={{ position: 'relative' }}>
             <div className="empowered-step-item empowered-step-item--completed">
               <span className="empowered-step-badge">✓</span>
               <span className="empowered-step-label">Account Created &amp; 100 SkillCredits Granted (Endowed)</span>
@@ -676,6 +676,24 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
               <span className="empowered-step-badge">{step === 4 ? '✓' : '4'}</span>
               <span className="empowered-step-label">Skills Selection &amp; Activation</span>
             </div>
+          </div>
+
+          {/* Symmetrical Choice Architecture Banner */}
+          <div className="symmetrical-choice-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 1rem', background: 'var(--card-bg, rgba(17, 22, 28, 0.04))', border: '1px solid var(--border-color, rgba(17, 22, 28, 0.12))', borderRadius: '10px', margin: '1rem 0 1.25rem' }}>
+            <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+              Want to browse available skill swaps first?
+            </span>
+            <button
+              type="button"
+              className="symmetrical-explore-btn"
+              style={{ background: 'transparent', border: '1px solid var(--border-color, rgba(214, 166, 74, 0.4))', color: '#d6a64a', padding: '0.35rem 0.85rem', borderRadius: '8px', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}
+              onClick={() => {
+                if (onNavigate) onNavigate('/explore');
+                else window.location.href = '/explore';
+              }}
+            >
+              Explore Marketplace First →
+            </button>
           </div>
 
           {/* ================================================================
@@ -711,7 +729,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                 </div>
                 <div className="onboarding-avatar-meta">
                   <span className="onboarding-avatar-label">Profile Picture</span>
-                  <span className="onboarding-avatar-subtext">Provided by your authenticated account</span>
+                  <span className="onboarding-avatar-subtext">Helps other members recognize who they're swapping with.</span>
                 </div>
               </div>
 
@@ -731,13 +749,14 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                 />
+                <p className="form-helper-text">Used to identify you in swap transactions.</p>
               </div>
 
               {/* Bio / About You */}
               <div className="form-group">
                 <div className="form-label-row">
                   <label className="form-label" htmlFor="bioInput">
-                    Bio / About You
+                    Bio / About You <small style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Optional)</small>
                   </label>
                   <span className="char-counter">{bio.length} / 160</span>
                 </div>
@@ -752,7 +771,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                   onChange={(e) => setBio(e.target.value)}
                 />
                 <p id={bioHelpId} className="form-helper-text">
-                  A good bio helps others understand who you are and what you're passionate about.
+                  A brief summary visible on your public profile to build trust with partners.
                 </p>
               </div>
 
@@ -824,6 +843,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                     onChange={(e) => handleUsernameChange(e.target.value)}
                   />
                 </div>
+                <p className="form-helper-text">Used to identify you in public swaps and community searches.</p>
 
                 {/* Status Indicator Box */}
                 {usernameStatus !== 'idle' && (
@@ -896,7 +916,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                   <div>
                     <h1 className="onboarding-title">Choose Your Skills</h1>
                     <p className="onboarding-subtitle">
-                      Tell the community what you're good at.
+                      Used to match you with relevant swap requests and learners. Choose at least 1 skill to activate your profile.
                     </p>
                   </div>
                   <div className={`skills-counter-badge ${selectedSkills.length >= 10 ? 'skills-counter-badge--full' : ''}`}>
@@ -1313,7 +1333,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                 <h3 className="section-mini-title">Contact Information</h3>
                 <div className="form-group">
                   <label className="form-label" htmlFor="phoneInput">
-                    Contact Number
+                    Contact Number <small style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Optional)</small>
                   </label>
                   <input
                     id="phoneInput"
@@ -1325,7 +1345,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
                   />
                   {phoneError && <p className="error-message">{phoneError}</p>}
                   <p className="form-helper-text">
-                    Your contact information is kept private unless you choose to share it.
+                    Kept strictly private and only shared when you choose to connect directly with a swap partner.
                   </p>
                 </div>
               </div>

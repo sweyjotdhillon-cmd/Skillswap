@@ -85,9 +85,6 @@ function AppContent() {
     }
   }, [loading, user, isVerified, isOAuthUser, path]);
 
-  // Onboarding enforcement:
-  // If user is authenticated & verified (or google user), but profile is missing or incomplete (profile === null || profile.profile_completed === false),
-  // show OnboardingPage unless on explicit auth/verify pages.
   const isAuthPage =
     path.startsWith('/login') ||
     path.startsWith('/signup') ||
@@ -96,7 +93,7 @@ function AppContent() {
     path === '/reset-password';
 
   // Smooth loading state on initial boot or profile fetch to prevent opening lag & layout shifts
-  if (loading || (user && (isVerified || isOAuthUser) && !isAuthPage && profileLoading && !profile)) {
+  if (loading || (user && (isVerified || isOAuthUser) && !isAuthPage && profileLoading && profile === undefined)) {
     return (
       <div className="page-shell" style={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', padding: '3rem 1rem' }}>
@@ -107,12 +104,6 @@ function AppContent() {
         </div>
       </div>
     );
-  }
-
-  if (user && (isVerified || isOAuthUser) && !isAuthPage) {
-    if (!profile || profile.profile_completed === false) {
-      return <OnboardingPage onNavigate={navigate} redirectTo={path !== '/onboarding' ? path : undefined} />;
-    }
   }
 
   // Explicit onboarding route

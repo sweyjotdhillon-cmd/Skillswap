@@ -19,7 +19,7 @@ type ExploreSwapsPageProps = {
 };
 
 export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
-  const { user, refreshAccount } = useAuth();
+  const { user, profile, refreshAccount } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
@@ -472,7 +472,16 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                               className="swap-btn swap-btn--primary"
                               style={{ padding: '0.55rem 1.25rem', fontSize: '0.875rem', fontWeight: 700 }}
                               onClick={() => {
-                                if (user && user.id === swap.requesterId) {
+                                if (!user) {
+                                  if (onNavigate) onNavigate(`/login?redirectTo=${encodeURIComponent('/explore')}`);
+                                  return;
+                                }
+                                if (!profile || profile.profile_completed === false) {
+                                  if (onNavigate) onNavigate(`/onboarding?redirectTo=${encodeURIComponent('/explore')}`);
+                                  else window.location.href = `/onboarding?redirectTo=${encodeURIComponent('/explore')}`;
+                                  return;
+                                }
+                                if (user.id === swap.requesterId) {
                                   setSelectedSwapForAccept(swap);
                                   setRequestSent(false);
                                   setAcceptError('You cannot accept your own swap request.');

@@ -72,7 +72,7 @@ const QUICK_TEMPLATES = [
 ];
 
 export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
-  const { user, account, refreshAccount } = useAuth();
+  const { user, profile, account, refreshAccount } = useAuth();
   const draftKey = user ? `skillswap_create_swap_draft_${user.id}` : 'skillswap_create_swap_draft_guest';
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
@@ -256,6 +256,12 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         ...prev,
         credits: 'You must be logged in to create a swap.',
       }));
+      return;
+    }
+
+    if (!profile || profile.profile_completed === false) {
+      if (onNavigate) onNavigate(`/onboarding?redirectTo=${encodeURIComponent('/create-swap')}`);
+      else window.location.href = `/onboarding?redirectTo=${encodeURIComponent('/create-swap')}`;
       return;
     }
 
