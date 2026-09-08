@@ -8,3 +8,7 @@ dist/
 tsconfig.tsbuildinfo
 .env
 dev_server.log
+dev.log
+dev_output.log
+preview_server.log
+verification/

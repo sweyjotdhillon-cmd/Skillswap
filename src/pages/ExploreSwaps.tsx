@@ -12,8 +12,6 @@ import { mapSwapRecordToSwap, type Swap } from '../types/swap';
 import { SWAP_TAG_OPTIONS, getTagLabel, getTagSlug } from '../constants/tags';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
 
-const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
-
 const CATEGORIES = ['All', ...SWAP_TAG_OPTIONS.map((t) => t.label)];
 
 type ExploreSwapsPageProps = {
@@ -359,7 +357,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
                         <div className="swap-need-details">
                           {/* HUMAN IDENTITY & CREDIBILITY HEADER */}
-                          <div className="swap-author-meta" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.25rem' }}>
+                          <div className="swap-author-meta" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.2rem' }}>
                             <span className="swap-user-name" style={{ fontSize: '0.875rem', fontWeight: 700 }}>
                               {requesterName}
                             </span>
@@ -370,7 +368,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                             )}
                             {isVerifiedUser && (
                               <span className="verification-badge" title="Verified Identity">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
                                   <polyline points="20 6 9 17 4 12" />
                                 </svg>
                                 Verified
@@ -379,15 +377,15 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                           </div>
 
                           {/* SOCIAL PROOF SNAPSHOT (Real rating, review count & completed swaps) */}
-                          <div className="swap-trust-snapshot-row" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
+                          <div className="swap-trust-snapshot-row" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.45rem', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.45rem' }}>
                             <span className="trust-rating-text" style={{ color: reviewCount > 0 ? '#d97706' : 'var(--text-muted)', fontWeight: reviewCount > 0 ? 600 : 400 }}>
                               {reviewCount > 0 && avgRating !== null
                                 ? `★ ${avgRating.toFixed(1)} (${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'})`
                                 : 'No reviews yet'}
                             </span>
-                            <span style={{ opacity: 0.4 }}>•</span>
+                            <span style={{ opacity: 0.4 }} aria-hidden="true">•</span>
                             <span className="trust-activity-tag">
-                              <strong>{completedCount}</strong> {completedCount === 1 ? 'swap completed' : 'swaps completed'}
+                              <strong>{completedCount}</strong> {completedCount === 1 ? 'completed swap' : 'completed swaps'}
                             </span>
                           </div>
 
@@ -512,6 +510,9 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                     <strong style={{ fontSize: '1.05rem' }}>{selectedSwapForAccept.topic}</strong>
                   </div>
                   {/* COUNTERPART IDENTITY & CREDIBILITY CHECKPOINT */}
+                  <div className="modal-detail-row">
+                    <span className="modal-label">Requester &amp; Social Proof</span>
+                  </div>
                   <div className="modal-counterpart-card" style={{ background: 'var(--card-bg, rgba(255, 255, 255, 0.03))', border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))', padding: '0.75rem 0.9rem', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     {getRequesterAvatar(selectedSwapForAccept) ? (
                       <img

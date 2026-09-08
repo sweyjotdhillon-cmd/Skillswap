@@ -282,26 +282,36 @@ export function SwapChatModal({
         {/* WORKSPACE HEADER */}
         <div className="chat-modal-header">
           <div className="chat-user-header-info">
-            <img src={displayAvatar} alt={displayName} className="chat-avatar swap-avatar-ring" />
+            <img src={displayAvatar} alt={`Profile of ${displayName}`} className="chat-avatar swap-avatar-ring" />
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                 <h3 className="chat-title" style={{ margin: 0 }}>
                   Swap Workspace with {displayName}
                 </h3>
+                {partnerProfile?.username && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                    @{partnerProfile.username}
+                  </span>
+                )}
                 {isPartnerVerified && (
                   <span className="verification-badge" title="Verified Identity">
-                    ✓ Verified
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Verified
                   </span>
                 )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.15rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                <span style={{ fontWeight: partnerProfile?.reviewCount && partnerProfile.reviewCount > 0 ? 600 : 400, color: partnerProfile?.reviewCount && partnerProfile.reviewCount > 0 ? '#d97706' : 'var(--text-muted)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.15rem', fontSize: '0.75rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: (partnerProfile?.reviewCount ?? 0) > 0 ? 600 : 400, color: (partnerProfile?.reviewCount ?? 0) > 0 ? '#d97706' : 'var(--text-muted)' }}>
                   {partnerProfile?.reviewCount && partnerProfile.reviewCount > 0 && partnerProfile?.averageRating !== null && partnerProfile?.averageRating !== undefined
                     ? `★ ${partnerProfile.averageRating.toFixed(1)} (${partnerProfile.reviewCount} ${partnerProfile.reviewCount === 1 ? 'review' : 'reviews'})`
                     : 'No reviews yet'}
                 </span>
-                <span style={{ opacity: 0.4 }}>•</span>
-                <span>{partnerProfile?.completedSwapsCount ?? 0} swaps completed</span>
+                <span style={{ opacity: 0.4 }} aria-hidden="true">•</span>
+                <span>
+                  <strong>{partnerProfile?.completedSwapsCount ?? 0}</strong> {(partnerProfile?.completedSwapsCount ?? 0) === 1 ? 'completed swap' : 'completed swaps'}
+                </span>
               </div>
               <p className="chat-subtitle" style={{ marginTop: '0.2rem' }}>{swap.topic}</p>
             </div>

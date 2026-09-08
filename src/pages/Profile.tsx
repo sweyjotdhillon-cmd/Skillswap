@@ -24,7 +24,7 @@ type ProfilePageProps = {
 };
 
 export function ProfilePage({ onNavigate }: ProfilePageProps) {
-  const { user, profile: authProfile, account, connectedProviders, refreshProfile, isVerified } = useAuth();
+  const { user, profile: authProfile, account, connectedProviders, refreshProfile } = useAuth();
 
   const [profile, setProfile] = useState<Profile | null>(authProfile);
   const [predefinedSkills, setPredefinedSkills] = useState<UserSkill[]>([]);
@@ -334,18 +334,14 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                 <h1 className="profile-full-name" style={{ margin: 0 }}>{profile.full_name}</h1>
 
                 {/* VERIFIED IDENTITY CUE (Strictly checks is_verified) */}
-                {profile.is_verified ? (
+                {profile.is_verified && (
                   <span className="verification-badge" title="Verified Identity">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12" aria-hidden="true">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                     Verified Profile
                   </span>
-                ) : profile.profile_completed ? (
-                  <span className="verification-badge" style={{ background: 'rgba(255, 255, 255, 0.08)', color: 'var(--text-secondary)' }} title="Completed onboarding profile setup">
-                    Profile Complete
-                  </span>
-                ) : null}
+                )}
               </div>
 
               <div className="profile-username-row" style={{ marginTop: '0.35rem' }}>
