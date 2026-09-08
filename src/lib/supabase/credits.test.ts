@@ -140,6 +140,7 @@ export async function runCreditSystemTests() {
     '027_remove_chat_permissions.sql',
     '028_trust_data_pipeline.sql',
     '029_reconcile_rating_and_trust_schema.sql',
+    '030_auto_release_at_deadline.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -712,15 +713,15 @@ export async function runCreditSystemTests() {
 
   // 12b-1: Verify that supplying p_swap_id on a FRESH submitted swap (submitted 1 day ago) DOES NOT bypass 7-day timeout
   await setSuperuser();
-  await db.query(`UPDATE public.swaps SET submitted_at = NOW() - INTERVAL '1 day' WHERE id = '${timeoutSwapId}';`);
+  await db.query(`UPDATE public.swaps SET submitted_at = NOW() - INTERVAL '1 day', auto_release_at = NOW() + INTERVAL '6 days' WHERE id = '${timeoutSwapId}';`);
 
   const freshTimeoutAttempt = await db.query<{ result: { success: boolean; completed_count: number } }>(`
     SELECT public.process_submitted_swap_timeouts(7, '${timeoutSwapId}'::uuid) AS result;
   `);
   assert(freshTimeoutAttempt.rows[0].result.completed_count === 0, 'Fresh submitted swap (1 day old) NOT settled despite passing p_swap_id');
 
-  // Backdate submitted_at to 8 days ago for genuine timeout
-  await db.query(`UPDATE public.swaps SET submitted_at = NOW() - INTERVAL '8 days' WHERE id = '${timeoutSwapId}';`);
+  // Backdate submitted_at & auto_release_at to past deadline for genuine timeout
+  await db.query(`UPDATE public.swaps SET submitted_at = NOW() - INTERVAL '8 days', auto_release_at = NOW() - INTERVAL '1 day' WHERE id = '${timeoutSwapId}';`);
 
   const userBBalBeforeTimeout = (await db.query<AccountRow>(`SELECT * FROM public.accounts WHERE user_id = '${userB}';`)).rows[0].credits_balance;
 

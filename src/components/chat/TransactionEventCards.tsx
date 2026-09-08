@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Swap, SwapSubmission } from '../../types/swap';
+import { calculateRemainingAutoReleaseMs, formatCountdown } from '../transaction/TransactionProgress';
 
 export type TransactionEventType =
   | 'SUBMISSION'
@@ -19,21 +20,6 @@ export interface TransactionEventProps {
   isApproving?: boolean;
   onDownloadFile?: (storagePath: string, fileName: string, fileId: string) => Promise<void>;
   downloadingFileId?: string | null;
-}
-
-/** Formats remaining milliseconds into human-readable auto-release timer display */
-function formatCountdown(seconds: number): string {
-  if (seconds <= 0) return '00h 00m 00s';
-  const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  if (hrs >= 24) {
-    const days = Math.floor(hrs / 24);
-    const remHrs = hrs % 24;
-    return `${days}d ${pad(remHrs)}h ${pad(mins)}m ${pad(secs)}s`;
-  }
-  return `${pad(hrs)}h ${pad(mins)}m ${pad(secs)}s`;
 }
 
 /**
@@ -57,21 +43,19 @@ export const SubmissionEventCard: React.FC<{
   onDownloadFile,
   downloadingFileId = null,
 }) => {
-  // Calculate remaining seconds for auto-release (48h / 7d default)
-  const submittedMs = new Date(submission.createdAt || swap.submittedAt || Date.now()).getTime();
-  const autoReleaseMs = submittedMs + 48 * 3600 * 1000;
-  const [secondsLeft, setSecondsLeft] = useState<number>(() =>
-    Math.max(0, Math.floor((autoReleaseMs - Date.now()) / 1000))
-  );
+  // Calculate remaining seconds for auto-release from canonical backend timestamp
+  const targetSubmissionTime = swap.submittedAt || submission.createdAt;
+  const initialRemainingMs = calculateRemainingAutoReleaseMs(swap.autoReleaseAt, targetSubmissionTime);
+  const [secondsLeft, setSecondsLeft] = useState<number>(() => Math.floor(initialRemainingMs / 1000));
 
   useEffect(() => {
     if (swap.status !== 'submitted') return;
     const timer = setInterval(() => {
-      const rem = Math.max(0, Math.floor((autoReleaseMs - Date.now()) / 1000));
-      setSecondsLeft(rem);
+      const remainingMs = calculateRemainingAutoReleaseMs(swap.autoReleaseAt, targetSubmissionTime);
+      setSecondsLeft(Math.floor(remainingMs / 1000));
     }, 1000);
     return () => clearInterval(timer);
-  }, [swap.status, autoReleaseMs]);
+  }, [swap.status, swap.autoReleaseAt, targetSubmissionTime]);
 
   const formattedTime = new Date(submission.createdAt).toLocaleTimeString([], {
     hour: '2-digit',
@@ -374,7 +358,7 @@ export const TransactionEventCard: React.FC<TransactionEventProps> = (props) => 
       return (
         <StatusChangeEventCard
           title="Auto-release Window Active"
-          description={`Credits will automatically transfer if unreviewed after 48 hours.`}
+          description="Credits will automatically transfer if unreviewed when deadline is reached."
           timestamp={timestamp}
           iconType="info"
         />
