@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { getNormalizedMimeType, formatSubmissionErrorMessage, sanitizeFileName } from './credits';
 import { SWAP_TAG_OPTIONS, getTagSlug, getTagLabel, isValidSwapTag, validateSwapTags } from '../../constants/tags';
+import { runTransactionProgressUnitTests } from '../../components/transaction/TransactionProgress.test';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -12,6 +13,9 @@ function assert(condition: boolean, message: string) {
 
 export async function runCreditSystemTests() {
   console.log('--- Starting SkillSwap Database Integration & Unit Test Suite ---');
+
+  // Run E.2 Transaction Progress Unit Tests
+  runTransactionProgressUnitTests();
 
   // 1. Initialize embedded PostgreSQL engine (PGlite)
   const db = new PGlite();

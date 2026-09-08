@@ -337,123 +337,166 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                 const avgRating = swap.requesterProfile?.averageRating ?? null;
 
                 return (
-                  <div key={swap.id} className="swap-card">
-                    <div className="swap-card-main">
-                      <div className="swap-card-need-section">
-                        {/* HUMAN FACE PRESENTATION (FFA Eye-Contact Anchor) */}
-                        <div className="swap-avatar-wrapper" style={{ flexShrink: 0 }}>
-                          {requesterAvatar ? (
-                            <img
-                              src={requesterAvatar}
-                              alt={`Profile of ${requesterName}`}
-                              className="swap-avatar swap-avatar-ring"
-                            />
-                          ) : (
-                            <div className="swap-avatar-fallback swap-avatar-ring">
-                              {requesterInitials}
-                            </div>
-                          )}
-                        </div>
+                  <div key={swap.id} className="swap-card" style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
+                    <div className="swap-card-content" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {/* TOP/MAIN CONTAINER */}
+                      <div className="swap-card-main-row" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
 
-                        <div className="swap-need-details">
-                          {/* HUMAN IDENTITY & CREDIBILITY HEADER */}
-                          <div className="swap-author-meta" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.2rem' }}>
-                            <span className="swap-user-name" style={{ fontSize: '0.875rem', fontWeight: 700 }}>
-                              {requesterName}
-                            </span>
-                            {swap.requesterProfile?.username && (
-                              <span style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-                                @{swap.requesterProfile.username}
-                              </span>
-                            )}
-                            {isVerifiedUser && (
-                              <span className="verification-badge" title="Verified Identity">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                                Verified
-                              </span>
+                        {/* LEFT ANCHOR: Creator Identity & Context */}
+                        <div className="swap-card-identity-block" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.85rem', flex: '1 1 260px', minWidth: 0 }}>
+                          <div className="swap-avatar-wrapper" style={{ flexShrink: 0 }}>
+                            {requesterAvatar ? (
+                              <img
+                                src={requesterAvatar}
+                                alt={`Profile of ${requesterName}`}
+                                className="swap-avatar swap-avatar-ring"
+                                style={{ width: '48px', height: '48px', borderRadius: '50%' }}
+                              />
+                            ) : (
+                              <div className="swap-avatar-fallback swap-avatar-ring" style={{ width: '48px', height: '48px', fontSize: '0.95rem' }}>
+                                {requesterInitials}
+                              </div>
                             )}
                           </div>
 
-                          {/* SOCIAL PROOF SNAPSHOT (Real rating, review count & completed swaps) */}
-                          <div className="swap-trust-snapshot-row" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.45rem', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.45rem' }}>
-                            <span className="trust-rating-text" style={{ color: reviewCount > 0 ? '#d97706' : 'var(--text-muted)', fontWeight: reviewCount > 0 ? 600 : 400 }}>
-                              {reviewCount > 0 && avgRating !== null
-                                ? `★ ${avgRating.toFixed(1)} (${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'})`
-                                : 'No reviews yet'}
+                          <div className="swap-context-details" style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0, flex: 1 }}>
+                            {/* Creator Meta */}
+                            <div className="swap-author-meta" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem' }}>
+                              <span className="swap-user-name" style={{ fontSize: '0.9rem', fontWeight: 700 }}>
+                                {requesterName}
+                              </span>
+                              {swap.requesterProfile?.username && (
+                                <span style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+                                  @{swap.requesterProfile.username}
+                                </span>
+                              )}
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                • {new Date(swap.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                              </span>
+                              {isVerifiedUser && (
+                                <span className="verification-badge" title="Verified Identity">
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                  Verified
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Trust & Social Proof Snapshot */}
+                            <div className="swap-trust-snapshot-row" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              <span className="trust-rating-text" style={{ color: reviewCount > 0 ? '#d97706' : 'var(--text-muted)', fontWeight: reviewCount > 0 ? 600 : 400 }}>
+                                {reviewCount > 0 && avgRating !== null
+                                  ? `★ ${avgRating.toFixed(1)} (${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'})`
+                                  : 'No reviews yet'}
+                              </span>
+                              <span style={{ opacity: 0.4 }} aria-hidden="true">•</span>
+                              <span className="trust-activity-tag">
+                                <strong>{completedCount}</strong> {completedCount === 1 ? 'completed' : 'completed'}
+                              </span>
+                            </div>
+
+                            {/* Title & Description Control */}
+                            <h3 className="swap-need-title" style={{ margin: '0.35rem 0 0.2rem', fontSize: '1.1rem', fontWeight: 700, lineHeight: 1.3 }}>
+                              {swap.topic}
+                            </h3>
+                            <p className="swap-description" style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted, rgba(17, 22, 28, 0.65))', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                              {swap.description}
+                            </p>
+
+                            {/* Skill Tags / Chips */}
+                            {swap.tags && swap.tags.length > 0 && (
+                              <div className="swap-tags-row" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.5rem' }}>
+                                {swap.tags.map((tag) => {
+                                  const label = getTagLabel(tag);
+                                  const isSelected = getTagSlug(selectedCategory) === getTagSlug(tag);
+                                  return (
+                                    <button
+                                      key={tag}
+                                      type="button"
+                                      className={`swap-tag ${isSelected ? 'swap-tag--active' : ''}`}
+                                      style={{
+                                        cursor: 'pointer',
+                                        fontWeight: isSelected ? 700 : 500,
+                                        border: 'none',
+                                        background: isSelected ? 'rgba(214, 166, 74, 0.2)' : 'rgba(148, 163, 184, 0.12)',
+                                        color: isSelected ? '#d97706' : 'var(--text-color)',
+                                        padding: '0.2rem 0.55rem',
+                                        borderRadius: '6px',
+                                        fontSize: '0.75rem',
+                                      }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedCategory(label);
+                                      }}
+                                      aria-label={`Filter by ${label}`}
+                                    >
+                                      {label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* RIGHT ANCHOR: Value (SkillCredits) + Action CTA */}
+                        <div className="swap-card-action-block" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', gap: '0.75rem', flexShrink: 0, marginLeft: 'auto' }}>
+                          {/* Saliency Credit Badge */}
+                          <div
+                            className="swap-credits-badge-saliency"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              padding: '0.35rem 0.75rem',
+                              borderRadius: '10px',
+                              background: 'rgba(214, 166, 74, 0.12)',
+                              border: '1px solid rgba(214, 166, 74, 0.35)',
+                              color: '#d6a64a',
+                            }}
+                          >
+                            <span style={{ fontSize: '0.95rem' }} aria-hidden="true">⚡</span>
+                            <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-color, #f8fafc)', lineHeight: 1 }}>
+                              {swap.creditAmount}
                             </span>
-                            <span style={{ opacity: 0.4 }} aria-hidden="true">•</span>
-                            <span className="trust-activity-tag">
-                              <strong>{completedCount}</strong> {completedCount === 1 ? 'completed swap' : 'completed swaps'}
+                            <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#d6a64a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              SkillCredits
                             </span>
                           </div>
 
-                          <h3 className="swap-need-title">{swap.topic}</h3>
-                          <p className="swap-description">{swap.description}</p>
-
-                          {swap.tags && swap.tags.length > 0 && (
-                            <div className="swap-tags-row" style={{ marginTop: '0.5rem' }}>
-                              {swap.tags.map((tag) => {
-                                const label = getTagLabel(tag);
-                                const isSelected = getTagSlug(selectedCategory) === getTagSlug(tag);
-                                return (
-                                  <span
-                                    key={tag}
-                                    className={`swap-tag ${isSelected ? 'swap-tag--active' : ''}`}
-                                    style={{
-                                      cursor: 'pointer',
-                                      fontWeight: isSelected ? 600 : 400,
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedCategory(label);
-                                    }}
-                                  >
-                                    #{label}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          )}
+                          {/* Primary CTA Buttons */}
+                          <div className="swap-card-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', justifyContent: 'flex-end' }}>
+                            <button
+                              type="button"
+                              className="swap-btn swap-btn--primary"
+                              style={{ padding: '0.55rem 1.25rem', fontSize: '0.875rem', fontWeight: 700 }}
+                              onClick={() => {
+                                if (user && user.id === swap.requesterId) {
+                                  setSelectedSwapForAccept(swap);
+                                  setRequestSent(false);
+                                  setAcceptError('You cannot accept your own swap request.');
+                                } else {
+                                  setSelectedSwapForAccept(swap);
+                                  setRequestSent(false);
+                                  setAcceptError(null);
+                                }
+                              }}
+                            >
+                              Accept Swap
+                            </button>
+                            <button
+                              type="button"
+                              className="swap-btn swap-btn--secondary"
+                              style={{ padding: '0.55rem 0.9rem', fontSize: '0.875rem' }}
+                              onClick={() => handleOpenChat(swap)}
+                              aria-label={`Chat with ${requesterName} about ${swap.topic}`}
+                            >
+                              Chat
+                            </button>
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="swap-credits-badge">
-                        <div className="sc-icon-circle">
-                          <span className="sc-symbol">⚡</span>
-                          <span className="sc-amount">{swap.creditAmount}</span>
-                        </div>
-                        <span className="sc-text-label">SkillCredits</span>
-                      </div>
-                    </div>
-
-                    <div className="swap-card-footer" style={{ justifyContent: 'flex-end' }}>
-                      <div className="swap-card-actions">
-                        <button
-                          type="button"
-                          className="swap-btn swap-btn--primary"
-                          onClick={() => {
-                            if (user && user.id === swap.requesterId) {
-                              setSelectedSwapForAccept(swap);
-                              setRequestSent(false);
-                              setAcceptError('You cannot accept your own swap request.');
-                            } else {
-                              setSelectedSwapForAccept(swap);
-                              setRequestSent(false);
-                              setAcceptError(null);
-                            }
-                          }}
-                        >
-                          Accept Swap
-                        </button>
-                        <button
-                          type="button"
-                          className="swap-btn swap-btn--secondary"
-                          onClick={() => handleOpenChat(swap)}
-                        >
-                          Chat
-                        </button>
                       </div>
                     </div>
                   </div>
