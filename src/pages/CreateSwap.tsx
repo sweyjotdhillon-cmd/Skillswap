@@ -3,13 +3,14 @@ import { Navbar } from '../components/navigation/Navbar';
 import { CreateSwapHeader } from '../components/create-swap/CreateSwapHeader';
 import { TopicField } from '../components/create-swap/TopicField';
 import { TagSelectionField } from '../components/create-swap/TagSelectionField';
-import { useScaffolding } from '../hooks/useScaffolding';
 import { DescriptionField } from '../components/create-swap/DescriptionField';
 import { AttachmentUploader, AttachmentItem } from '../components/create-swap/AttachmentUploader';
 import { CreditsInput } from '../components/create-swap/CreditsInput';
 import { RequirementsField } from '../components/create-swap/RequirementsField';
 import { AdditionalMessageField } from '../components/create-swap/AdditionalMessageField';
 import { SwapPreviewCard } from '../components/create-swap/SwapPreviewCard';
+import { TemplateGallery } from '../components/create-swap/TemplateGallery';
+import { SwapTemplate } from '../constants/templates';
 import { useAuth } from '../context/AuthContext';
 import { createCreditSwap, uploadSwapAttachments, cancelCreditSwap } from '../lib/supabase/credits';
 import { getTagSlug, getTagLabel, isValidSwapTag } from '../constants/tags';
@@ -37,47 +38,12 @@ type CreateSwapPageProps = {
   onNavigate?: (path: string) => void;
 };
 
-const QUICK_TEMPLATES = [
-  {
-    label: '⚡ React Code Review',
-    topic: 'React & TypeScript Code Review',
-    tags: ['coding'],
-    description: 'Review my React custom hooks and state management architecture for performance bottlenecks and clean code patterns.',
-    credits: '50',
-    requirements: 'Detailed code review comments on my pull request with 3 actionable optimization suggestions.',
-  },
-  {
-    label: '🎨 UI/UX Design Feedback',
-    topic: 'Mobile App UI/UX Feedback',
-    tags: ['design'],
-    description: 'Evaluate my mobile app Figma designs for visual hierarchy, contrast accessibility, and intuitive navigation flows.',
-    credits: '75',
-    requirements: 'Annotated visual feedback on 5 core screen flows with accessibility score recommendations.',
-  },
-  {
-    label: '🗣️ Spanish Practice',
-    topic: 'Spanish Conversation Practice',
-    tags: ['languages'],
-    description: 'Practice 45 minutes of natural spoken Spanish covering everyday professional and travel vocabulary.',
-    credits: '30',
-    requirements: '45-minute live audio/video call with feedback notes on pronunciation and grammar.',
-  },
-  {
-    label: '🎬 Video Editing Review',
-    topic: 'Short-Form Video Editing Review',
-    tags: ['video-editing'],
-    description: 'Review my 60-second video reel pacing, color grading, audio leveling, and captions.',
-    credits: '60',
-    requirements: 'Timestamped feedback list on cuts, audio balance, and visual transitions.',
-  },
-];
-
 export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
   const { user, profile, account, refreshAccount } = useAuth();
-  const templateScaffold = useScaffolding('create_swap_templates');
   const draftKey = user ? `skillswap_create_swap_draft_${user.id}` : 'skillswap_create_swap_draft_guest';
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
 
   const [formState, setFormState] = useState<CreateSwapFormState>(() => {
     try {
@@ -189,22 +155,70 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
     return step1Valid && step2Valid;
   };
 
-  const handleApplyTemplate = (tpl: typeof QUICK_TEMPLATES[number]) => {
+  const handleSelectTemplate = (template: SwapTemplate) => {
+    const canonicalTags = template.formValues.tags
+      .map((t) => getTagSlug(t))
+      .filter((t) => Boolean(t) && isValidSwapTag(t));
+
     setFormState((prev) => ({
       ...prev,
-      topic: tpl.topic,
-      tags: tpl.tags,
-      description: tpl.description,
-      credits: tpl.credits,
-      requirements: tpl.requirements,
+      topic: template.formValues.topic,
+      tags: canonicalTags,
+      description: template.formValues.description,
+      credits: template.formValues.credits,
+      requirements: template.formValues.requirements,
     }));
+    setActiveTemplateId(template.id);
     setErrors({});
+    setCurrentStep(1);
+
     setStatusMessage({
       type: 'info',
-      text: `Applied "${tpl.topic}" template! Customize any fields below.`,
+      text: `Applied "${template.name}" template! All pre-filled values remain fully editable.`,
     });
+
+    if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+    statusTimerRef.current = setTimeout(() => setStatusMessage(null), 5000);
+
+    // Smooth scroll to form section
+    const formEl = document.querySelector('.create-swap-form, .cs-stepper-container');
+    if (formEl) {
+      formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const handleStartFromScratch = () => {
+    setFormState({
+      topic: '',
+      tags: [],
+      description: '',
+      attachments: [],
+      credits: '',
+      requirements: '',
+      additionalMessage: '',
+    });
+    setActiveTemplateId(null);
+    setErrors({});
+    setCurrentStep(1);
+
+    try {
+      localStorage.removeItem(draftKey);
+    } catch {
+      // ignore
+    }
+
+    setStatusMessage({
+      type: 'info',
+      text: 'Cleared form state. You are starting from scratch.',
+    });
+
     if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
     statusTimerRef.current = setTimeout(() => setStatusMessage(null), 4000);
+
+    const formEl = document.querySelector('.create-swap-form, .cs-stepper-container');
+    if (formEl) {
+      formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   const handleNextStep = () => {
@@ -349,6 +363,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         requirements: '',
         additionalMessage: '',
       });
+      setActiveTemplateId(null);
 
       setCreatedSwapResult({
         swapId: createdId,
@@ -399,6 +414,13 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         <div className="create-swap-layout">
           <div className="create-swap-card">
             <CreateSwapHeader />
+
+            {/* SECTION I.1 TEMPLATE GALLERY */}
+            <TemplateGallery
+              onSelectTemplate={handleSelectTemplate}
+              onStartFromScratch={handleStartFromScratch}
+              activeTemplateId={activeTemplateId}
+            />
 
             {/* STEPPER PROGRESS INDICATOR */}
             <div className="cs-stepper-container" aria-label="Creation progress">
@@ -511,52 +533,6 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
                       <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(214, 166, 74, 0.2)', color: '#a8781d', fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', lineHeight: '24px' }}>1</span>
                       Skill Request Overview
                     </legend>
-
-                    {/* QUICK WORKED EXAMPLE TEMPLATES (H.3 Visual Scaffolding Fading) */}
-                    {templateScaffold.shouldShow ? (
-                      <div className="cs-templates-section" style={{ position: 'relative' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span className="cs-templates-label">💡 Worked Examples / Quick Templates</span>
-                          <button
-                            type="button"
-                            className="as-toast-close"
-                            title="Don't show this again"
-                            aria-label="Don't show template suggestions again"
-                            onClick={templateScaffold.dismissScaffold}
-                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem', opacity: 0.7 }}
-                          >
-                            ×
-                          </button>
-                        </div>
-                        <p style={{ margin: 0, fontSize: '0.785rem', color: 'var(--text-secondary)' }}>
-                          Select a template to pre-fill common swap parameters with sensible defaults:
-                        </p>
-                        <div className="cs-templates-grid">
-                          {QUICK_TEMPLATES.map((tpl) => (
-                            <button
-                              key={tpl.label}
-                              type="button"
-                              className="cs-template-chip"
-                              onClick={() => handleApplyTemplate(tpl)}
-                            >
-                              {tpl.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      /* Minimized Scaffold Toggle for Experienced/Dismissed Users */
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
-                        <button
-                          type="button"
-                          className="reset-filter-btn"
-                          onClick={templateScaffold.toggleExpanded}
-                          style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '6px' }}
-                        >
-                          💡 Show Quick Templates
-                        </button>
-                      </div>
-                    )}
 
                     <TopicField
                       value={formState.topic}
