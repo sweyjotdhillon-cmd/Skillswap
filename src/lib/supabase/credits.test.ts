@@ -6,6 +6,7 @@ import { SWAP_TAG_OPTIONS, getTagSlug, getTagLabel, isValidSwapTag, validateSwap
 import { runTransactionProgressUnitTests } from '../../components/transaction/TransactionProgress.test';
 import { runSwapChatModalAndDesignSystemTests } from '../../components/chat/SwapChatModal.test';
 import { runAcceptSwapFlowUnitTests } from './accept_swap_flow.test';
+import { runSectionH3ScaffoldingUnitTests } from './scaffolding.test';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -24,6 +25,9 @@ export async function runCreditSystemTests() {
 
   // Run Section H.2 Reversible Accept Swap Flow Unit Tests
   runAcceptSwapFlowUnitTests();
+
+  // Run Section H.3 Visual Scaffolding Fading Unit Tests
+  runSectionH3ScaffoldingUnitTests();
 
   // 1. Initialize embedded PostgreSQL engine (PGlite)
   const db = new PGlite();
