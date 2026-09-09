@@ -5,6 +5,7 @@ import { getNormalizedMimeType, formatSubmissionErrorMessage, sanitizeFileName }
 import { SWAP_TAG_OPTIONS, getTagSlug, getTagLabel, isValidSwapTag, validateSwapTags } from '../../constants/tags';
 import { runTransactionProgressUnitTests } from '../../components/transaction/TransactionProgress.test';
 import { runSwapChatModalAndDesignSystemTests } from '../../components/chat/SwapChatModal.test';
+import { runAcceptSwapFlowUnitTests } from './accept_swap_flow.test';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -20,6 +21,9 @@ export async function runCreditSystemTests() {
 
   // Run E.3 Cognitive Color & E.4 Multi-Modal Chat Unit Tests
   runSwapChatModalAndDesignSystemTests();
+
+  // Run Section H.2 Reversible Accept Swap Flow Unit Tests
+  runAcceptSwapFlowUnitTests();
 
   // 1. Initialize embedded PostgreSQL engine (PGlite)
   const db = new PGlite();
