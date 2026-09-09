@@ -546,7 +546,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                             {requesterAvatar ? (
                               <img
                                 src={requesterAvatar}
-                                alt={`Profile of ${requesterName}`}
+                                alt={`Profile photo of ${requesterName}`}
                                 className="swap-avatar swap-avatar-ring"
                                 style={{ width: '48px', height: '48px', borderRadius: '50%' }}
                               />
@@ -572,7 +572,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                                 • {new Date(swap.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                               </span>
                               {isVerifiedUser && (
-                                <span className="verification-badge" title="Verified Identity">
+                                <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
                                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
                                     <polyline points="20 6 9 17 4 12" />
                                   </svg>
@@ -763,7 +763,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                 {getRequesterAvatar(selectedSwapForAccept) ? (
                   <img
                     src={getRequesterAvatar(selectedSwapForAccept)!}
-                    alt={getRequesterName(selectedSwapForAccept)}
+                    alt={`Profile photo of ${getRequesterName(selectedSwapForAccept)}`}
                     className="swap-avatar swap-avatar-ring"
                     style={{ width: '44px', height: '44px' }}
                   />
@@ -779,7 +779,12 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                       <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>@{selectedSwapForAccept.requesterProfile.username}</span>
                     )}
                     {selectedSwapForAccept.requesterProfile?.isVerified && (
-                      <span className="verification-badge">✓ Verified</span>
+                      <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        Verified
+                      </span>
                     )}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>

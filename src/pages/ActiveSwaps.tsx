@@ -33,6 +33,10 @@ export interface SwapParticipant {
   location: string;
   avatar: string;
   bio?: string;
+  isVerified?: boolean;
+  averageRating?: number | null;
+  reviewCount?: number;
+  completedSwapsCount?: number;
 }
 
 export interface ActiveSwapItem {
@@ -157,6 +161,10 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         const partnerUsername = partnerProfile?.username || '';
         const partnerAvatar = partnerProfile?.avatarUrl || DEFAULT_AVATAR;
         const partnerLocation = partnerUsername ? `@${partnerUsername}` : 'SkillSwap Network';
+        const partnerIsVerified = Boolean(partnerProfile?.isVerified);
+        const partnerAvgRating = partnerProfile?.averageRating ?? null;
+        const partnerReviewCount = partnerProfile?.reviewCount ?? 0;
+        const partnerCompletedSwapsCount = partnerProfile?.completedSwapsCount ?? 0;
 
         const item: ActiveSwapItem = {
           swap,
@@ -166,6 +174,10 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
             username: partnerUsername,
             location: partnerLocation,
             avatar: partnerAvatar,
+            isVerified: partnerIsVerified,
+            averageRating: partnerAvgRating,
+            reviewCount: partnerReviewCount,
+            completedSwapsCount: partnerCompletedSwapsCount,
           },
           isRequester,
           isParticipant,
@@ -804,12 +816,20 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     <div className="as-detail-user-group">
                       <img
                         src={currentAcceptedItem.partner.avatar}
-                        alt={currentAcceptedItem.partner.name}
-                        className="as-detail-avatar"
+                        alt={`Profile photo of ${currentAcceptedItem.partner.name}`}
+                        className="as-detail-avatar swap-avatar-ring"
                       />
                       <div className="as-detail-user-info">
-                        <div className="as-detail-name-row">
-                          <h2 className="as-detail-user-name">{currentAcceptedItem.partner.name}</h2>
+                        <div className="as-detail-name-row" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <h2 className="as-detail-user-name" style={{ margin: 0 }}>{currentAcceptedItem.partner.name}</h2>
+                          {currentAcceptedItem.partner.isVerified && (
+                            <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                              Verified
+                            </span>
+                          )}
                           <button
                             type="button"
                             className="as-view-profile-link"
@@ -818,7 +838,18 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                             View Profile
                           </button>
                         </div>
-                        <p className="as-detail-user-location">{currentAcceptedItem.partner.location}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.15rem', fontSize: '0.775rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: (currentAcceptedItem.partner.reviewCount ?? 0) > 0 ? 600 : 400, color: (currentAcceptedItem.partner.reviewCount ?? 0) > 0 ? '#d97706' : 'var(--text-muted)' }}>
+                            {(currentAcceptedItem.partner.reviewCount ?? 0) > 0 && currentAcceptedItem.partner.averageRating !== null && currentAcceptedItem.partner.averageRating !== undefined
+                              ? `★ ${currentAcceptedItem.partner.averageRating.toFixed(1)} (${currentAcceptedItem.partner.reviewCount} ${(currentAcceptedItem.partner.reviewCount ?? 0) === 1 ? 'review' : 'reviews'})`
+                              : 'No reviews yet'}
+                          </span>
+                          <span style={{ opacity: 0.4 }} aria-hidden="true">•</span>
+                          <span>
+                            <strong>{currentAcceptedItem.partner.completedSwapsCount ?? 0}</strong> {(currentAcceptedItem.partner.completedSwapsCount ?? 0) === 1 ? 'completed swap' : 'completed swaps'}
+                          </span>
+                        </div>
+                        <p className="as-detail-user-location" style={{ marginTop: '0.1rem' }}>{currentAcceptedItem.partner.location}</p>
                       </div>
                     </div>
 
@@ -1029,12 +1060,20 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     <div className="as-detail-user-group">
                       <img
                         src={currentGivenItem.partner.avatar}
-                        alt={currentGivenItem.partner.name}
-                        className="as-detail-avatar"
+                        alt={`Profile photo of ${currentGivenItem.partner.name}`}
+                        className="as-detail-avatar swap-avatar-ring"
                       />
                       <div className="as-detail-user-info">
-                        <div className="as-detail-name-row">
-                          <h2 className="as-detail-user-name">{currentGivenItem.partner.name}</h2>
+                        <div className="as-detail-name-row" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <h2 className="as-detail-user-name" style={{ margin: 0 }}>{currentGivenItem.partner.name}</h2>
+                          {currentGivenItem.partner.isVerified && (
+                            <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                              Verified
+                            </span>
+                          )}
                           <button
                             type="button"
                             className="as-view-profile-link"
@@ -1043,7 +1082,18 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                             View Profile
                           </button>
                         </div>
-                        <p className="as-detail-user-location">{currentGivenItem.partner.location}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.15rem', fontSize: '0.775rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: (currentGivenItem.partner.reviewCount ?? 0) > 0 ? 600 : 400, color: (currentGivenItem.partner.reviewCount ?? 0) > 0 ? '#d97706' : 'var(--text-muted)' }}>
+                            {(currentGivenItem.partner.reviewCount ?? 0) > 0 && currentGivenItem.partner.averageRating !== null && currentGivenItem.partner.averageRating !== undefined
+                              ? `★ ${currentGivenItem.partner.averageRating.toFixed(1)} (${currentGivenItem.partner.reviewCount} ${(currentGivenItem.partner.reviewCount ?? 0) === 1 ? 'review' : 'reviews'})`
+                              : 'No reviews yet'}
+                          </span>
+                          <span style={{ opacity: 0.4 }} aria-hidden="true">•</span>
+                          <span>
+                            <strong>{currentGivenItem.partner.completedSwapsCount ?? 0}</strong> {(currentGivenItem.partner.completedSwapsCount ?? 0) === 1 ? 'completed swap' : 'completed swaps'}
+                          </span>
+                        </div>
+                        <p className="as-detail-user-location" style={{ marginTop: '0.1rem' }}>{currentGivenItem.partner.location}</p>
                       </div>
                     </div>
 
@@ -1563,10 +1613,31 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         <div className="modal-overlay" onClick={() => setSelectedProfileModal(null)}>
           <div className="modal-content as-profile-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="as-profile-modal-header">
-              <img src={selectedProfileModal.avatar} alt={selectedProfileModal.name} className="as-modal-avatar" />
+              <img src={selectedProfileModal.avatar} alt={`Profile photo of ${selectedProfileModal.name}`} className="as-modal-avatar swap-avatar-ring" />
               <div>
-                <h3 className="as-modal-title">{selectedProfileModal.name}</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  <h3 className="as-modal-title" style={{ margin: 0 }}>{selectedProfileModal.name}</h3>
+                  {selectedProfileModal.isVerified && (
+                    <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      Verified
+                    </span>
+                  )}
+                </div>
                 <p className="as-modal-subtitle">{selectedProfileModal.location}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: (selectedProfileModal.reviewCount ?? 0) > 0 ? 600 : 400, color: (selectedProfileModal.reviewCount ?? 0) > 0 ? '#d97706' : 'var(--text-muted)' }}>
+                    {(selectedProfileModal.reviewCount ?? 0) > 0 && selectedProfileModal.averageRating !== null && selectedProfileModal.averageRating !== undefined
+                      ? `★ ${selectedProfileModal.averageRating.toFixed(1)} (${selectedProfileModal.reviewCount} ${selectedProfileModal.reviewCount === 1 ? 'review' : 'reviews'})`
+                      : 'No reviews yet'}
+                  </span>
+                  <span style={{ opacity: 0.4 }} aria-hidden="true">•</span>
+                  <span>
+                    <strong>{selectedProfileModal.completedSwapsCount ?? 0}</strong> {(selectedProfileModal.completedSwapsCount ?? 0) === 1 ? 'completed swap' : 'completed swaps'}
+                  </span>
+                </div>
               </div>
               <button
                 type="button"
