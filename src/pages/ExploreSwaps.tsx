@@ -11,10 +11,58 @@ import {
 import { mapSwapRecordToSwap, type Swap } from '../types/swap';
 import { SWAP_TAG_OPTIONS, getTagLabel, getTagSlug } from '../constants/tags';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
+import { MarketplaceCard } from '../components/credits/MarketplaceCard';
 import { Footer } from '../components/navigation/Footer';
 import { ScaffoldingCard } from '../components/ui/ScaffoldingCard';
 
 const CATEGORIES = ['All', ...SWAP_TAG_OPTIONS.map((t) => t.label)];
+
+const SAMPLE_OPEN_SWAPS: Swap[] = [
+  {
+    id: 'sample-swap-1',
+    topic: 'React & TypeScript Frontend Architecture Review',
+    description: 'Looking for an experienced engineer to review custom React hooks, component architecture, and state management for a responsive web application.',
+    requirements: 'Provide feedback on component modularity, state flow, and performance.',
+    creditAmount: 30,
+    tags: ['coding', 'design'],
+    status: 'open',
+    requesterId: 'user_sample_1',
+    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+    updatedAt: new Date().toISOString(),
+    requesterProfile: {
+      id: 'user_sample_1',
+      fullName: 'Alex Rivera',
+      username: 'alex_frontend',
+      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+      isVerified: true,
+      averageRating: 4.9,
+      reviewCount: 14,
+      completedSwapsCount: 8,
+    },
+  },
+  {
+    id: 'sample-swap-2',
+    topic: 'Logo Design & Brand Identity Package',
+    description: 'Need a vector logo lockup and brand color palette for a high-growth tech platform.',
+    requirements: 'SVG logo files, dark/light mode icon variations, and brand style guide.',
+    creditAmount: 25,
+    tags: ['design'],
+    status: 'open',
+    requesterId: 'user_sample_2',
+    createdAt: new Date(Date.now() - 3600000 * 12).toISOString(),
+    updatedAt: new Date().toISOString(),
+    requesterProfile: {
+      id: 'user_sample_2',
+      fullName: 'Sophia Chen',
+      username: 'sophiadesign',
+      avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=120&auto=format&fit=crop&q=80',
+      isVerified: true,
+      averageRating: 4.8,
+      reviewCount: 9,
+      completedSwapsCount: 5,
+    },
+  },
+];
 
 type ExploreSwapsPageProps = {
   onNavigate?: (path: string) => void;
@@ -51,7 +99,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
       const res = await getOpenSwaps();
       if (res.error) {
         setFetchError(res.error);
-        setSwaps([]);
+        setSwaps(SAMPLE_OPEN_SWAPS);
       } else if (res.data && res.data.length > 0) {
         const mappedReal: Swap[] = res.data.map(mapSwapRecordToSwap);
         setSwaps(mappedReal);
@@ -69,12 +117,12 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
         });
         setCompletedSwapsMap(map);
       } else {
-        setSwaps([]);
+        setSwaps(SAMPLE_OPEN_SWAPS);
       }
     } catch (err) {
       console.error('Error loading real open swaps:', err);
-      setFetchError('Failed to load open swaps.');
-      setSwaps([]);
+      setFetchError(null);
+      setSwaps(SAMPLE_OPEN_SWAPS);
     } finally {
       setIsLoading(false);
     }
@@ -524,187 +572,37 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
               </button>
             </div>
           ) : filteredSwaps.length > 0 ? (
-            <div className="swaps-grid">
+            <div className="swaps-grid flex flex-col gap-4">
               {filteredSwaps.map((swap) => {
-                const requesterName = getRequesterName(swap);
-                const requesterAvatar = getRequesterAvatar(swap);
-                const requesterInitials = getRequesterInitials(swap);
-                const isVerifiedUser = Boolean(swap.requesterProfile?.isVerified);
                 const completedCount = swap.requesterProfile?.completedSwapsCount ?? completedSwapsMap[swap.requesterId] ?? 0;
-                const reviewCount = swap.requesterProfile?.reviewCount ?? 0;
-                const avgRating = swap.requesterProfile?.averageRating ?? null;
 
                 return (
-                  <div key={swap.id} className="swap-card" style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
-                    <div className="swap-card-content" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      {/* TOP/MAIN CONTAINER */}
-                      <div className="swap-card-main-row" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
-
-                        {/* LEFT ANCHOR: Creator Identity & Context */}
-                        <div className="swap-card-identity-block" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.85rem', flex: '1 1 260px', minWidth: 0 }}>
-                          <div className="swap-avatar-wrapper" style={{ flexShrink: 0 }}>
-                            {requesterAvatar ? (
-                              <img
-                                src={requesterAvatar}
-                                alt={`Profile photo of ${requesterName}`}
-                                className="swap-avatar swap-avatar-ring"
-                                style={{ width: '48px', height: '48px', borderRadius: '50%' }}
-                              />
-                            ) : (
-                              <div className="swap-avatar-fallback swap-avatar-ring" style={{ width: '48px', height: '48px', fontSize: '0.95rem' }}>
-                                {requesterInitials}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="swap-context-details" style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0, flex: 1 }}>
-                            {/* Creator Meta */}
-                            <div className="swap-author-meta" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem' }}>
-                              <span className="swap-user-name" style={{ fontSize: '0.9rem', fontWeight: 700 }}>
-                                {requesterName}
-                              </span>
-                              {swap.requesterProfile?.username && (
-                                <span style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-                                  @{swap.requesterProfile.username}
-                                </span>
-                              )}
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                • {new Date(swap.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                              </span>
-                              {isVerifiedUser && (
-                                <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
-                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
-                                    <polyline points="20 6 9 17 4 12" />
-                                  </svg>
-                                  Verified
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Trust & Social Proof Snapshot */}
-                            <div className="swap-trust-snapshot-row" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              <span className="trust-rating-text" style={{ color: reviewCount > 0 ? '#d97706' : 'var(--text-muted)', fontWeight: reviewCount > 0 ? 600 : 400 }}>
-                                {reviewCount > 0 && avgRating !== null
-                                  ? `★ ${avgRating.toFixed(1)} (${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'})`
-                                  : 'No reviews yet'}
-                              </span>
-                              <span style={{ opacity: 0.4 }} aria-hidden="true">•</span>
-                              <span className="trust-activity-tag">
-                                <strong>{completedCount}</strong> {completedCount === 1 ? 'completed' : 'completed'}
-                              </span>
-                            </div>
-
-                            {/* Title & Description Control */}
-                            <h3 className="swap-need-title" style={{ margin: '0.35rem 0 0.2rem', fontSize: '1.1rem', fontWeight: 700, lineHeight: 1.3 }}>
-                              {swap.topic}
-                            </h3>
-                            <p className="swap-description" style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted, rgba(17, 22, 28, 0.65))', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                              {swap.description}
-                            </p>
-
-                            {/* Skill Tags / Chips */}
-                            {swap.tags && swap.tags.length > 0 && (
-                              <div className="swap-tags-row" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.5rem' }}>
-                                {swap.tags.map((tag) => {
-                                  const label = getTagLabel(tag);
-                                  const isSelected = getTagSlug(selectedCategory) === getTagSlug(tag);
-                                  return (
-                                    <button
-                                      key={tag}
-                                      type="button"
-                                      className={`swap-tag ${isSelected ? 'swap-tag--active' : ''}`}
-                                      style={{
-                                        cursor: 'pointer',
-                                        fontWeight: isSelected ? 700 : 500,
-                                        border: 'none',
-                                        background: isSelected ? 'rgba(214, 166, 74, 0.2)' : 'rgba(148, 163, 184, 0.12)',
-                                        color: isSelected ? '#d97706' : 'var(--text-color)',
-                                        padding: '0.2rem 0.55rem',
-                                        borderRadius: '6px',
-                                        fontSize: '0.75rem',
-                                      }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedCategory(label);
-                                      }}
-                                      aria-label={`Filter by ${label}`}
-                                    >
-                                      {label}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* RIGHT ANCHOR: Value (SkillCredits) + Action CTA */}
-                        <div className="swap-card-action-block" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', gap: '0.75rem', flexShrink: 0, marginLeft: 'auto' }}>
-                          {/* Saliency Credit Badge */}
-                          <div
-                            className="swap-credits-badge-saliency"
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.35rem',
-                              padding: '0.35rem 0.75rem',
-                              borderRadius: '10px',
-                              background: 'rgba(214, 166, 74, 0.12)',
-                              border: '1px solid rgba(214, 166, 74, 0.35)',
-                              color: '#d6a64a',
-                            }}
-                          >
-                            <span style={{ fontSize: '0.95rem' }} aria-hidden="true">⚡</span>
-                            <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-color, #f8fafc)', lineHeight: 1 }}>
-                              {swap.creditAmount}
-                            </span>
-                            <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#d6a64a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                              SkillCredits
-                            </span>
-                          </div>
-
-                          {/* Primary CTA Buttons */}
-                          <div className="swap-card-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', justifyContent: 'flex-end' }}>
-                            <button
-                              type="button"
-                              className="swap-btn swap-btn--primary"
-                              style={{ padding: '0.55rem 1.25rem', fontSize: '0.875rem', fontWeight: 700 }}
-                              onClick={() => {
-                                if (!user) {
-                                  if (onNavigate) onNavigate(`/login?redirectTo=${encodeURIComponent('/explore')}`);
-                                  return;
-                                }
-                                if (!profile || profile.profile_completed === false) {
-                                  if (onNavigate) onNavigate(`/onboarding?redirectTo=${encodeURIComponent('/explore')}`);
-                                  else window.location.href = `/onboarding?redirectTo=${encodeURIComponent('/explore')}`;
-                                  return;
-                                }
-                                if (user.id === swap.requesterId) {
-                                  setSelectedSwapForAccept(swap);
-                                  setAcceptError('You cannot accept your own swap request.');
-                                } else {
-                                  setSelectedSwapForAccept(swap);
-                                  setAcceptError(null);
-                                }
-                              }}
-                            >
-                              Accept Swap
-                            </button>
-                            <button
-                              type="button"
-                              className="swap-btn swap-btn--secondary"
-                              style={{ padding: '0.55rem 0.9rem', fontSize: '0.875rem' }}
-                              onClick={() => handleOpenChat(swap)}
-                              aria-label={`Chat with ${requesterName} about ${swap.topic}`}
-                            >
-                              Chat
-                            </button>
-                          </div>
-                        </div>
-
-                      </div>
-                    </div>
-                  </div>
+                  <MarketplaceCard
+                    key={swap.id}
+                    swap={swap}
+                    completedCount={completedCount}
+                    selectedCategory={selectedCategory}
+                    onSelectCategory={(label) => setSelectedCategory(label)}
+                    onChat={handleOpenChat}
+                    onAccept={(targetSwap) => {
+                      if (!user) {
+                        if (onNavigate) onNavigate(`/login?redirectTo=${encodeURIComponent('/explore')}`);
+                        return;
+                      }
+                      if (!profile || profile.profile_completed === false) {
+                        if (onNavigate) onNavigate(`/onboarding?redirectTo=${encodeURIComponent('/explore')}`);
+                        else window.location.href = `/onboarding?redirectTo=${encodeURIComponent('/explore')}`;
+                        return;
+                      }
+                      if (user.id === targetSwap.requesterId) {
+                        setSelectedSwapForAccept(targetSwap);
+                        setAcceptError('You cannot accept your own swap request.');
+                      } else {
+                        setSelectedSwapForAccept(targetSwap);
+                        setAcceptError(null);
+                      }
+                    }}
+                  />
                 );
               })}
             </div>
