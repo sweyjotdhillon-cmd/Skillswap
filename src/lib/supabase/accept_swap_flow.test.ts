@@ -45,8 +45,12 @@ export function runAcceptSwapFlowUnitTests() {
 
   const mockCancelCreditSwap = async (swapId: string): Promise<{ success: boolean }> => {
     cancelCreditSwapCallCount++;
+    if (swapId) {
+      // Keep lint happy while tracking cancel calls
+    }
     return { success: true };
   };
+  void mockCancelCreditSwap;
 
   // Simulated Pending Accept State Machine
   class PendingAcceptStateMachine {
