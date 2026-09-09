@@ -151,6 +151,7 @@ export async function runCreditSystemTests() {
     '030_auto_release_at_deadline.sql',
     '031_harden_credit_ledger_and_invariants.sql',
     '032_privacy_and_onboarding_hardening.sql',
+    '033_harden_trust_metrics_and_reviews.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -1597,6 +1598,47 @@ export async function runCreditSystemTests() {
     directModError = (err as Error).message.includes('Direct modification of trust and reputation metrics is prohibited');
   }
   assert(directModError, 'Direct client update on profiles average_rating/review_count blocked by trigger');
+
+  // 20h: Direct client INSERT on profiles attempting to set is_verified = true -> Must be blocked by trigger
+  const userE = '50000000-0000-0000-0000-000000000005';
+  await setSuperuser();
+  await db.exec(`INSERT INTO auth.users (id, email) VALUES ('${userE}', 'usere@example.com');`);
+
+  await setAuthUser(userE);
+  let directInsertError = false;
+  try {
+    await db.query(`
+      INSERT INTO public.profiles (id, full_name, username, is_verified)
+      VALUES ('${userE}', 'Hacker User', 'hackeruser', true);
+    `);
+  } catch (err: unknown) {
+    directInsertError = (err as Error).message.includes('Direct specification of trust and reputation metrics on profile creation is prohibited');
+  }
+  assert(directInsertError, 'Direct client INSERT specifying is_verified = true blocked by trigger');
+
+  // 20i: Identity Immutability on Reviews (Attempting to modify reviewee_id on existing review)
+  await setAuthUser(userA);
+  const existingReview = (await db.query<{ id: string }>(`SELECT id FROM public.swap_reviews WHERE swap_id = '${swap2Id}';`)).rows[0];
+  let reviewIdentityError = false;
+  try {
+    await db.query(`UPDATE public.swap_reviews SET reviewee_id = '${userC}' WHERE id = '${existingReview.id}';`);
+  } catch (err: unknown) {
+    reviewIdentityError = (err as Error).message.includes('Review identity (swap_id, reviewer_id, reviewee_id) cannot be modified');
+  }
+  assert(reviewIdentityError, 'Modifying reviewee_id on existing review blocked by trigger');
+
+  // 20j: Deleting a review updates review_count and average_rating
+  await db.query(`DELETE FROM public.swap_reviews WHERE id = '${existingReview.id}';`);
+  await setSuperuser();
+  const profileBAfterDelete = (await db.query<ProfileTrustRow>(`SELECT average_rating, review_count FROM public.profiles WHERE id = '${userB}';`)).rows[0];
+  assert(Number(profileBAfterDelete.review_count) === 0, 'User B review_count decreased to 0 after review deletion');
+  assert(profileBAfterDelete.average_rating === null, 'User B average_rating reset to null after review deletion');
+
+  // 20k: Deleting a completed swap updates completed_swaps_count
+  const completedSwapsBeforeDeleteA = (await db.query<ProfileTrustRow>(`SELECT completed_swaps_count FROM public.profiles WHERE id = '${userA}';`)).rows[0].completed_swaps_count;
+  await db.query(`DELETE FROM public.swaps WHERE id = '${swap2Id}';`);
+  const completedSwapsAfterDeleteA = (await db.query<ProfileTrustRow>(`SELECT completed_swaps_count FROM public.profiles WHERE id = '${userA}';`)).rows[0].completed_swaps_count;
+  assert(Number(completedSwapsAfterDeleteA) === Number(completedSwapsBeforeDeleteA) - 1, 'completed_swaps_count decreased after completed swap deletion');
 
   console.log('  -> Trust Data Pipeline & Review System verified cleanly!');
 
