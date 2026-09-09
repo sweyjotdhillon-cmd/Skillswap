@@ -7,6 +7,7 @@ import { runTransactionProgressUnitTests } from '../../components/transaction/Tr
 import { runSwapChatModalAndDesignSystemTests } from '../../components/chat/SwapChatModal.test';
 import { runAcceptSwapFlowUnitTests } from './accept_swap_flow.test';
 import { runSectionH3ScaffoldingUnitTests } from './scaffolding.test';
+import './credibility_verification.test';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {

@@ -287,7 +287,7 @@ export function SwapChatModal({
         {/* WORKSPACE HEADER */}
         <div className="chat-modal-header">
           <div className="chat-user-header-info">
-            <img src={displayAvatar} alt={`Profile of ${displayName}`} className="chat-avatar swap-avatar-ring" />
+            <img src={displayAvatar} alt={`Profile photo of ${displayName}`} className="chat-avatar swap-avatar-ring" />
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                 <h3 className="chat-title" style={{ margin: 0 }}>
@@ -299,7 +299,7 @@ export function SwapChatModal({
                   </span>
                 )}
                 {isPartnerVerified && (
-                  <span className="verification-badge" title="Verified Identity">
+                  <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>

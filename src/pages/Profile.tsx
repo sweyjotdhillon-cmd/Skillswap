@@ -319,7 +319,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               {profile.avatar_url ? (
                 <img
                   src={profile.avatar_url}
-                  alt={profile.full_name}
+                  alt={`Profile photo of ${profile.full_name}`}
                   className="profile-avatar-image swap-avatar-ring"
                 />
               ) : (
@@ -335,7 +335,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
                 {/* VERIFIED IDENTITY CUE (Strictly checks is_verified) */}
                 {profile.is_verified && (
-                  <span className="verification-badge" title="Verified Identity">
+                  <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12" aria-hidden="true">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
@@ -494,7 +494,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                           {reviewerAvatar ? (
                             <img
                               src={reviewerAvatar}
-                              alt={reviewerName}
+                              alt={`Profile photo of ${reviewerName}`}
                               className="swap-avatar swap-avatar-ring"
                               style={{ width: '36px', height: '36px' }}
                             />
@@ -510,7 +510,12 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                                 <span style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>@{rev.reviewer_profile.username}</span>
                               )}
                               {rev.reviewer_profile?.is_verified && (
-                                <span className="verification-badge" style={{ fontSize: '0.685rem', padding: '0.1rem 0.35rem' }}>✓ Verified</span>
+                                <span className="verification-badge" title="Verified Profile" aria-label="Verified profile" style={{ fontSize: '0.685rem', padding: '0.1rem 0.35rem' }}>
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="10" height="10" aria-hidden="true">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                  Verified
+                                </span>
                               )}
                             </div>
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{dateFormatted}</span>
