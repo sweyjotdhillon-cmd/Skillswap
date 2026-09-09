@@ -5,8 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import {
   getOpenSwaps,
   acceptCreditSwap,
-  cancelCreditSwap,
   getUserCompletedSwapsCount,
+  formatAcceptSwapErrorMessage,
 } from '../lib/supabase/credits';
 import { mapSwapRecordToSwap, type Swap } from '../types/swap';
 import { SWAP_TAG_OPTIONS, getTagLabel, getTagSlug } from '../constants/tags';
@@ -20,7 +20,7 @@ type ExploreSwapsPageProps = {
 };
 
 export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
-  const { user, profile, refreshAccount } = useAuth();
+  const { user, profile, account, refreshAccount } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
@@ -32,12 +32,14 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
   // Modal states
   const [selectedSwapForAccept, setSelectedSwapForAccept] = useState<Swap | null>(null);
-  const [requestSent, setRequestSent] = useState(false);
   const [acceptError, setAcceptError] = useState<string | null>(null);
 
-  // Undo Toast state (B3 Behavioral Feedback)
-  const [undoToastSwap, setUndoToastSwap] = useState<{ swap: Swap; seconds: number } | null>(null);
-  const undoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Section H.2 Reversible Acceptance Confirmation Window State
+  const [pendingAcceptSwap, setPendingAcceptSwap] = useState<{ swap: Swap; seconds: number } | null>(null);
+  const pendingAcceptTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isExecutingAcceptRef = useRef<boolean>(false);
+  const [acceptSuccessToast, setAcceptSuccessToast] = useState<{ swapTopic: string } | null>(null);
+  const [acceptErrorMessage, setAcceptErrorMessage] = useState<string | null>(null);
 
   const [selectedSwapForChat, setSelectedSwapForChat] = useState<Swap | null>(null);
 
@@ -80,6 +82,99 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   useEffect(() => {
     loadRealOpenSwaps();
   }, [loadRealOpenSwaps]);
+
+  // Clean up pending accept timer on unmount to prevent stale execution
+  useEffect(() => {
+    return () => {
+      if (pendingAcceptTimerRef.current) {
+        clearInterval(pendingAcceptTimerRef.current);
+        pendingAcceptTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const commitAcceptSwap = useCallback(
+    async (targetSwap: Swap) => {
+      if (isExecutingAcceptRef.current) return;
+      isExecutingAcceptRef.current = true;
+      setIsAccepting(true);
+      setAcceptErrorMessage(null);
+
+      try {
+        const res = await acceptCreditSwap(targetSwap.id);
+        setIsAccepting(false);
+
+        if (res.success) {
+          setSwaps((prev) => prev.filter((s) => s.id !== targetSwap.id));
+          await refreshAccount();
+          await loadRealOpenSwaps();
+          setAcceptSuccessToast({ swapTopic: targetSwap.topic });
+          setTimeout(() => {
+            setAcceptSuccessToast(null);
+          }, 6000);
+        } else {
+          const userBal = account?.credits_balance;
+          const formattedErr = formatAcceptSwapErrorMessage(res.error, targetSwap.creditAmount, userBal);
+          setAcceptErrorMessage(formattedErr);
+        }
+      } catch (err) {
+        setIsAccepting(false);
+        const userBal = account?.credits_balance;
+        const formattedErr = formatAcceptSwapErrorMessage(err, targetSwap.creditAmount, userBal);
+        setAcceptErrorMessage(formattedErr);
+      } finally {
+        isExecutingAcceptRef.current = false;
+      }
+    },
+    [account?.credits_balance, loadRealOpenSwaps, refreshAccount]
+  );
+
+  const startPendingAccept = useCallback(
+    (swap: Swap) => {
+      // Clear any existing timer to prevent duplicate timers / simultaneous accepts
+      if (pendingAcceptTimerRef.current) {
+        clearInterval(pendingAcceptTimerRef.current);
+        pendingAcceptTimerRef.current = null;
+      }
+
+      setAcceptErrorMessage(null);
+      setAcceptSuccessToast(null);
+
+      setPendingAcceptSwap({ swap, seconds: 5 });
+
+      pendingAcceptTimerRef.current = setInterval(() => {
+        setPendingAcceptSwap((prev) => {
+          if (!prev) {
+            if (pendingAcceptTimerRef.current) {
+              clearInterval(pendingAcceptTimerRef.current);
+              pendingAcceptTimerRef.current = null;
+            }
+            return null;
+          }
+
+          if (prev.seconds <= 1) {
+            if (pendingAcceptTimerRef.current) {
+              clearInterval(pendingAcceptTimerRef.current);
+              pendingAcceptTimerRef.current = null;
+            }
+            commitAcceptSwap(prev.swap);
+            return null;
+          }
+
+          return { ...prev, seconds: prev.seconds - 1 };
+        });
+      }, 1000);
+    },
+    [commitAcceptSwap]
+  );
+
+  const handleUndoPendingAccept = useCallback(() => {
+    if (pendingAcceptTimerRef.current) {
+      clearInterval(pendingAcceptTimerRef.current);
+      pendingAcceptTimerRef.current = null;
+    }
+    setPendingAcceptSwap(null);
+  }, []);
 
   /**
    * Reputation-Based Ranking Strategy for Explore Swaps:
@@ -276,27 +371,115 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
             </div>
           )}
 
-          {/* 5-SECOND TRANSACTIONAL UNDO TOAST BANNER (B3 Behavioral Feedback) */}
-          {undoToastSwap && (
-            <div className="as-toast-banner" role="status" style={{ background: 'rgba(37, 99, 235, 0.12)', borderLeft: '4px solid #2563eb', marginBottom: '1rem' }}>
-              <div className="as-toast-icon">⚡</div>
-              <span>
-                Accepted swap "{undoToastSwap.swap.topic}"! Exchange moves to Active Swaps.
-              </span>
+          {/* Section H.2 Reversible Confirmation Window Banner */}
+          {pendingAcceptSwap && (
+            <div
+              className="as-toast-banner"
+              role="status"
+              aria-live="polite"
+              style={{
+                background: 'rgba(214, 166, 74, 0.15)',
+                borderLeft: '4px solid #d6a64a',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                padding: '0.85rem 1.1rem',
+                borderRadius: '10px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <span style={{ fontSize: '1.2rem' }} aria-hidden="true">⚡</span>
+                <div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-color)' }}>
+                    Ready to accept this swap.
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    "{pendingAcceptSwap.swap.topic}" • Accepting in {pendingAcceptSwap.seconds} second{pendingAcceptSwap.seconds !== 1 ? 's' : ''}...
+                  </div>
+                </div>
+              </div>
               <button
                 type="button"
                 className="as-btn as-btn--secondary"
-                style={{ marginLeft: 'auto', padding: '0.25rem 0.75rem', fontSize: '0.8rem', background: '#2563eb', color: '#ffffff' }}
-                onClick={async () => {
-                  if (undoTimerRef.current) clearInterval(undoTimerRef.current);
-                  const swapToUndo = undoToastSwap.swap;
-                  setUndoToastSwap(null);
-                  await cancelCreditSwap(swapToUndo.id);
-                  await refreshAccount();
-                  await loadRealOpenSwaps();
+                style={{
+                  padding: '0.35rem 0.9rem',
+                  fontSize: '0.825rem',
+                  fontWeight: 700,
+                  background: '#d6a64a',
+                  color: '#0f172a',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
                 }}
+                onClick={handleUndoPendingAccept}
               >
-                Undo ({undoToastSwap.seconds}s)
+                Undo ({pendingAcceptSwap.seconds}s)
+              </button>
+            </div>
+          )}
+
+          {/* Acceptance Success Toast */}
+          {acceptSuccessToast && (
+            <div
+              className="as-toast-banner"
+              role="status"
+              aria-live="polite"
+              style={{
+                background: 'rgba(16, 185, 129, 0.15)',
+                borderLeft: '4px solid #10b981',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.85rem 1.1rem',
+                borderRadius: '10px',
+              }}
+            >
+              <span style={{ fontSize: '1.2rem', color: '#10b981' }}>✓</span>
+              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>
+                Accepted swap "{acceptSuccessToast.swapTopic}"! Exchange moved to Active Swaps.
+              </span>
+              <button
+                type="button"
+                style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.1rem' }}
+                onClick={() => setAcceptSuccessToast(null)}
+                aria-label="Close notification"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          {/* Acceptance Error Banner */}
+          {acceptErrorMessage && (
+            <div
+              className="as-toast-banner"
+              role="alert"
+              aria-live="assertive"
+              style={{
+                background: 'rgba(239, 68, 68, 0.12)',
+                borderLeft: '4px solid #ef4444',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.85rem 1.1rem',
+                borderRadius: '10px',
+              }}
+            >
+              <span style={{ fontSize: '1.2rem', color: '#ef4444' }}>⚠️</span>
+              <span style={{ fontSize: '0.875rem', color: 'var(--text-color)', lineHeight: 1.4 }}>
+                {acceptErrorMessage}
+              </span>
+              <button
+                type="button"
+                style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.1rem' }}
+                onClick={() => setAcceptErrorMessage(null)}
+                aria-label="Dismiss error"
+              >
+                ×
               </button>
             </div>
           )}
@@ -489,11 +672,9 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                                 }
                                 if (user.id === swap.requesterId) {
                                   setSelectedSwapForAccept(swap);
-                                  setRequestSent(false);
                                   setAcceptError('You cannot accept your own swap request.');
                                 } else {
                                   setSelectedSwapForAccept(swap);
-                                  setRequestSent(false);
                                   setAcceptError(null);
                                 }
                               }}
@@ -556,154 +737,109 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
       {selectedSwapForAccept && (
         <div className="modal-overlay" onClick={() => setSelectedSwapForAccept(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            {!requestSent ? (
-              <>
-                <h3 className="modal-title">Accept Swap Request</h3>
-                <p style={{ margin: '0 0 1rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                  As the participant, you agree to fulfill the deliverables below. Upon requester review, SkillCredits will be awarded to your balance.
-                </p>
-                <div className="modal-swap-details">
-                  <div className="modal-detail-row">
-                    <span className="modal-label">Skill Topic</span>
-                    <strong style={{ fontSize: '1.05rem' }}>{selectedSwapForAccept.topic}</strong>
-                  </div>
-                  {/* COUNTERPART IDENTITY & CREDIBILITY CHECKPOINT */}
-                  <div className="modal-detail-row">
-                    <span className="modal-label">Requester &amp; Social Proof</span>
-                  </div>
-                  <div className="modal-counterpart-card" style={{ background: 'var(--card-bg, rgba(255, 255, 255, 0.03))', border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))', padding: '0.75rem 0.9rem', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    {getRequesterAvatar(selectedSwapForAccept) ? (
-                      <img
-                        src={getRequesterAvatar(selectedSwapForAccept)!}
-                        alt={getRequesterName(selectedSwapForAccept)}
-                        className="swap-avatar swap-avatar-ring"
-                        style={{ width: '44px', height: '44px' }}
-                      />
-                    ) : (
-                      <div className="swap-avatar-fallback swap-avatar-ring" style={{ width: '44px', height: '44px', fontSize: '0.9rem' }}>
-                        {getRequesterInitials(selectedSwapForAccept)}
-                      </div>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-                        <strong style={{ fontSize: '0.925rem' }}>{getRequesterName(selectedSwapForAccept)}</strong>
-                        {selectedSwapForAccept.requesterProfile?.username && (
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>@{selectedSwapForAccept.requesterProfile.username}</span>
-                        )}
-                        {selectedSwapForAccept.requesterProfile?.isVerified && (
-                          <span className="verification-badge">✓ Verified</span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                        <span>
-                          {selectedSwapForAccept.requesterProfile?.reviewCount && selectedSwapForAccept.requesterProfile.reviewCount > 0 && selectedSwapForAccept.requesterProfile?.averageRating !== null && selectedSwapForAccept.requesterProfile?.averageRating !== undefined
-                            ? `★ ${selectedSwapForAccept.requesterProfile.averageRating.toFixed(1)} (${selectedSwapForAccept.requesterProfile.reviewCount} ${selectedSwapForAccept.requesterProfile.reviewCount === 1 ? 'review' : 'reviews'})`
-                            : 'No reviews yet'}
-                        </span>
-                        <span style={{ margin: '0 0.35rem', opacity: 0.5 }}>•</span>
-                        <span>
-                          {selectedSwapForAccept.requesterProfile?.completedSwapsCount ?? completedSwapsMap[selectedSwapForAccept.requesterId] ?? 0} swaps completed
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="modal-detail-row">
-                    <span className="modal-label">SkillCredits Reward</span>
-                    <strong style={{ color: '#d97706' }}>⚡ {selectedSwapForAccept.creditAmount} SkillCredits</strong>
-                  </div>
-                  {selectedSwapForAccept.requirements && (
-                    <div className="modal-detail-row" style={{ borderTop: '1px solid rgba(17, 22, 28, 0.08)', paddingTop: '0.5rem', marginTop: '0.25rem' }}>
-                      <span className="modal-label">Expected Deliverables</span>
-                      <p style={{ margin: '0.2rem 0 0', fontSize: '0.875rem', color: 'var(--text-color)', lineHeight: 1.4 }}>
-                        {selectedSwapForAccept.requirements}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="modal-next-step-note" style={{ margin: '0.75rem 0 1rem', fontSize: '0.825rem', color: 'var(--text-secondary)', background: 'var(--card-bg, rgba(255, 255, 255, 0.04))', padding: '0.6rem 0.85rem', borderRadius: '8px', borderLeft: '3px solid #d6a64a' }}>
-                  <strong>Next step:</strong> This swap will move to your Active Swaps where you can chat with {getRequesterName(selectedSwapForAccept)} and submit completed work.
-                </div>
-
-                {acceptError && (
-                  <p className="error-message" style={{ margin: '0 0 1rem' }} role="alert">
-                    {acceptError}
-                  </p>
-                )}
-
-                <div className="modal-actions">
-                  <button
-                    type="button"
-                    className="modal-btn modal-btn--cancel"
-                    disabled={isAccepting}
-                    onClick={() => setSelectedSwapForAccept(null)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="modal-btn modal-btn--confirm"
-                    disabled={isAccepting || Boolean(user && user.id === selectedSwapForAccept.requesterId)}
-                    onClick={async () => {
-                      if (!user) {
-                        setAcceptError('Please log in to accept swaps.');
-                        return;
-                      }
-                      if (user.id === selectedSwapForAccept.requesterId) {
-                        setAcceptError('You cannot accept your own swap request.');
-                        return;
-                      }
-                      setIsAccepting(true);
-                      setAcceptError(null);
-                      const targetSwap = selectedSwapForAccept;
-                      const res = await acceptCreditSwap(targetSwap.id);
-                      setIsAccepting(false);
-                      if (!res.success) {
-                        setAcceptError(res.error || 'Failed to accept swap.');
-                        return;
-                      }
-                      setSwaps((prev) => prev.filter((s) => s.id !== targetSwap.id));
-                      await refreshAccount();
-                      await loadRealOpenSwaps();
-                      setRequestSent(true);
-
-                      // Trigger 5-second Undo Toast
-                      setUndoToastSwap({ swap: targetSwap, seconds: 5 });
-                      if (undoTimerRef.current) clearInterval(undoTimerRef.current);
-                      undoTimerRef.current = setInterval(() => {
-                        setUndoToastSwap((prev) => {
-                          if (!prev || prev.seconds <= 1) {
-                            if (undoTimerRef.current) clearInterval(undoTimerRef.current);
-                            return null;
-                          }
-                          return { ...prev, seconds: prev.seconds - 1 };
-                        });
-                      }, 1000);
-                    }}
-                  >
-                    {isAccepting ? 'Accepting Swap...' : 'Accept Swap & Start Exchange'}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="modal-success-state">
-                <div className="success-icon-badge">✓</div>
-                <h3 className="modal-title">Swap Accepted!</h3>
-                <p className="modal-subtext">
-                  You are now paired with <strong>{getRequesterName(selectedSwapForAccept)}</strong> for this skill exchange.
-                </p>
-                <button
-                  type="button"
-                  className="modal-btn modal-btn--confirm"
-                  onClick={() => {
-                    setSelectedSwapForAccept(null);
-                    if (onNavigate) onNavigate('/active-swaps');
-                  }}
-                >
-                  View Active Swaps
-                </button>
+            <h3 className="modal-title">Accept Swap Request</h3>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+              As the participant, you agree to fulfill the deliverables below. Upon requester review, SkillCredits will be awarded to your balance.
+            </p>
+            <div className="modal-swap-details">
+              <div className="modal-detail-row">
+                <span className="modal-label">Skill Topic</span>
+                <strong style={{ fontSize: '1.05rem' }}>{selectedSwapForAccept.topic}</strong>
               </div>
+              {/* COUNTERPART IDENTITY & CREDIBILITY CHECKPOINT */}
+              <div className="modal-detail-row">
+                <span className="modal-label">Requester &amp; Social Proof</span>
+              </div>
+              <div className="modal-counterpart-card" style={{ background: 'var(--card-bg, rgba(255, 255, 255, 0.03))', border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))', padding: '0.75rem 0.9rem', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                {getRequesterAvatar(selectedSwapForAccept) ? (
+                  <img
+                    src={getRequesterAvatar(selectedSwapForAccept)!}
+                    alt={getRequesterName(selectedSwapForAccept)}
+                    className="swap-avatar swap-avatar-ring"
+                    style={{ width: '44px', height: '44px' }}
+                  />
+                ) : (
+                  <div className="swap-avatar-fallback swap-avatar-ring" style={{ width: '44px', height: '44px', fontSize: '0.9rem' }}>
+                    {getRequesterInitials(selectedSwapForAccept)}
+                  </div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                    <strong style={{ fontSize: '0.925rem' }}>{getRequesterName(selectedSwapForAccept)}</strong>
+                    {selectedSwapForAccept.requesterProfile?.username && (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>@{selectedSwapForAccept.requesterProfile.username}</span>
+                    )}
+                    {selectedSwapForAccept.requesterProfile?.isVerified && (
+                      <span className="verification-badge">✓ Verified</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                    <span>
+                      {selectedSwapForAccept.requesterProfile?.reviewCount && selectedSwapForAccept.requesterProfile.reviewCount > 0 && selectedSwapForAccept.requesterProfile?.averageRating !== null && selectedSwapForAccept.requesterProfile?.averageRating !== undefined
+                        ? `★ ${selectedSwapForAccept.requesterProfile.averageRating.toFixed(1)} (${selectedSwapForAccept.requesterProfile.reviewCount} ${selectedSwapForAccept.requesterProfile.reviewCount === 1 ? 'review' : 'reviews'})`
+                        : 'No reviews yet'}
+                    </span>
+                    <span style={{ margin: '0 0.35rem', opacity: 0.5 }}>•</span>
+                    <span>
+                      {selectedSwapForAccept.requesterProfile?.completedSwapsCount ?? completedSwapsMap[selectedSwapForAccept.requesterId] ?? 0} swaps completed
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-detail-row">
+                <span className="modal-label">SkillCredits Reward</span>
+                <strong style={{ color: '#d97706' }}>⚡ {selectedSwapForAccept.creditAmount} SkillCredits</strong>
+              </div>
+              {selectedSwapForAccept.requirements && (
+                <div className="modal-detail-row" style={{ borderTop: '1px solid rgba(17, 22, 28, 0.08)', paddingTop: '0.5rem', marginTop: '0.25rem' }}>
+                  <span className="modal-label">Expected Deliverables</span>
+                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.875rem', color: 'var(--text-color)', lineHeight: 1.4 }}>
+                    {selectedSwapForAccept.requirements}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-next-step-note" style={{ margin: '0.75rem 0 1rem', fontSize: '0.825rem', color: 'var(--text-secondary)', background: 'var(--card-bg, rgba(255, 255, 255, 0.04))', padding: '0.6rem 0.85rem', borderRadius: '8px', borderLeft: '3px solid #d6a64a' }}>
+              <strong>Next step:</strong> You will have 5 seconds to undo before this swap is confirmed and moved to your Active Swaps.
+            </div>
+
+            {acceptError && (
+              <p className="error-message" style={{ margin: '0 0 1rem' }} role="alert">
+                {acceptError}
+              </p>
             )}
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn modal-btn--cancel"
+                disabled={isAccepting}
+                onClick={() => setSelectedSwapForAccept(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="modal-btn modal-btn--confirm"
+                disabled={isAccepting || Boolean(user && user.id === selectedSwapForAccept.requesterId)}
+                onClick={() => {
+                  if (!user) {
+                    setAcceptError('Please log in to accept swaps.');
+                    return;
+                  }
+                  if (user.id === selectedSwapForAccept.requesterId) {
+                    setAcceptError('You cannot accept your own swap request.');
+                    return;
+                  }
+                  const targetSwap = selectedSwapForAccept;
+                  setSelectedSwapForAccept(null);
+                  startPendingAccept(targetSwap);
+                }}
+              >
+                {isAccepting ? 'Accepting Swap...' : 'Accept Swap & Start Exchange'}
+              </button>
+            </div>
           </div>
         </div>
       )}

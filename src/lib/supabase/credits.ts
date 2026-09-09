@@ -356,6 +356,45 @@ export function getNormalizedMimeType(fileName: string, browserType?: string): s
 /**
  * Formats submission-specific error messages without returning misleading profile error copy.
  */
+/**
+ * Formats errors during swap acceptance into plain-language constructive messages.
+ * Explains what happened, why, and what to do next without exposing raw DB errors.
+ */
+export function formatAcceptSwapErrorMessage(
+  error: unknown,
+  requiredCredits?: number,
+  userBalance?: number
+): string {
+  if (!error) return 'Failed to accept swap. Please try again.';
+
+  const errObj = error as { message?: string; details?: string };
+  const rawMsg = typeof error === 'string' ? error : errObj.message || errObj.details || '';
+  const lower = rawMsg.toLowerCase();
+
+  const isInsufficientCredit =
+    lower.includes('insufficient credit') ||
+    lower.includes('chk_min_balance') ||
+    lower.includes('insufficient balance') ||
+    (userBalance !== undefined && requiredCredits !== undefined && userBalance < requiredCredits);
+
+  if (isInsufficientCredit) {
+    if (requiredCredits !== undefined && userBalance !== undefined) {
+      return `You tried to accept a swap requiring ${requiredCredits} SkillCredits, but you currently have ${userBalance} available. Complete a swap to earn more credits, then try again.`;
+    }
+    return 'You have insufficient SkillCredits available for this swap. Complete a swap to earn more credits, then try again.';
+  }
+
+  if (lower.includes('cannot accept your own')) {
+    return 'You cannot accept your own swap request.';
+  }
+
+  if (lower.includes('not found') || lower.includes('no longer available')) {
+    return 'This swap request is no longer open or available.';
+  }
+
+  return formatFriendlyErrorMessage(error);
+}
+
 export function formatSubmissionErrorMessage(error: unknown, fileName?: string): string {
   if (!error) {
     return fileName ? `Failed to upload "${fileName}". Please try again.` : 'Submission could not be saved. Please try again.';
