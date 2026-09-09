@@ -308,62 +308,225 @@ export const MultiModalChat: React.FC = () => {
 // 3. EMPOWERED PROGRESS ONBOARDING BAR (SECTION K.3)
 // ==========================================
 
-export const OnboardingProgressBar: React.FC = () => {
+export interface OnboardingProgressBarProps {
+  currentStep?: number;
+  creditsBalance?: number;
+  progressPercent?: number;
+  className?: string;
+  isCompleted?: boolean;
+}
+
+export const OnboardingProgressBar: React.FC<OnboardingProgressBarProps> = ({
+  currentStep = 1,
+  creditsBalance = 100,
+  progressPercent,
+  className = '',
+  isCompleted = false,
+}) => {
+  const percent =
+    typeof progressPercent === 'number'
+      ? Math.min(100, Math.max(0, progressPercent))
+      : isCompleted
+        ? 100
+        : Math.min(100, Math.max(25, 25 + Math.round(((currentStep - 1) / 3) * 75)));
+
+  const isStep2Done = isCompleted || currentStep > 3;
+  const isStep2Active = !isCompleted && currentStep <= 3;
+
+  const isStep3Done = isCompleted;
+  const isStep3Active = !isCompleted && currentStep === 4;
+
   return (
-    <div className="w-full max-w-xl bg-[#1E293B] border border-slate-700 rounded-2xl p-6 shadow-xl text-left flex flex-col gap-5">
+    <div
+      className={`w-full max-w-xl rounded-2xl p-6 shadow-xl text-left flex flex-col gap-5 ${className}`}
+      style={{
+        background: 'var(--card-bg, #1E293B)',
+        border: '1px solid var(--card-border, rgba(148, 163, 184, 0.2))',
+        color: 'var(--color-text-primary, #F8FAFC)',
+      }}
+    >
       {/* Dynamic Header incorporating the Empowered Progress Effect */}
       <div>
         <div className="flex justify-between items-center mb-1">
-          <span className="text-xs font-extrabold uppercase tracking-widest text-[#38BDF8]">Your Journey Is Underway</span>
-          <span className="text-sm font-extrabold text-[#38BDF8]">25% Completed</span>
+          <span
+            className="text-xs font-extrabold uppercase tracking-widest"
+            style={{ color: 'var(--color-structural, #38BDF8)' }}
+          >
+            YOUR JOURNEY IS UNDERWAY
+          </span>
+          <span
+            className="text-sm font-extrabold"
+            style={{ color: 'var(--color-structural, #38BDF8)' }}
+          >
+            {percent}% COMPLETED
+          </span>
         </div>
         {/* Pre-filled Progress Bar representing the welcome grant */}
-        <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+        <div
+          className="w-full h-3 rounded-full overflow-hidden"
+          style={{
+            background: 'var(--surface-muted, rgba(15, 23, 42, 0.2))',
+            border: '1px solid var(--card-border, rgba(148, 163, 184, 0.2))',
+          }}
+          role="progressbar"
+          aria-valuenow={percent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Profile completion progress"
+        >
           <div
-            className="h-full bg-gradient-to-r from-[#38BDF8] to-emerald-500 rounded-full transition-all duration-500 ease-out"
-            style={{ width: '25%' }}
-          ></div>
+            className="h-full rounded-full transition-all duration-500 ease-out"
+            style={{
+              width: `${percent}%`,
+              background: 'linear-gradient(90deg, var(--color-structural, #38BDF8) 0%, #10B981 100%)',
+            }}
+          />
         </div>
       </div>
 
       {/* Loss Aversion Callout */}
-      <div className="bg-emerald-950/20 border border-emerald-500/20 rounded-xl p-4 flex items-start gap-3">
-        <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">
+      <div
+        className="rounded-xl p-4 flex items-start gap-3"
+        style={{
+          background: 'rgba(16, 185, 129, 0.08)',
+          border: '1px solid rgba(16, 185, 129, 0.25)',
+        }}
+      >
+        <div
+          className="p-2 rounded-lg flex-shrink-0"
+          style={{
+            background: 'rgba(16, 185, 129, 0.18)',
+            color: '#10B981',
+          }}
+          aria-hidden="true"
+        >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 2 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
         <div className="flex-1">
-          <h5 className="text-sm font-bold text-slate-100">100 SkillCredits Already Claimed!</h5>
-          <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-            Your welcome balance has been securely reserved in your escrow ledger. Complete the quick steps below to activate your account and start trading skills immediately.
+          <h5
+            className="text-sm font-bold"
+            style={{ color: 'var(--color-text-primary, #F8FAFC)' }}
+          >
+            {creditsBalance} SkillCredits Already Claimed!
+          </h5>
+          <p
+            className="text-xs mt-0.5 leading-relaxed"
+            style={{ color: 'var(--color-text-secondary, #94A3B8)' }}
+          >
+            Your welcome balance has been securely reserved in your account ledger. Complete the quick steps below to activate your account and start trading skills immediately.
           </p>
         </div>
       </div>
 
       {/* Step Checklist */}
       <div className="flex flex-col gap-3">
+        {/* Step 1: Account Created & Grant */}
         <div className="flex items-center gap-3 opacity-100">
-          <div className="w-6 h-6 rounded-full bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400 flex items-center justify-center text-xs font-bold">
+          <div className="w-6 h-6 rounded-full bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
             ✓
           </div>
-          <span className="text-sm font-semibold text-slate-200 line-through decoration-slate-600">
-            Account Created & 100 Credits Granted (Endowed)
+          <span
+            className="text-sm font-semibold line-through decoration-slate-500"
+            style={{ color: 'var(--color-text-secondary, #CBD5E1)' }}
+          >
+            Account Created & {creditsBalance} Credits Granted (Endowed)
           </span>
         </div>
-        <div className="flex items-center gap-3 opacity-90">
-          <div className="w-6 h-6 rounded-full bg-slate-800 border-2 border-[#38BDF8] text-[#38BDF8] flex items-center justify-center text-xs font-bold animate-pulse">
-            2
+
+        {/* Step 2: Username & Skills Profiling */}
+        <div className={`flex items-center gap-3 ${isStep2Done ? 'opacity-100' : isStep2Active ? 'opacity-90' : 'opacity-55'}`}>
+          <div
+            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+              isStep2Done
+                ? 'bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400'
+                : isStep2Active
+                  ? 'animate-pulse'
+                  : ''
+            }`}
+            style={
+              !isStep2Done
+                ? isStep2Active
+                  ? {
+                      background: 'var(--surface-muted, rgba(15, 23, 42, 0.2))',
+                      border: '2px solid var(--color-structural, #38BDF8)',
+                      color: 'var(--color-structural, #38BDF8)',
+                    }
+                  : {
+                      background: 'var(--surface-muted, rgba(15, 23, 42, 0.2))',
+                      border: '2px solid var(--card-border, rgba(148, 163, 184, 0.2))',
+                      color: 'var(--color-text-muted, #64748B)',
+                    }
+                : undefined
+            }
+          >
+            {isStep2Done ? '✓' : '2'}
           </div>
-          <span className="text-sm font-bold text-slate-100">
+          <span
+            className={`text-sm ${
+              isStep2Done
+                ? 'font-semibold line-through decoration-slate-500'
+                : isStep2Active
+                  ? 'font-bold'
+                  : 'font-semibold'
+            }`}
+            style={{
+              color: isStep2Done
+                ? 'var(--color-text-secondary, #CBD5E1)'
+                : isStep2Active
+                  ? 'var(--color-text-primary, #F8FAFC)'
+                  : 'var(--color-text-muted, #64748B)',
+            }}
+          >
             Choose Your @username & Skills Profiling (Category Setup)
           </span>
         </div>
-        <div className="flex items-center gap-3 opacity-55">
-          <div className="w-6 h-6 rounded-full bg-slate-800 border-2 border-slate-700 text-slate-500 flex items-center justify-center text-xs font-bold">
-            3
+
+        {/* Step 3: Activate Wallet & Begin Swapping */}
+        <div className={`flex items-center gap-3 ${isStep3Done ? 'opacity-100' : isStep3Active ? 'opacity-90' : 'opacity-55'}`}>
+          <div
+            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+              isStep3Done
+                ? 'bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400'
+                : isStep3Active
+                  ? 'animate-pulse'
+                  : ''
+            }`}
+            style={
+              !isStep3Done
+                ? isStep3Active
+                  ? {
+                      background: 'var(--surface-muted, rgba(15, 23, 42, 0.2))',
+                      border: '2px solid var(--color-structural, #38BDF8)',
+                      color: 'var(--color-structural, #38BDF8)',
+                    }
+                  : {
+                      background: 'var(--surface-muted, rgba(15, 23, 42, 0.2))',
+                      border: '2px solid var(--card-border, rgba(148, 163, 184, 0.2))',
+                      color: 'var(--color-text-muted, #64748B)',
+                    }
+                : undefined
+            }
+          >
+            {isStep3Done ? '✓' : '3'}
           </div>
-          <span className="text-sm font-semibold text-slate-400">
+          <span
+            className={`text-sm ${
+              isStep3Done
+                ? 'font-semibold'
+                : isStep3Active
+                  ? 'font-bold'
+                  : 'font-semibold'
+            }`}
+            style={{
+              color: isStep3Done
+                ? 'var(--color-text-secondary, #CBD5E1)'
+                : isStep3Active
+                  ? 'var(--color-text-primary, #F8FAFC)'
+                  : 'var(--color-text-muted, #64748B)',
+            }}
+          >
             Activate Wallet & Begin Swapping
           </span>
         </div>

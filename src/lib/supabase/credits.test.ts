@@ -7,6 +7,7 @@ import { runTransactionProgressUnitTests } from '../../components/transaction/Tr
 import { runSwapChatModalAndDesignSystemTests } from '../../components/chat/SwapChatModal.test';
 import { runAcceptSwapFlowUnitTests } from './accept_swap_flow.test';
 import { runSectionH3ScaffoldingUnitTests } from './scaffolding.test';
+import { runOnboardingProgressBarUnitTests } from '../../components/cognitive/OnboardingProgressBar.test';
 import './credibility_verification.test';
 
 function assert(condition: boolean, message: string) {
@@ -29,6 +30,9 @@ export async function runCreditSystemTests() {
 
   // Run Section H.3 Visual Scaffolding Fading Unit Tests
   runSectionH3ScaffoldingUnitTests();
+
+  // Run Section K.3 & K.4 Empowered Progress Onboarding Bar Unit Tests
+  runOnboardingProgressBarUnitTests();
 
   // 1. Initialize embedded PostgreSQL engine (PGlite)
   const db = new PGlite();
