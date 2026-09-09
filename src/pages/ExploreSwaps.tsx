@@ -12,6 +12,7 @@ import { mapSwapRecordToSwap, type Swap } from '../types/swap';
 import { SWAP_TAG_OPTIONS, getTagLabel, getTagSlug } from '../constants/tags';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
 import { Footer } from '../components/navigation/Footer';
+import { ScaffoldingCard } from '../components/ui/ScaffoldingCard';
 
 const CATEGORIES = ['All', ...SWAP_TAG_OPTIONS.map((t) => t.label)];
 
@@ -287,6 +288,14 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
         {/* RIGHT COLUMN: Search, Categories, Swaps Grid */}
         <div className="explore-right-col">
+          {/* Beginner Guidance Card (H.3 Visual Scaffolding Fading) */}
+          <ScaffoldingCard
+            scaffoldId="explore_marketplace_guide"
+            title="How Skill Exchanges Work"
+            description="Browse open requests or filter by skill domain. When you accept a swap, credits are safely reserved in escrow until work is delivered and approved."
+            restoreLabel="💡 Show Marketplace Guidance"
+          />
+
           {/* Search Field */}
           <div className="explore-search-box">
             <svg
