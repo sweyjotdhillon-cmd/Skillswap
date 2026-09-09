@@ -459,29 +459,69 @@ export function SwapChatModal({
               </div>
             </div>
 
-            {/* DOMINANT SINGLE PRIMARY ACTION CTA */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {isParticipant && swap.status === 'accepted' && onOpenSubmitWork && (
-                <button
-                  type="button"
-                  className="as-btn as-btn--primary"
-                  style={{ width: '100%', padding: '0.85rem' }}
-                  onClick={onOpenSubmitWork}
-                >
-                  Submit Deliverables
-                </button>
+            {/* NEXT REQUIRED ACTION BANNER & DOMINANT CTA */}
+            <div className="ws-next-action-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <span style={{ fontSize: '0.785rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                Next Required Action
+              </span>
+
+              {isParticipant && swap.status === 'accepted' && (
+                <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(214, 166, 74, 0.12)', border: '1px solid rgba(214, 166, 74, 0.3)', color: 'var(--color-warning)' }}>
+                  <div style={{ fontSize: '0.825rem', fontWeight: 700, marginBottom: '0.35rem' }}>⚡ Action Required</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-color)', marginBottom: '0.65rem' }}>
+                    Complete the agreed work and upload deliverables for review.
+                  </div>
+                  {onOpenSubmitWork && (
+                    <button
+                      type="button"
+                      className="as-btn as-btn--primary"
+                      style={{ width: '100%', padding: '0.65rem', fontSize: '0.85rem' }}
+                      onClick={onOpenSubmitWork}
+                    >
+                      Submit Deliverables
+                    </button>
+                  )}
+                </div>
               )}
 
-              {isRequester && swap.status === 'submitted' && onApproveSwap && (
-                <button
-                  type="button"
-                  className="as-btn as-btn--primary"
-                  style={{ width: '100%', padding: '0.85rem' }}
-                  disabled={isApproving}
-                  onClick={onApproveSwap}
-                >
-                  {isApproving ? 'Settling...' : 'Approve Work & Transfer Credits'}
-                </button>
+              {isRequester && swap.status === 'accepted' && (
+                <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.25)', color: 'var(--color-structure)' }}>
+                  <div style={{ fontSize: '0.825rem', fontWeight: 700, marginBottom: '0.2rem' }}>⏳ In Progress</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    Waiting for partner to complete work and upload deliverables.
+                  </div>
+                </div>
+              )}
+
+              {isRequester && swap.status === 'submitted' && (
+                <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(214, 166, 74, 0.15)', border: '1px solid #d6a64a', color: 'var(--text-color)' }}>
+                  <div style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-warning)', marginBottom: '0.35rem' }}>
+                    ⚡ Action Required: Review Deliverables
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.65rem' }}>
+                    Deliverables uploaded. Review the work and approve to release {swap.creditAmount} SkillCredits.
+                  </div>
+                  {onApproveSwap && (
+                    <button
+                      type="button"
+                      className="as-btn as-btn--primary"
+                      style={{ width: '100%', padding: '0.65rem', fontSize: '0.85rem' }}
+                      disabled={isApproving}
+                      onClick={onApproveSwap}
+                    >
+                      {isApproving ? 'Settling Escrow...' : `Approve & Release ${swap.creditAmount} Credits`}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {isParticipant && swap.status === 'submitted' && (
+                <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.25)', color: 'var(--color-structure)' }}>
+                  <div style={{ fontSize: '0.825rem', fontWeight: 700, marginBottom: '0.2rem' }}>⏳ Deliverables Under Review</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    Your work has been submitted. Waiting for requester to review and approve credits.
+                  </div>
+                </div>
               )}
 
               {swap.status === 'completed' && (
@@ -490,6 +530,7 @@ export function SwapChatModal({
                     padding: '0.75rem',
                     borderRadius: '12px',
                     background: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
                     color: 'var(--color-success)',
                     fontWeight: 700,
                     fontSize: '0.85rem',
@@ -501,15 +542,75 @@ export function SwapChatModal({
               )}
             </div>
 
-            {/* REQUIREMENTS & GUIDELINES */}
+            {/* WHAT IS BEING EXCHANGED */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               <span style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-color)' }}>
-                Requirements &amp; Terms
+                Exchange Details
               </span>
-              <p style={{ margin: 0, fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                {swap.requirements || swap.description}
+              <div style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-color)' }}>
+                {swap.topic}
+              </div>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                {swap.description}
               </p>
             </div>
+
+            {/* REQUIREMENTS & TERMS */}
+            {swap.requirements && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <span style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-color)' }}>
+                  Requirements &amp; Terms
+                </span>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  {swap.requirements}
+                </p>
+              </div>
+            )}
+
+            {/* DELIVERABLES & SUBMITTED FILES CONTEXT */}
+            {submission && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <span style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-color)' }}>
+                  Submitted Deliverables
+                </span>
+                {submission.notes && (
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.4 }}>
+                    &ldquo;{submission.notes}&rdquo;
+                  </p>
+                )}
+                {submission.files && submission.files.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.2rem' }}>
+                    {submission.files.map((file) => (
+                      <div
+                        key={file.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.4rem 0.65rem',
+                          borderRadius: '8px',
+                          background: 'rgba(17, 22, 28, 0.04)',
+                          fontSize: '0.8rem',
+                        }}
+                      >
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, paddingRight: '0.5rem' }}>
+                          📄 {file.fileName}
+                        </span>
+                        <button
+                          type="button"
+                          className="as-btn as-btn--secondary"
+                          style={{ padding: '0.2rem 0.5rem', fontSize: '0.725rem' }}
+                          disabled={downloadingFileId === file.id}
+                          onClick={() => handleDownloadFile(file.storagePath, file.fileName, file.id, true)}
+                        >
+                          {downloadingFileId === file.id ? '...' : 'Download'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* CREATOR ATTACHMENTS (if present) */}
             {creatorAttachments.length > 0 && (

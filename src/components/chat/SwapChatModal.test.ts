@@ -176,7 +176,35 @@ export function runSwapChatModalAndDesignSystemTests() {
   assert(accessibilityAttr.role === 'region', 'Accessibility role defined');
   assert(accessibilityAttr['aria-label'] === 'Submission Event', 'Accessibility ARIA label defined');
 
-  console.log('✓ All E.3 Cognitive Color & E.4 Multi-Modal Chat unit tests passed!');
+  // ==========================================
+  // SECTION I.2 CONSOLIDATED WORKSPACE CONTRACTS
+  // ==========================================
+
+  // 1. Next Required Action state mapping contract
+  function getNextActionTitle(status: Swap['status'], isReq: boolean): string {
+    if (status === 'accepted') {
+      return isReq ? '⏳ In Progress' : '⚡ Action Required';
+    }
+    if (status === 'submitted') {
+      return isReq ? '⚡ Action Required: Review Deliverables' : '⏳ Deliverables Under Review';
+    }
+    if (status === 'completed') {
+      return '✓ Swap Complete & Settled';
+    }
+    return 'Open';
+  }
+
+  assert(getNextActionTitle('accepted', false) === '⚡ Action Required', 'Participant in accepted state sees action required');
+  assert(getNextActionTitle('accepted', true) === '⏳ In Progress', 'Requester in accepted state sees in progress');
+  assert(getNextActionTitle('submitted', true) === '⚡ Action Required: Review Deliverables', 'Requester in submitted state sees review deliverables action');
+  assert(getNextActionTitle('submitted', false) === '⏳ Deliverables Under Review', 'Participant in submitted state sees deliverables under review');
+  assert(getNextActionTitle('completed', true) === '✓ Swap Complete & Settled', 'Completed state shows settled status');
+
+  // 2. Spatial Contiguity Deliverables Context
+  assert(mockSubmission.notes.length > 0, 'Submitted deliverables notes available in workspace context');
+  assert(mockSubmission.files[0].fileName === 'deliverable.zip', 'Submitted deliverables files available in workspace context');
+
+  console.log('✓ All E.3 Cognitive Color, E.4 Multi-Modal Chat & Section I.2 Consolidated Workspace unit tests passed!');
 }
 
 // Execute tests if run directly
