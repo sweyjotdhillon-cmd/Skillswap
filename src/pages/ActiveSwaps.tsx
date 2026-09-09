@@ -1012,7 +1012,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                       className="as-btn as-btn--secondary"
                       onClick={() => handleOpenChat(currentAcceptedItem)}
                     >
-                      Chat
+                      Workspace &amp; Chat
                     </button>
                   </div>
                 </div>
@@ -1253,7 +1253,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                       className="as-btn as-btn--secondary"
                       onClick={() => handleOpenChat(currentGivenItem)}
                     >
-                      Chat
+                      Workspace &amp; Chat
                     </button>
 
                     <button
