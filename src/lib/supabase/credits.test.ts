@@ -8,6 +8,7 @@ import { runSwapChatModalAndDesignSystemTests } from '../../components/chat/Swap
 import { runAcceptSwapFlowUnitTests } from './accept_swap_flow.test';
 import { runSectionH3ScaffoldingUnitTests } from './scaffolding.test';
 import { runOnboardingProgressBarUnitTests } from '../../components/cognitive/OnboardingProgressBar.test';
+import { runErrorRecoveryUnitTests } from './error_recovery.test';
 import './credibility_verification.test';
 
 function assert(condition: boolean, message: string) {
@@ -33,6 +34,9 @@ export async function runCreditSystemTests() {
 
   // Run Section K.3 & K.4 Empowered Progress Onboarding Bar Unit Tests
   runOnboardingProgressBarUnitTests();
+
+  // Run Section L.3 Error Recovery Unit Tests
+  runErrorRecoveryUnitTests();
 
   // 1. Initialize embedded PostgreSQL engine (PGlite)
   const db = new PGlite();
@@ -1143,12 +1147,12 @@ export async function runCreditSystemTests() {
   // Error formatting without misleading profile messages
   const http400Err = { status: 400, message: 'Invalid file format or upload rejected' };
   const errText = formatSubmissionErrorMessage(http400Err, 'Screenshot_20260903-195633.jpg');
-  assert(errText.includes('Supabase rejected "Screenshot_20260903-195633.jpg"'), '400 error returns submission rejection text');
+  assert(errText.includes('Screenshot_20260903-195633.jpg') && errText.includes('could not be accepted'), '400 error returns submission rejection text');
   assert(!errText.includes('profile'), 'Submission error never mentions profile');
 
   const genericErr = { message: 'Network request failed' };
   const genericText = formatSubmissionErrorMessage(genericErr, 'test.pdf');
-  assert(genericText.includes('Failed to upload "test.pdf"'), 'Generic error returns submission error text');
+  assert(genericText.includes('test.pdf') || genericText.includes('connect to the server'), 'Generic error returns submission error text');
   assert(!genericText.includes('profile'), 'Generic submission error never mentions profile');
 
   console.log('  -> Extension-aware MIME normalization & submission error formatting verified cleanly!');

@@ -75,7 +75,11 @@ export interface UserCustomSkill {
  * Sanitizes technical database/PostgREST/PostgreSQL error messages into user-friendly messages.
  */
 export function formatFriendlyErrorMessage(error: unknown): string {
-  if (!error) return 'An unexpected error occurred. Please try again.';
+  if (!error) return 'We couldn’t complete that action right now. Please try again.';
+
+  // Preserve technical error details internally in developer logs
+  console.error('[Database/RPC Technical Error Details]:', error);
+
   const errObj = error as { message?: string; details?: string };
   const rawMsg = typeof error === 'string' ? error : errObj.message || errObj.details || '';
   const lower = rawMsg.toLowerCase();
@@ -117,12 +121,48 @@ export function formatFriendlyErrorMessage(error: unknown): string {
     return 'Password must be at least 8 characters long.';
   }
 
-  // 3. Immutable Username
+  // 3. Authorization / RLS Failures
+  if (
+    lower.includes('permission denied') ||
+    lower.includes('row-level security') ||
+    lower.includes('rls') ||
+    lower.includes('42501') ||
+    lower.includes('unauthorized credit addition') ||
+    lower.includes('unauthorized credit release') ||
+    lower.includes('unauthorized credit operation') ||
+    lower.includes('not authorized')
+  ) {
+    return 'You don’t have permission to perform this action. Make sure you’re signed in with the correct account.';
+  }
+
+  // 4. Incomplete Profile Requirement
+  if (
+    lower.includes('profile_completed') ||
+    lower.includes('profile requirement') ||
+    lower.includes('incomplete profile') ||
+    lower.includes('complete profile first')
+  ) {
+    return 'Your profile needs a few more details before you can continue. Complete the required profile steps and try again.';
+  }
+
+  // 5. Transaction / Swap Availability & Own Swap
+  if (lower.includes('cannot accept your own')) {
+    return 'You cannot accept your own swap request.';
+  }
+  if (
+    lower.includes('swap is no longer available') ||
+    lower.includes('no longer open') ||
+    lower.includes('already accepted') ||
+    lower.includes('already completed') ||
+    lower.includes('already cancelled')
+  ) {
+    return 'This swap is no longer available. It may have already been accepted or completed.';
+  }
+
+  // 6. Immutable Username & Specific Profile Checks
   if (lower.includes('immutable once set') || lower.includes('username is permanently immutable')) {
     return 'Username cannot be changed once set.';
   }
-
-  // 2. Specific Profile Completion Checks
   if (lower.includes('username must be assigned first')) {
     return 'Please set a username before completing your profile.';
   }
@@ -130,7 +170,7 @@ export function formatFriendlyErrorMessage(error: unknown): string {
     return 'Full name is required.';
   }
 
-  // 3. Username Uniqueness Errors
+  // 7. Username Uniqueness Errors
   if (
     lower.includes('idx_profiles_username_lower') ||
     lower.includes('profiles_username_key') ||
@@ -140,7 +180,7 @@ export function formatFriendlyErrorMessage(error: unknown): string {
     return 'This username was just taken. Please choose another username.';
   }
 
-  // 4. Google / Identity Errors
+  // 8. Google / Identity Errors
   if (
     lower.includes('already linked') ||
     lower.includes('identity_already_exists') ||
@@ -149,7 +189,7 @@ export function formatFriendlyErrorMessage(error: unknown): string {
     return 'An account with this Google email already exists. Please log in instead.';
   }
 
-  // 5. Skill Limits & Predefined/Custom Skill Errors
+  // 9. Skill Limits & Predefined/Custom Skill Errors
   if (
     lower.includes('maximum skill limit reached') ||
     lower.includes('10 total skills') ||
@@ -171,22 +211,19 @@ export function formatFriendlyErrorMessage(error: unknown): string {
     return 'This skill has already been added.';
   }
 
-  // 5.5. Credit System & Swap Errors
+  // 10. Credit System & Swap Validation Errors
   if (
     lower.includes('insufficient credit balance') ||
     lower.includes('chk_min_balance') ||
     lower.includes('insufficient credits')
   ) {
-    return 'Insufficient credit balance for this operation.';
+    return 'You have insufficient SkillCredits available for this operation. Complete a swap to earn more credits, then try again.';
   }
   if (lower.includes('credit amount must be greater than zero')) {
     return 'Credit amount must be greater than zero.';
   }
   if (lower.includes('invalid transfer recipient')) {
     return 'Invalid credit transfer recipient.';
-  }
-  if (lower.includes('unauthorized credit addition') || lower.includes('unauthorized credit release')) {
-    return 'Unauthorized credit operation.';
   }
   if (lower.includes('at least one swap tag is required')) {
     return 'At least one swap tag is required.';
@@ -195,25 +232,25 @@ export function formatFriendlyErrorMessage(error: unknown): string {
     return 'Please select valid tags from the predefined options.';
   }
 
-  // 6. Authentication / Session Expiry
+  // 11. Authentication / Session Expiry
   if (
     lower.includes('not authenticated') ||
     lower.includes('jwt expired') ||
     lower.includes('session expired')
   ) {
-    return 'Your session has expired. Please sign in again.';
+    return 'Your session has expired. Please sign in again with your account to continue.';
   }
 
-  // 7. Network / Connection Errors
+  // 12. Network / Connection Errors
   if (
     lower.includes('failed to fetch') ||
     lower.includes('networkerror') ||
     lower.includes('network request failed')
   ) {
-    return 'Unable to connect to the server. Please check your connection and try again.';
+    return 'Unable to connect to the server right now. Please check your connection and try again.';
   }
 
-  // 8. Driver/Syntax/Database errors fallback
+  // 13. Driver/Syntax/Database errors fallback
   if (
     lower.includes('pgrst') ||
     lower.includes('postgresql') ||
@@ -228,11 +265,11 @@ export function formatFriendlyErrorMessage(error: unknown): string {
     lower.includes('28000') ||
     lower.includes('28p01')
   ) {
-    return 'Something went wrong while processing your request. Please try again.';
+    return 'We couldn’t complete that action right now. Please try again.';
   }
 
   // Do not expose unclassified backend details to users.
-  return 'An unexpected error occurred. Please try again.';
+  return 'We couldn’t complete that action right now. Please try again.';
 }
 
 /**

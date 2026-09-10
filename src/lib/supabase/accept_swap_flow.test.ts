@@ -190,28 +190,28 @@ export function runAcceptSwapFlowUnitTests() {
   // 5a: Insufficient credits with account balance data
   const msgInsufficient = formatAcceptSwapErrorMessage('chk_min_balance', 50, 40);
   assert(
-    msgInsufficient === 'You tried to accept a swap requiring 50 SkillCredits, but you currently have 40 available. Complete a swap to earn more credits, then try again.',
+    msgInsufficient === 'You tried to accept a swap requiring 50 SkillCredits, but you currently have 40 available. Complete a task to earn more credits, then try again.',
     'Test 5a: Insufficient credits message includes real swap and account balance numbers'
   );
 
   // 5b: Insufficient credits without balance numbers
   const msgGenericInsufficient = formatAcceptSwapErrorMessage('insufficient credit balance');
   assert(
-    msgGenericInsufficient === 'You have insufficient SkillCredits available for this swap. Complete a swap to earn more credits, then try again.',
+    msgGenericInsufficient === 'You have insufficient SkillCredits available for this swap. Complete a task to earn more credits, then try again.',
     'Test 5b: Generic insufficient credits error formatted in plain language'
   );
 
   // 5c: Cannot accept own swap
   const msgOwnSwap = formatAcceptSwapErrorMessage('cannot accept your own swap');
   assert(
-    msgOwnSwap === 'You cannot accept your own swap request.',
+    msgOwnSwap === 'You cannot accept your own swap request. Browse other open swaps in the marketplace.',
     'Test 5c: Cannot accept own swap error formatted in plain language'
   );
 
   // 5d: Raw DB / Postgres error fallback
   const msgRawDb = formatAcceptSwapErrorMessage('PGRST116 JSON object requested, multiple rows returned');
   assert(
-    msgRawDb === 'Something went wrong while processing your request. Please try again.',
+    msgRawDb === 'We couldn’t complete that action right now. Please try again.',
     'Test 5d: Raw Postgres error sanitized into friendly fallback message'
   );
 

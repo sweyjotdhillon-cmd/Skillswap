@@ -365,7 +365,10 @@ export function formatAcceptSwapErrorMessage(
   requiredCredits?: number,
   userBalance?: number
 ): string {
-  if (!error) return 'Failed to accept swap. Please try again.';
+  if (!error) return 'We couldn’t accept this swap right now. Please try again.';
+
+  // Preserve technical details in developer logs
+  console.error('[Accept Swap Technical Error Details]:', error);
 
   const errObj = error as { message?: string; details?: string };
   const rawMsg = typeof error === 'string' ? error : errObj.message || errObj.details || '';
@@ -379,17 +382,24 @@ export function formatAcceptSwapErrorMessage(
 
   if (isInsufficientCredit) {
     if (requiredCredits !== undefined && userBalance !== undefined) {
-      return `You tried to accept a swap requiring ${requiredCredits} SkillCredits, but you currently have ${userBalance} available. Complete a swap to earn more credits, then try again.`;
+      return `You tried to accept a swap requiring ${requiredCredits} SkillCredits, but you currently have ${userBalance} available. Complete a task to earn more credits, then try again.`;
     }
-    return 'You have insufficient SkillCredits available for this swap. Complete a swap to earn more credits, then try again.';
+    return 'You have insufficient SkillCredits available for this swap. Complete a task to earn more credits, then try again.';
   }
 
   if (lower.includes('cannot accept your own')) {
-    return 'You cannot accept your own swap request.';
+    return 'You cannot accept your own swap request. Browse other open swaps in the marketplace.';
   }
 
-  if (lower.includes('not found') || lower.includes('no longer available')) {
-    return 'This swap request is no longer open or available.';
+  if (
+    lower.includes('not found') ||
+    lower.includes('no longer available') ||
+    lower.includes('no longer open') ||
+    lower.includes('already accepted') ||
+    lower.includes('already completed') ||
+    lower.includes('already cancelled')
+  ) {
+    return 'This swap is no longer available. It may have already been accepted or completed.';
   }
 
   return formatFriendlyErrorMessage(error);
@@ -397,8 +407,11 @@ export function formatAcceptSwapErrorMessage(
 
 export function formatSubmissionErrorMessage(error: unknown, fileName?: string): string {
   if (!error) {
-    return fileName ? `Failed to upload "${fileName}". Please try again.` : 'Submission could not be saved. Please try again.';
+    return fileName ? `We couldn’t upload "${fileName}". Please try again.` : 'We couldn’t save your submission right now. Please try again.';
   }
+
+  // Preserve technical details in developer logs
+  console.error('[Submission Technical Error Details]:', error);
 
   const errObj = error as { message?: string; details?: string; status?: number; statusCode?: number; error?: string; name?: string };
   const rawMsg = typeof error === 'string' ? error : errObj.message || errObj.details || errObj.error || '';
@@ -407,23 +420,19 @@ export function formatSubmissionErrorMessage(error: unknown, fileName?: string):
 
   if (status === 400 || lower.includes('400') || lower.includes('bad request') || lower.includes('mime') || lower.includes('not allowed')) {
     return fileName
-      ? `Supabase rejected "${fileName}". Please check the file and try again.`
-      : 'Supabase rejected this file upload. Please check the file and try again.';
+      ? `The file "${fileName}" could not be accepted. Check that the file is valid and under 25MB, then try again.`
+      : 'This file upload could not be accepted. Check that your files are valid and under 25MB, then try again.';
   }
 
   if (lower.includes('jwt') || lower.includes('unauthorized') || lower.includes('not authenticated')) {
-    return 'Your session has expired. Please sign in again and retry.';
+    return 'Your session has expired. Please sign in again with your account to retry.';
   }
 
   if (lower.includes('duplicate') || lower.includes('already submitted')) {
-    return 'Work has already been submitted for this swap.';
+    return 'Work has already been submitted for this swap. Check the active swap workspace for details.';
   }
 
-  if (rawMsg) {
-    return fileName ? `Failed to upload "${fileName}": ${rawMsg}` : `Submission error: ${rawMsg}`;
-  }
-
-  return fileName ? `Failed to upload "${fileName}". Please try again.` : 'Submission could not be saved. Please try again.';
+  return formatFriendlyErrorMessage(error);
 }
 
 /** Uploads attached files to Supabase Storage and executes the atomic submit_swap_work RPC with rollback cleanup on failure. */
