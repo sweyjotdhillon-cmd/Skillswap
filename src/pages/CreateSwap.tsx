@@ -422,6 +422,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
               <TemplateGallery
                 onSelectTemplate={handleSelectTemplate}
                 onStartFromScratch={handleStartFromScratch}
+                onDismiss={templateScaffold.dismissScaffold}
                 activeTemplateId={activeTemplateId}
               />
             ) : (

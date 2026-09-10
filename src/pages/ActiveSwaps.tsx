@@ -618,13 +618,25 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
             </div>
             <button
               type="button"
-              className="as-toast-close"
+              className="scaffolding-dismiss-btn"
               title="Don't show this again"
               aria-label="Don't show this onboarding banner again"
               onClick={journeyScaffold.dismissScaffold}
-              style={{ alignSelf: 'flex-start', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.1rem', opacity: 0.7 }}
+              style={{
+                alignSelf: 'flex-start',
+                background: 'transparent',
+                border: '1px solid var(--color-structure-border, rgba(148, 163, 184, 0.25))',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: 'var(--color-text-muted, var(--text-muted))',
+                padding: '0.2rem 0.5rem',
+                lineHeight: 1.2,
+                whiteSpace: 'nowrap',
+              }}
             >
-              ×
+              Don't show this again
             </button>
           </div>
         ) : (
