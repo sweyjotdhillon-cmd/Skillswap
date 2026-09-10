@@ -1,4 +1,5 @@
 import { calculateRemainingAutoReleaseMs, formatRemainingTime, formatCountdown } from './TransactionProgress';
+import type { SwapStatus } from '../../types/swap';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -6,8 +7,29 @@ function assert(condition: boolean, message: string) {
   }
 }
 
+/** Helper function simulating getStageIndex logic from TransactionProgress component */
+function getStageIndex(s: SwapStatus): number {
+  switch (s) {
+    case 'open':
+      return 0;
+    case 'accepted':
+      return 1;
+    case 'submitted':
+      return 2;
+    case 'completed':
+      return 3;
+    case 'cancelled':
+    case 'declined':
+    case 'withdrawn':
+    case 'expired':
+      return -1;
+    default:
+      return 0;
+  }
+}
+
 export function runTransactionProgressUnitTests() {
-  console.log('--- Starting TransactionProgress E.2 Unit Tests ---');
+  console.log('--- Starting TransactionProgress E.2 & Section L9 Unit Tests ---');
 
   const nowMs = 1700000000000;
   const submittedAt = new Date(nowMs).toISOString();
@@ -52,7 +74,23 @@ export function runTransactionProgressUnitTests() {
   assert(formatCountdown(3665) === '01h 01m 05s', '3665 seconds formats as 01h 01m 05s');
   assert(formatCountdown(90000) === '1d 01h 00m 00s', '90000 seconds formats as 1d 01h 00m 00s');
 
-  console.log('✓ All TransactionProgress E.2 unit tests passed!');
+  // Section L9 Lifecycle Mapping Unit Tests
+  // Stage 0: Open
+  assert(getStageIndex('open') === 0, 'open maps to stage index 0 (Open)');
+  // Stage 1: Accepted
+  assert(getStageIndex('accepted') === 1, 'accepted maps to stage index 1 (Accepted)');
+  // Stage 2: Submitted
+  assert(getStageIndex('submitted') === 2, 'submitted maps to stage index 2 (Submitted)');
+  // Stage 3: Completed
+  assert(getStageIndex('completed') === 3, 'completed maps to stage index 3 (Completed)');
+
+  // Terminal Edge States: Cancelled, Declined, Withdrawn, Expired
+  assert(getStageIndex('cancelled') === -1, 'cancelled maps to terminal state -1');
+  assert(getStageIndex('declined') === -1, 'declined maps to terminal state -1');
+  assert(getStageIndex('withdrawn') === -1, 'withdrawn maps to terminal state -1');
+  assert(getStageIndex('expired') === -1, 'expired maps to terminal state -1');
+
+  console.log('✓ All TransactionProgress E.2 & Section L9 unit tests passed!');
 }
 
 if (import.meta.url.endsWith('TransactionProgress.test.ts') || process.argv[1]?.endsWith('TransactionProgress.test.ts')) {

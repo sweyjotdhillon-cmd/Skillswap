@@ -155,58 +155,102 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
     : 0;
   const isAutoReleaseExpired = status === 'submitted' && remainingMs === 0;
 
+  const getStatusAnnouncement = (): string => {
+    switch (status) {
+      case 'open':
+        return 'Status: Open. Listing is active and waiting for community acceptance.';
+      case 'accepted':
+        return 'Status: Accepted. Swap is in progress.';
+      case 'submitted':
+        return 'Status: Submitted. Deliverables are submitted and awaiting review.';
+      case 'completed':
+        return 'Status: Completed. Swap is finalized and credits are released.';
+      case 'cancelled':
+        return 'Status: Cancelled. This swap has been cancelled.';
+      case 'declined':
+        return 'Status: Declined. This swap proposal was declined.';
+      case 'withdrawn':
+        return 'Status: Withdrawn. This swap offer was withdrawn.';
+      case 'expired':
+        return 'Status: Expired. This swap request has expired.';
+      default:
+        return `Status: ${status}`;
+    }
+  };
+
   return (
-    <div
+    <section
       className={`tx-progress-container ${className}`}
       style={{
         background: 'var(--card-bg, rgba(30, 41, 59, 0.6))',
-        border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))',
+        border: '1px solid var(--border-color, rgba(255, 255, 255, 0.12))',
         borderRadius: '12px',
         padding: '1rem',
         marginBottom: '1rem',
       }}
       aria-label="Transaction Lifecycle Progress"
     >
+      <div className="sr-only" role="status" aria-live="polite">
+        {getStatusAnnouncement()}
+      </div>
+
       {/* LIFECYCLE STEPPER HEADER */}
-      <div
+      <ol
         className="tx-progress-stepper"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           position: 'relative',
-          gap: '0.5rem',
+          gap: '0.25rem',
+          margin: 0,
+          padding: 0,
+          listStyle: 'none',
         }}
-        role="navigation"
         aria-label="Transaction Stages"
       >
         {LIFECYCLE_STAGES.map((stage, idx) => {
           const isCompleted = !isTerminated && idx < currentIndex;
           const isCurrent = !isTerminated && idx === currentIndex;
+          const isFinalGoal = idx === LIFECYCLE_STAGES.length - 1;
 
           let badgeIcon = '○';
           let badgeClass = 'tx-step--future';
           let color = 'var(--text-muted, #94a3b8)';
           let bgColor = 'rgba(148, 163, 184, 0.1)';
           let borderColor = 'rgba(148, 163, 184, 0.3)';
+          let stateText = 'upcoming';
 
           if (isCompleted) {
             badgeIcon = '✓';
             badgeClass = 'tx-step--completed';
             color = '#10b981';
-            bgColor = 'rgba(16, 185, 129, 0.15)';
+            bgColor = 'rgba(16, 185, 129, 0.2)';
             borderColor = '#10b981';
+            stateText = 'completed';
           } else if (isCurrent) {
-            badgeIcon = '●';
+            badgeIcon = isFinalGoal ? '★' : '●';
             badgeClass = 'tx-step--current';
             color = status === 'completed' ? '#10b981' : '#38bdf8';
-            bgColor = status === 'completed' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(56, 189, 248, 0.15)';
+            bgColor = status === 'completed' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.2)';
             borderColor = status === 'completed' ? '#10b981' : '#38bdf8';
+            stateText = 'current stage';
+          } else if (isTerminated) {
+            color = 'var(--text-muted, #64748b)';
+            bgColor = 'rgba(100, 116, 139, 0.1)';
+            borderColor = 'rgba(100, 116, 139, 0.25)';
+            stateText = 'inactive due to cancellation';
+          } else if (isFinalGoal) {
+            badgeIcon = '🏁';
+            color = 'var(--color-warning, #d6a64a)';
+            bgColor = 'rgba(214, 166, 74, 0.1)';
+            borderColor = 'rgba(214, 166, 74, 0.4)';
+            stateText = 'destination goal';
           }
 
           return (
             <React.Fragment key={stage.key}>
-              <div
+              <li
                 className={`tx-step ${badgeClass}`}
                 style={{
                   display: 'flex',
@@ -216,14 +260,15 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
                   flex: 1,
                   textAlign: 'center',
                   zIndex: 2,
+                  minWidth: 0,
                 }}
                 aria-current={isCurrent ? 'step' : undefined}
               >
                 <div
                   className="tx-step-icon"
                   style={{
-                    width: '28px',
-                    height: '28px',
+                    width: '30px',
+                    height: '30px',
                     borderRadius: '50%',
                     background: bgColor,
                     border: `2px solid ${borderColor}`,
@@ -231,32 +276,46 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '0.825rem',
+                    fontSize: '0.85rem',
                     fontWeight: 700,
+                    boxShadow: isCurrent ? `0 0 8px ${borderColor}` : 'none',
+                    transition: 'all 0.2s ease-in-out',
                   }}
+                  title={`${stage.label} stage: ${stateText}`}
                 >
                   <span aria-hidden="true">{badgeIcon}</span>
+                  <span className="sr-only">{`${stage.label} (${stateText})`}</span>
                 </div>
                 <span
                   className="tx-step-label"
                   style={{
                     fontSize: '0.75rem',
-                    fontWeight: isCurrent ? 700 : isCompleted ? 600 : 400,
-                    color: isCurrent ? 'var(--text-color, #f8fafc)' : isCompleted ? color : 'var(--text-muted, #94a3b8)',
+                    fontWeight: isCurrent ? 700 : isCompleted ? 600 : 500,
+                    color: isCurrent
+                      ? 'var(--text-color, #f8fafc)'
+                      : isCompleted
+                      ? color
+                      : 'var(--text-muted, #94a3b8)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '100%',
                   }}
                 >
                   {stage.label}
                 </span>
-              </div>
+              </li>
 
               {idx < LIFECYCLE_STAGES.length - 1 && (
                 <div
                   className="tx-step-line"
                   style={{
                     flex: 1,
-                    height: '2px',
+                    height: '3px',
                     background: isCompleted ? '#10b981' : 'rgba(148, 163, 184, 0.2)',
                     marginTop: '-1.25rem',
+                    borderRadius: '2px',
+                    transition: 'background 0.2s ease-in-out',
                   }}
                   aria-hidden="true"
                 />
@@ -264,20 +323,20 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
             </React.Fragment>
           );
         })}
-      </div>
+      </ol>
 
       {/* DYNAMIC CONTEXTUAL DETAILS & COUNTDOWN / CLOSURE BANNER */}
       <div className="tx-progress-details" style={{ marginTop: '0.85rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '0.75rem' }}>
         {status === 'open' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            <span style={{ color: '#38bdf8' }}>●</span>
+            <span style={{ color: '#38bdf8' }} aria-hidden="true">●</span>
             <span>Listing is open for community acceptance. Reserved credits remain held in escrow.</span>
           </div>
         )}
 
         {status === 'accepted' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            <span style={{ color: '#38bdf8' }}>●</span>
+            <span style={{ color: '#38bdf8' }} aria-hidden="true">●</span>
             <span>Swap in progress. Participant is fulfilling deliverables before submitting work for review.</span>
           </div>
         )}
@@ -327,7 +386,7 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ color: '#10b981', fontSize: '1rem', fontWeight: 800 }}>✓</span>
+              <span style={{ color: '#10b981', fontSize: '1rem', fontWeight: 800 }} aria-hidden="true">✓</span>
               <div>
                 <strong style={{ fontSize: '0.875rem', color: '#10b981', display: 'block' }}>Swap Completed</strong>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #cbd5e1)' }}>
@@ -344,11 +403,25 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
         )}
 
         {isTerminated && (
-          <div style={{ fontSize: '0.85rem', color: 'var(--error-color, #ef4444)' }}>
-            This swap has been {status}.
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              background: 'rgba(239, 68, 68, 0.08)',
+              borderLeft: '4px solid #ef4444',
+              padding: '0.65rem 0.85rem',
+              borderRadius: '8px',
+              fontSize: '0.85rem',
+              color: 'var(--error-color, #ef4444)',
+              fontWeight: 600,
+            }}
+          >
+            <span aria-hidden="true">✕</span>
+            <span>This swap has been {status}. No further progress required.</span>
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 };
