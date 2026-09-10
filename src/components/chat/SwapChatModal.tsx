@@ -438,6 +438,7 @@ export function SwapChatModal({
                 Exchange Lifecycle
               </span>
               <TransactionProgress
+                swapId={swap.id}
                 status={swap.status}
                 autoReleaseAt={swap.autoReleaseAt}
                 submittedAt={swap.submittedAt}
