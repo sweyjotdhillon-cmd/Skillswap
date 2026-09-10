@@ -1,4 +1,4 @@
-import { getTagSlug } from './tags';
+import { getTagSlug, getTagLabel } from './tags';
 
 export interface SwapTemplate {
   id: string;
@@ -114,4 +114,11 @@ export const SWAP_TEMPLATES: readonly SwapTemplate[] = [
  */
 export function getTemplateCanonicalTags(template: SwapTemplate): string[] {
   return template.formValues.tags.map((t) => getTagSlug(t));
+}
+
+/**
+ * Returns a human-readable summary of the fields pre-filled by a template.
+ */
+export function getTemplatePreFilledSummary(template: SwapTemplate): string {
+  return `Pre-fills: Topic, Tags (${template.formValues.tags.map(getTagLabel).join(', ')}), Description, ${template.formValues.credits} SkillCredits & Requirements`;
 }
