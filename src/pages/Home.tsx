@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Hero } from '../components/hero/Hero';
 import { Navbar } from '../components/navigation/Navbar';
 import { Footer } from '../components/navigation/Footer';
+import { TeamCredibility } from '../components/ui/TeamCredibility';
 
 type HomeProps = {
   onNavigate?: (path: string) => void;
@@ -220,6 +221,11 @@ export function Home({ onNavigate }: HomeProps) {
           </div>
         </div>
       </section>
+
+      {/* Team & Support Direct Contact Credibility Section */}
+      <div className="home-section" style={{ paddingTop: '1rem', paddingBottom: '2rem' }}>
+        <TeamCredibility />
+      </div>
 
       <Footer onNavigate={onNavigate} />
     </div>
