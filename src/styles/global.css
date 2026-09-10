@@ -231,7 +231,7 @@
 html { scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; background: var(--bg-color); color: var(--text-color); transition: background-color 0.3s ease, color 0.3s ease; }
 a { color: inherit; text-decoration: none; }
-a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, [role="button"]:focus-visible { outline: 2px solid #d6a64a !important; outline-offset: 2px !important; }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--color-structure) !important; outline-offset: 2px !important; }
 
 /* Global Disabled Button Guard */
 button:disabled,
@@ -1161,15 +1161,15 @@ button:disabled,
 }
 
 .mobile-drawer-nav a.nav-link--active {
-  color: #a8781d;
+  color: var(--color-structure);
   font-weight: 700;
-  background: rgba(214, 166, 74, 0.1);
+  background: var(--color-structure-muted);
   padding-left: 0.75rem;
 }
 
 [data-theme='dark'] .mobile-drawer-nav a.nav-link--active {
-  color: #d6a64a;
-  background: rgba(214, 166, 74, 0.15);
+  color: var(--color-structure);
+  background: var(--color-structure-muted);
 }
 
 .mobile-drawer-link {
@@ -1256,10 +1256,10 @@ button:disabled,
 }
 .main-nav { gap: clamp(1.5rem, 4vw, 4.5rem); margin-left: auto; font-size: .95rem; font-weight: 700; }
 .main-nav a { transition: color .2s ease, border-color .2s ease; padding: 0.25rem 0; border-bottom: 2px solid transparent; }
-.main-nav a:hover { color: #a8781d; }
-.main-nav a.nav-link--active { color: #a8781d; border-bottom-color: #a8781d; }
+.main-nav a:hover { color: var(--color-structure); }
+.main-nav a.nav-link--active { color: var(--color-structure); border-bottom-color: var(--color-structure); }
 [data-theme='dark'] .main-nav a:hover,
-[data-theme='dark'] .main-nav a.nav-link--active { color: #d6a64a; border-bottom-color: #d6a64a; }
+[data-theme='dark'] .main-nav a.nav-link--active { color: var(--color-structure); border-bottom-color: var(--color-structure); }
 .header-cta { border-radius: 999px; background: var(--color-transactional, #d6a64a); color: #11161c; border: 1.5px solid var(--color-transactional, #d6a64a); padding: .9rem 1.55rem; font-weight: 700; box-shadow: 0 4px 14px rgba(214, 166, 74, 0.2); transition: transform .2s ease, background .2s ease; }
 .header-cta:hover { transform: translateY(-2px); background: var(--color-transactional-hover, #e4af48); border-color: var(--color-transactional-hover, #e4af48); }
 

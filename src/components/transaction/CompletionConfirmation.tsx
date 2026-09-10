@@ -40,14 +40,12 @@ export const CompletionConfirmation: React.FC<CompletionConfirmationProps> = ({
   className = '',
 }) => {
   const [shouldAnimate, setShouldAnimate] = useState<boolean>(false);
-  const [hasSettleCompleted, setHasSettleCompleted] = useState<boolean>(false);
   const prevStatusRef = useRef<SwapStatus | null>(null);
 
   useEffect(() => {
     if (status !== 'completed') {
       prevStatusRef.current = status;
       setShouldAnimate(false);
-      setHasSettleCompleted(false);
       return;
     }
 
@@ -67,14 +65,12 @@ export const CompletionConfirmation: React.FC<CompletionConfirmationProps> = ({
 
       const timer = setTimeout(() => {
         setShouldAnimate(false);
-        setHasSettleCompleted(true);
       }, 1600); // 1.6 second calm transition duration
 
       return () => clearTimeout(timer);
     } else {
       // Direct load, refresh, or reduced motion -> static state
       setShouldAnimate(false);
-      setHasSettleCompleted(true);
     }
 
     prevStatusRef.current = status;
