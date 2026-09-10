@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { CompletionConfirmation, checkPrefersReducedMotion } from './CompletionConfirmation';
+import { checkPrefersReducedMotion } from './CompletionConfirmation';
 import type { SwapStatus } from '../../types/swap';
 
 export function runCompletionConfirmationUnitTests() {

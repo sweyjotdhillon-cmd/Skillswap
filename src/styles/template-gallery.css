@@ -74,8 +74,9 @@
 }
 
 .start-from-scratch-btn:hover {
-  border-color: var(--color-accent, #d6a64a);
-  background: rgba(214, 166, 74, 0.08);
+  border-color: var(--color-structure, #0284c7);
+  background: var(--color-structure-muted, rgba(2, 132, 199, 0.1));
+  color: var(--color-structure, #0284c7);
   transform: translateY(-1px);
 }
 
