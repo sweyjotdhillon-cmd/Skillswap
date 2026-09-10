@@ -12,6 +12,7 @@ import {
   type SwapAttachment,
 } from '../../lib/supabase/credits';
 import type { Swap, SwapMessage, SwapSubmission } from '../../types/swap';
+import { getTagLabel } from '../../constants/tags';
 import { TransactionProgress } from '../transaction/TransactionProgress';
 import {
   EmbeddedTransactionCard,
@@ -69,6 +70,13 @@ export function SwapChatModal({
   const [input, setInput] = useState<string>('');
   const [sending, setSending] = useState<boolean>(false);
   const [chatError, setChatError] = useState<string | null>(null);
+
+  // Mobile active view tab state (for responsive breakpoints <= 768px)
+  const [mobileActiveTab, setMobileActiveTab] = useState<'chat' | 'workspace'>('chat');
+
+  // Progressive disclosure state for text fields
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState<boolean>(false);
+  const [isRequirementsExpanded, setIsRequirementsExpanded] = useState<boolean>(false);
 
   // Workspace state: submission & creator attachments
   const [submission, setSubmission] = useState<SwapSubmission | null>(null);
@@ -220,10 +228,10 @@ export function SwapChatModal({
 
   // Auto-scroll to bottom on message list update
   useEffect(() => {
-    if (messagesEndRef.current) {
+    if (messagesEndRef.current && mobileActiveTab === 'chat') {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages, mobileActiveTab]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -337,10 +345,41 @@ export function SwapChatModal({
           </div>
         </div>
 
-        {/* WORKSPACE GRID: CONVERSATION TIMELINE + SIDEBAR */}
+        {/* MOBILE VIEWPORT TAB SWITCHER (<= 768px BREAKPOINT) */}
+        <div className="chat-mobile-nav-tabs" role="tablist" aria-label="Workspace view modes">
+          <button
+            type="button"
+            role="tab"
+            id="tab-chat"
+            aria-selected={mobileActiveTab === 'chat'}
+            aria-controls="chat-workspace-main-panel"
+            className={`chat-mobile-tab ${mobileActiveTab === 'chat' ? 'chat-mobile-tab--active' : ''}`}
+            onClick={() => setMobileActiveTab('chat')}
+          >
+            💬 Chat Timeline
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-workspace"
+            aria-selected={mobileActiveTab === 'workspace'}
+            aria-controls="chat-workspace-sidebar-panel"
+            className={`chat-mobile-tab ${mobileActiveTab === 'workspace' ? 'chat-mobile-tab--active' : ''}`}
+            onClick={() => setMobileActiveTab('workspace')}
+          >
+            ⚡ Workspace Context
+          </button>
+        </div>
+
+        {/* WORKSPACE GRID: CONVERSATION TIMELINE + CONSOLIDATED WORKSPACE SIDEBAR */}
         <div className="chat-workspace-grid">
           {/* MAIN / LEFT AREA: CHAT TIMELINE WITH EMBEDDED SYSTEM CARDS */}
-          <div className="chat-workspace-main">
+          <div
+            id="chat-workspace-main-panel"
+            className={`chat-workspace-main ${mobileActiveTab === 'chat' ? 'chat-workspace-main--mobile-active' : ''}`}
+            role="region"
+            aria-label="Conversation timeline"
+          >
             <div className="chat-messages-container">
               {/* SECTION L13: EMBEDDED TRANSACTION / STATUS CARD INSIDE CHAT */}
               <EmbeddedTransactionCard
@@ -440,13 +479,53 @@ export function SwapChatModal({
             </form>
           </div>
 
-          {/* SIDEBAR / SECONDARY AREA: REQUIREMENTS, PROGRESS BAR & PRIMARY ACTION */}
-          <div className="chat-workspace-sidebar">
-            {/* LIFECYCLE PROGRESS BAR */}
-            <div>
-              <span style={{ fontSize: '0.785rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '0.5rem' }}>
-                Exchange Lifecycle
-              </span>
+          {/* SECTION L15: CONSOLIDATED WORKSPACE SIDEBAR */}
+          <aside
+            id="chat-workspace-sidebar-panel"
+            className={`chat-workspace-sidebar ${mobileActiveTab === 'workspace' ? 'chat-workspace-sidebar--mobile-active' : ''}`}
+            role="region"
+            aria-label="Swap Context Workspace"
+          >
+            {/* 1. PARTNER IDENTITY & ROLE CONTEXT CARD */}
+            <section className="ws-section ws-partner-card" aria-label="Participant Identity Context">
+              <div className="ws-partner-card-header">
+                <img src={displayAvatar} alt={`Profile photo of ${displayName}`} className="chat-avatar swap-avatar-ring" />
+                <div className="ws-partner-card-info">
+                  <div className="ws-partner-name-row">
+                    <h4 className="ws-partner-name">{displayName}</h4>
+                    {isPartnerVerified && (
+                      <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        Verified
+                      </span>
+                    )}
+                  </div>
+                  {partnerProfile?.username && (
+                    <span className="ws-partner-username">@{partnerProfile.username}</span>
+                  )}
+                  <div className="ws-partner-role-badge">
+                    {isRequester ? 'Participant (Providing Skill)' : 'Requester (Offering Swap)'}
+                  </div>
+                </div>
+              </div>
+              <div className="ws-partner-metrics">
+                <span className="ws-metric-rating">
+                  {partnerProfile?.reviewCount && partnerProfile.reviewCount > 0 && partnerProfile?.averageRating !== null && partnerProfile?.averageRating !== undefined
+                    ? `★ ${partnerProfile.averageRating.toFixed(1)} (${partnerProfile.reviewCount} ${partnerProfile.reviewCount === 1 ? 'review' : 'reviews'})`
+                    : 'No reviews yet'}
+                </span>
+                <span className="ws-metric-divider" aria-hidden="true">•</span>
+                <span className="ws-metric-swaps">
+                  <strong>{partnerProfile?.completedSwapsCount ?? 0}</strong> {(partnerProfile?.completedSwapsCount ?? 0) === 1 ? 'completed swap' : 'completed swaps'}
+                </span>
+              </div>
+            </section>
+
+            {/* 2. EXCHANGE LIFECYCLE PROGRESS */}
+            <section className="ws-section ws-lifecycle-card" aria-label="Exchange Lifecycle">
+              <h4 className="ws-section-title">Exchange Lifecycle</h4>
               <TransactionProgress
                 swapId={swap.id}
                 status={swap.status}
@@ -455,13 +534,11 @@ export function SwapChatModal({
                 completedAt={swap.completedAt}
                 creditAmount={swap.creditAmount}
               />
-            </div>
+            </section>
 
-            {/* NEXT REQUIRED ACTION BANNER & DOMINANT CTA */}
-            <div className="ws-next-action-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.785rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                Next Required Action
-              </span>
+            {/* 3. NEXT REQUIRED ACTION BANNER & DOMINANT CTA */}
+            <section className="ws-section ws-next-action-card" aria-label="Next Required Action">
+              <h4 className="ws-section-title">Next Required Action</h4>
 
               {isParticipant && swap.status === 'accepted' && (
                 <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(214, 166, 74, 0.12)', border: '1px solid rgba(214, 166, 74, 0.3)', color: 'var(--color-warning)' }}>
@@ -538,66 +615,124 @@ export function SwapChatModal({
                   ✓ Swap Complete &amp; Settled
                 </div>
               )}
-            </div>
 
-            {/* WHAT IS BEING EXCHANGED */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <span style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-color)' }}>
-                Exchange Details
-              </span>
-              <div style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-color)' }}>
-                {swap.topic}
+              {swap.status === 'open' && (
+                <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.2)', color: 'var(--color-structure)' }}>
+                  <div style={{ fontSize: '0.825rem', fontWeight: 700, marginBottom: '0.2rem' }}>⚡ Open Swap Listing</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    Negotiating terms for open swap proposal.
+                  </div>
+                </div>
+              )}
+
+              {['cancelled', 'declined', 'withdrawn', 'expired'].includes(swap.status) && (
+                <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', color: 'var(--color-error)' }}>
+                  <div style={{ fontSize: '0.825rem', fontWeight: 700, marginBottom: '0.2rem' }}>⚠️ Swap Inactive</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    This swap agreement is no longer active ({swap.status}).
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* 4. EXCHANGE DETAILS */}
+            <section className="ws-section ws-details-card" aria-label="Exchange Details">
+              <div className="ws-details-header">
+                <h4 className="ws-section-title">Exchange Details</h4>
+                <span className="ws-credits-badge">⚡ {swap.creditAmount} SkillCredits</span>
               </div>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                {swap.description}
+              <div className="ws-topic-text">{swap.topic}</div>
+
+              {swap.tags && swap.tags.length > 0 && (
+                <div className="ws-tags-list">
+                  {swap.tags.map((t) => (
+                    <span key={t} className="ws-tag-chip">
+                      #{getTagLabel(t)}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <p className="ws-description-text">
+                {swap.description && swap.description.length > 150 && !isDescriptionExpanded ? (
+                  <>
+                    {swap.description.slice(0, 150)}...
+                    <button
+                      type="button"
+                      className="ws-toggle-btn"
+                      onClick={() => setIsDescriptionExpanded(true)}
+                    >
+                      Show more
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {swap.description}
+                    {swap.description && swap.description.length > 150 && isDescriptionExpanded && (
+                      <button
+                        type="button"
+                        className="ws-toggle-btn"
+                        onClick={() => setIsDescriptionExpanded(false)}
+                      >
+                        Show less
+                      </button>
+                    )}
+                  </>
+                )}
               </p>
-            </div>
+            </section>
 
-            {/* REQUIREMENTS & TERMS */}
+            {/* 5. REQUIREMENTS & TERMS */}
             {swap.requirements && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <span style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-color)' }}>
-                  Requirements &amp; Terms
-                </span>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                  {swap.requirements}
+              <section className="ws-section ws-requirements-card" aria-label="Requirements and Terms">
+                <h4 className="ws-section-title">Requirements &amp; Terms</h4>
+                <p className="ws-requirements-text">
+                  {swap.requirements.length > 150 && !isRequirementsExpanded ? (
+                    <>
+                      {swap.requirements.slice(0, 150)}...
+                      <button
+                        type="button"
+                        className="ws-toggle-btn"
+                        onClick={() => setIsRequirementsExpanded(true)}
+                      >
+                        Show more
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {swap.requirements}
+                      {swap.requirements.length > 150 && isRequirementsExpanded && (
+                        <button
+                          type="button"
+                          className="ws-toggle-btn"
+                          onClick={() => setIsRequirementsExpanded(false)}
+                        >
+                          Show less
+                        </button>
+                      )}
+                    </>
+                  )}
                 </p>
-              </div>
+              </section>
             )}
 
-            {/* DELIVERABLES & SUBMITTED FILES CONTEXT */}
+            {/* 6. DELIVERABLES & SUBMISSION WORK STATE */}
             {submission && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <span style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-color)' }}>
-                  Submitted Deliverables
-                </span>
+              <section className="ws-section ws-submission-card" aria-label="Submitted Deliverables">
+                <h4 className="ws-section-title">Submitted Deliverables</h4>
                 {submission.notes && (
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.4 }}>
+                  <p className="ws-submission-notes">
                     &ldquo;{submission.notes}&rdquo;
                   </p>
                 )}
                 {submission.files && submission.files.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.2rem' }}>
+                  <div className="ws-files-list">
                     {submission.files.map((file) => (
-                      <div
-                        key={file.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '0.4rem 0.65rem',
-                          borderRadius: '8px',
-                          background: 'rgba(17, 22, 28, 0.04)',
-                          fontSize: '0.8rem',
-                        }}
-                      >
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, paddingRight: '0.5rem' }}>
-                          📄 {file.fileName}
-                        </span>
+                      <div key={file.id} className="ws-file-item">
+                        <span className="ws-file-name">📄 {file.fileName}</span>
                         <button
                           type="button"
-                          className="as-btn as-btn--secondary"
-                          style={{ padding: '0.2rem 0.5rem', fontSize: '0.725rem' }}
+                          className="as-btn as-btn--secondary ws-file-dl-btn"
                           disabled={downloadingFileId === file.id}
                           onClick={() => handleDownloadFile(file.storagePath, file.fileName, file.id, true)}
                         >
@@ -607,36 +742,20 @@ export function SwapChatModal({
                     ))}
                   </div>
                 )}
-              </div>
+              </section>
             )}
 
-            {/* CREATOR ATTACHMENTS (if present) */}
+            {/* 7. CREATOR RESOURCES */}
             {creatorAttachments.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <span style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-color)' }}>
-                  Creator Resources ({creatorAttachments.length})
-                </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <section className="ws-section ws-resources-card" aria-label="Creator Resources">
+                <h4 className="ws-section-title">Creator Resources ({creatorAttachments.length})</h4>
+                <div className="ws-files-list">
                   {creatorAttachments.map((att) => (
-                    <div
-                      key={att.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '0.4rem 0.65rem',
-                        borderRadius: '8px',
-                        background: 'rgba(17, 22, 28, 0.04)',
-                        fontSize: '0.8rem',
-                      }}
-                    >
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, paddingRight: '0.5rem' }}>
-                        📎 {att.fileName}
-                      </span>
+                    <div key={att.id} className="ws-file-item">
+                      <span className="ws-file-name">📎 {att.fileName}</span>
                       <button
                         type="button"
-                        className="as-btn as-btn--secondary"
-                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.725rem' }}
+                        className="as-btn as-btn--secondary ws-file-dl-btn"
                         disabled={downloadingFileId === att.id}
                         onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false)}
                       >
@@ -645,9 +764,9 @@ export function SwapChatModal({
                     </div>
                   ))}
                 </div>
-              </div>
+              </section>
             )}
-          </div>
+          </aside>
         </div>
       </div>
     </div>
