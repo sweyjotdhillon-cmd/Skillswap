@@ -70,24 +70,30 @@ export function calculateRemainingAutoReleaseMs(
 }
 
 /**
- * Formats milliseconds into human-readable time (e.g., "6d 23h 59m" or "47h 18m 32s").
+ * Formats milliseconds into human-readable time adhering to L10 UX guidelines:
+ * - e.g. "Auto-release in 23h 41m", "Auto-release in 3h 18m", "Auto-release in 42m"
+ * - for < 1m: "Auto-release soon"
+ * - for <= 0ms: "Pending automatic settlement"
  */
 export function formatRemainingTime(ms: number): string {
-  if (ms <= 0) return '0m 0s';
+  if (ms <= 0) return 'Pending automatic settlement';
 
-  const totalSeconds = Math.floor(ms / 1000);
-  const days = Math.floor(totalSeconds / (24 * 3600));
-  const hours = Math.floor((totalSeconds % (24 * 3600)) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
+  const totalMinutes = Math.floor(ms / (60 * 1000));
+  if (totalMinutes < 1) {
+    return 'Auto-release soon';
+  }
+
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
 
   if (days > 0) {
-    return `${days}d ${hours}h ${minutes}m`;
+    return `Auto-release in ${days}d ${hours}h`;
   }
   if (hours > 0) {
-    return `${hours}h ${minutes}m ${seconds}s`;
+    return `Auto-release in ${hours}h ${minutes}m`;
   }
-  return `${minutes}m ${seconds}s`;
+  return `Auto-release in ${minutes}m`;
 }
 
 /**
@@ -359,7 +365,7 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
               </span>
               <span style={{ fontSize: '0.825rem', fontFamily: 'monospace', fontWeight: 700, color: '#f59e0b', background: 'rgba(217, 119, 6, 0.15)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
                 {!isAutoReleaseExpired
-                  ? `Auto-release in: ${formatRemainingTime(remainingMs)}`
+                  ? formatRemainingTime(remainingMs)
                   : 'Auto-release window reached (Pending automatic settlement)'}
               </span>
             </div>

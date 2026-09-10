@@ -64,11 +64,14 @@ export function runTransactionProgressUnitTests() {
   assert(calculateRemainingAutoReleaseMs(null, null, nowMs) === 0, 'Null autoReleaseAt and null submittedAt returns 0');
   assert(calculateRemainingAutoReleaseMs(undefined, undefined, nowMs) === 0, 'Undefined parameters return 0');
 
-  // Test 7: Time formatting helpers
-  assert(formatRemainingTime(0) === '0m 0s', '0ms formats as 0m 0s');
-  assert(formatRemainingTime(60000) === '1m 0s', '60000ms formats as 1m 0s');
-  assert(formatRemainingTime(3600000) === '1h 0m 0s', '3600000ms formats as 1h 0m 0s');
-  assert(formatRemainingTime(86400000 * 2 + 3600000 * 3 + 60000 * 15) === '2d 3h 15m', '2d 3h 15m formatted correctly');
+  // Test 7: Time formatting helpers matching L10 UX guidelines
+  assert(formatRemainingTime(0) === 'Pending automatic settlement', '0ms formats as Pending automatic settlement');
+  assert(formatRemainingTime(30000) === 'Auto-release soon', '30000ms (< 1 min) formats as Auto-release soon');
+  assert(formatRemainingTime(60000) === 'Auto-release in 1m', '60000ms formats as Auto-release in 1m');
+  assert(formatRemainingTime(42 * 60 * 1000) === 'Auto-release in 42m', '42m formats as Auto-release in 42m');
+  assert(formatRemainingTime((3 * 60 + 18) * 60 * 1000) === 'Auto-release in 3h 18m', '3h 18m formats as Auto-release in 3h 18m');
+  assert(formatRemainingTime((23 * 60 + 41) * 60 * 1000) === 'Auto-release in 23h 41m', '23h 41m formats as Auto-release in 23h 41m');
+  assert(formatRemainingTime(86400000 * 2 + 3600000 * 3 + 60000 * 15) === 'Auto-release in 2d 3h', '2d 3h 15m formatted correctly as Auto-release in 2d 3h');
 
   assert(formatCountdown(0) === '00h 00m 00s', '0 seconds countdown formats as 00h 00m 00s');
   assert(formatCountdown(3665) === '01h 01m 05s', '3665 seconds formats as 01h 01m 05s');

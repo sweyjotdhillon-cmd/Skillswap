@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Swap, SwapSubmission } from '../../types/swap';
-import { calculateRemainingAutoReleaseMs, formatCountdown } from '../transaction/TransactionProgress';
+import { calculateRemainingAutoReleaseMs, formatRemainingTime } from '../transaction/TransactionProgress';
 
 export type TransactionEventType =
   | 'SUBMISSION'
@@ -163,9 +163,8 @@ export const SubmissionEventCard: React.FC<{
       {/* Auto-release Timer & Primary CTA */}
       <div className="pt-2 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="text-xs text-slate-400 flex items-center gap-1.5">
-          <span>Auto-release:</span>
           <span className="font-mono font-bold text-amber-400">
-            {secondsLeft > 0 ? formatCountdown(secondsLeft) : 'Ready for release'}
+            {formatRemainingTime(secondsLeft * 1000)}
           </span>
         </div>
 
