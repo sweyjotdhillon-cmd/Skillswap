@@ -12,6 +12,7 @@ import {
   type SwapAttachment,
 } from '../../lib/supabase/credits';
 import type { Swap, SwapMessage, SwapSubmission } from '../../types/swap';
+import { TransactionProgress } from '../transaction/TransactionProgress';
 import {
   SubmissionEventCard,
   SettlementEventCard,
@@ -433,30 +434,16 @@ export function SwapChatModal({
           <div className="chat-workspace-sidebar">
             {/* LIFECYCLE PROGRESS BAR */}
             <div>
-              <span style={{ fontSize: '0.785rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: '0.785rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '0.5rem' }}>
                 Exchange Lifecycle
               </span>
-              <div className="ws-lifecycle-stepper">
-                <div className={`ws-lifecycle-step ${swap.status === 'open' ? 'ws-lifecycle-step--active' : 'ws-lifecycle-step--completed'}`}>
-                  <span className="ws-lifecycle-dot">{swap.status === 'open' ? '1' : '✓'}</span>
-                  <span className="ws-lifecycle-label">Open</span>
-                </div>
-
-                <div className={`ws-lifecycle-step ${swap.status === 'accepted' ? 'ws-lifecycle-step--active' : isAccepted ? 'ws-lifecycle-step--completed' : ''}`}>
-                  <span className="ws-lifecycle-dot">{isAccepted && swap.status !== 'accepted' ? '✓' : '2'}</span>
-                  <span className="ws-lifecycle-label">Accepted</span>
-                </div>
-
-                <div className={`ws-lifecycle-step ${swap.status === 'submitted' ? 'ws-lifecycle-step--active' : isSubmitted ? 'ws-lifecycle-step--completed' : ''}`}>
-                  <span className="ws-lifecycle-dot">{isSubmitted && swap.status !== 'submitted' ? '✓' : '3'}</span>
-                  <span className="ws-lifecycle-label">Submitted</span>
-                </div>
-
-                <div className={`ws-lifecycle-step ${swap.status === 'completed' ? 'ws-lifecycle-step--active ws-lifecycle-step--completed' : ''}`}>
-                  <span className="ws-lifecycle-dot">4</span>
-                  <span className="ws-lifecycle-label">Completed</span>
-                </div>
-              </div>
+              <TransactionProgress
+                status={swap.status}
+                autoReleaseAt={swap.autoReleaseAt}
+                submittedAt={swap.submittedAt}
+                completedAt={swap.completedAt}
+                creditAmount={swap.creditAmount}
+              />
             </div>
 
             {/* NEXT REQUIRED ACTION BANNER & DOMINANT CTA */}
