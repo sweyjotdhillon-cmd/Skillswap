@@ -8,9 +8,9 @@ import {
   getUserCompletedSwapsCount,
   formatAcceptSwapErrorMessage,
 } from '../lib/supabase/credits';
-import { getSkillsCatalog, type Skill } from '../lib/supabase/profile';
+import { getSkillsCatalog } from '../lib/supabase/profile';
 import { mapSwapRecordToSwap, type Swap } from '../types/swap';
-import { SWAP_TAG_OPTIONS, getTagLabel, getTagSlug } from '../constants/tags';
+import { getTagLabel, getTagSlug } from '../constants/tags';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
 import { MarketplaceCard } from '../components/credits/MarketplaceCard';
 import { Footer } from '../components/navigation/Footer';
@@ -172,7 +172,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
           if (uniqueCats.length > 0) {
             // Keep canonical ordering or sort if needed, ensuring All is first
             const sortedCats = SEEDED_19_CATEGORIES.filter((cat) => uniqueCats.includes(cat));
-            const remainingCats = uniqueCats.filter((cat) => !SEEDED_19_CATEGORIES.includes(cat as any));
+            const remainingCats = uniqueCats.filter((cat) => !SEEDED_19_CATEGORIES.includes(cat));
             setCategories(['All', ...sortedCats, ...remainingCats]);
           }
         }
@@ -514,7 +514,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
             </div>
           )}
 
-          {/* Section H.2 Reversible Confirmation Window Banner */}
+          {/* Section L2 / H.2 Reversible Acceptance 5-second Undo Banner */}
           {pendingAcceptSwap && (
             <div
               className="as-toast-banner"
@@ -536,7 +536,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                 <span style={{ fontSize: '1.2rem' }} aria-hidden="true">⚡</span>
                 <div>
                   <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-color)' }}>
-                    Ready to accept this swap.
+                    Accepting this swap...
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                     "{pendingAcceptSwap.swap.topic}" • Accepting in {pendingAcceptSwap.seconds} second{pendingAcceptSwap.seconds !== 1 ? 's' : ''}...

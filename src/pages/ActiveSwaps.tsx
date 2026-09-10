@@ -460,26 +460,103 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     }
   };
 
-  const handleApproveGivenSwap = async (item: ActiveSwapItem) => {
-    if (isMutating) return;
+  // Section L2 5-second Reversible Release Credits Confirmation State
+  const [pendingReleaseSwap, setPendingReleaseSwap] = useState<{ item: ActiveSwapItem; seconds: number } | null>(null);
+  const pendingReleaseTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isExecutingReleaseRef = useRef<boolean>(false);
 
-    setIsMutating(true);
-    const res = await completeCreditSwap(item.swap.id);
-    setIsMutating(false);
+  // Clean up pending release timer on unmount
+  useEffect(() => {
+    return () => {
+      if (pendingReleaseTimerRef.current) {
+        clearInterval(pendingReleaseTimerRef.current);
+        pendingReleaseTimerRef.current = null;
+      }
+    };
+  }, []);
 
-    if (!res.success) {
-      setSubmitSuccessToast(res.error || 'Failed to complete swap and settle credits.');
-      return;
+  const commitReleaseSwap = useCallback(
+    async (item: ActiveSwapItem) => {
+      if (isExecutingReleaseRef.current) return;
+      isExecutingReleaseRef.current = true;
+      setIsMutating(true);
+
+      try {
+        const res = await completeCreditSwap(item.swap.id);
+        setIsMutating(false);
+
+        if (!res.success) {
+          setSubmitSuccessToast(res.error || 'Failed to complete swap and settle credits.');
+          return;
+        }
+
+        await refreshAccount();
+        await loadRealActiveSwaps();
+        setSubmitSuccessToast(
+          `Swap completed! You exchanged expertise on "${item.swap.topic}" with ${item.partner.name} and settled ${item.swap.creditAmount} SkillCredits.`
+        );
+
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => {
+          if (isMountedRef.current) setSubmitSuccessToast(null);
+        }, 5000);
+      } catch (err) {
+        setIsMutating(false);
+        setSubmitSuccessToast(err instanceof Error ? err.message : 'An error occurred while settling credits.');
+      } finally {
+        isExecutingReleaseRef.current = false;
+      }
+    },
+    [refreshAccount, loadRealActiveSwaps]
+  );
+
+  const startPendingRelease = useCallback(
+    (item: ActiveSwapItem) => {
+      // Clear any existing timer to prevent duplicate timers
+      if (pendingReleaseTimerRef.current) {
+        clearInterval(pendingReleaseTimerRef.current);
+        pendingReleaseTimerRef.current = null;
+      }
+
+      setPendingReleaseSwap({ item, seconds: 5 });
+
+      pendingReleaseTimerRef.current = setInterval(() => {
+        setPendingReleaseSwap((prev) => {
+          if (!prev) {
+            if (pendingReleaseTimerRef.current) {
+              clearInterval(pendingReleaseTimerRef.current);
+              pendingReleaseTimerRef.current = null;
+            }
+            return null;
+          }
+
+          if (prev.seconds <= 1) {
+            if (pendingReleaseTimerRef.current) {
+              clearInterval(pendingReleaseTimerRef.current);
+              pendingReleaseTimerRef.current = null;
+            }
+            commitReleaseSwap(prev.item);
+            return null;
+          }
+
+          return { ...prev, seconds: prev.seconds - 1 };
+        });
+      }, 1000);
+    },
+    [commitReleaseSwap]
+  );
+
+  const handleUndoPendingRelease = useCallback(() => {
+    if (pendingReleaseTimerRef.current) {
+      clearInterval(pendingReleaseTimerRef.current);
+      pendingReleaseTimerRef.current = null;
     }
+    setPendingReleaseSwap(null);
+  }, []);
 
-    await refreshAccount();
-    await loadRealActiveSwaps();
-    setSubmitSuccessToast(`Swap completed! You exchanged expertise on "${item.swap.topic}" with ${item.partner.name} and settled ${item.swap.creditAmount} SkillCredits.`);
-
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => {
-      if (isMountedRef.current) setSubmitSuccessToast(null);
-    }, 5000);
+  const handleApproveGivenSwap = (item: ActiveSwapItem) => {
+    if (isMutating || isExecutingReleaseRef.current) return;
+    startPendingRelease(item);
   };
 
   // Undo state for listing cancellation (B3 Behavioral Feedback)
@@ -560,6 +637,55 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
               style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '6px' }}
             >
               💡 Show Onboarding Capital Info
+            </button>
+          </div>
+        )}
+
+        {/* Section L2 5-SECOND TRANSACTIONAL UNDO TOAST FOR RELEASE CREDITS */}
+        {pendingReleaseSwap && (
+          <div
+            className="as-toast-banner"
+            role="status"
+            aria-live="polite"
+            style={{
+              background: 'rgba(214, 166, 74, 0.15)',
+              borderLeft: '4px solid #d6a64a',
+              marginBottom: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem',
+              padding: '0.85rem 1.1rem',
+              borderRadius: '10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <span style={{ fontSize: '1.2rem' }} aria-hidden="true">⚡</span>
+              <div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-color)' }}>
+                  Releasing {pendingReleaseSwap.item.swap.creditAmount} SkillCredits...
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  "{pendingReleaseSwap.item.swap.topic}" • Releasing in {pendingReleaseSwap.seconds} second{pendingReleaseSwap.seconds !== 1 ? 's' : ''}...
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="as-btn as-btn--secondary"
+              style={{
+                padding: '0.35rem 0.9rem',
+                fontSize: '0.825rem',
+                fontWeight: 700,
+                background: '#d6a64a',
+                color: '#0f172a',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+              }}
+              onClick={handleUndoPendingRelease}
+            >
+              Undo ({pendingReleaseSwap.seconds}s)
             </button>
           </div>
         )}
