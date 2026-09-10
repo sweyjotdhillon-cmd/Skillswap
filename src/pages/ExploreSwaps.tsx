@@ -17,61 +17,6 @@ import { ScaffoldingCard } from '../components/ui/ScaffoldingCard';
 
 const CATEGORIES = ['All', ...SWAP_TAG_OPTIONS.map((t) => t.label)];
 
-const SAMPLE_OPEN_SWAPS: Swap[] = [
-  {
-    id: 'sample-swap-1',
-    requesterId: 'user_sample_1',
-    participantId: null,
-    topic: 'React & TypeScript Frontend Architecture Review',
-    description: 'Looking for an experienced engineer to review custom React hooks, component architecture, and state management for a responsive web application.',
-    requirements: 'Provide feedback on component modularity, state flow, and performance.',
-    additionalMessage: null,
-    creditAmount: 30,
-    tags: ['coding', 'design'],
-    status: 'open',
-    submittedAt: null,
-    completedAt: null,
-    cancelledAt: null,
-    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-    updatedAt: new Date().toISOString(),
-    requesterProfile: {
-      fullName: 'Alex Rivera',
-      username: 'alex_frontend',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
-      isVerified: true,
-      averageRating: 4.9,
-      reviewCount: 14,
-      completedSwapsCount: 8,
-    },
-  },
-  {
-    id: 'sample-swap-2',
-    requesterId: 'user_sample_2',
-    participantId: null,
-    topic: 'Logo Design & Brand Identity Package',
-    description: 'Need a vector logo lockup and brand color palette for a high-growth tech platform.',
-    requirements: 'SVG logo files, dark/light mode icon variations, and brand style guide.',
-    additionalMessage: null,
-    creditAmount: 25,
-    tags: ['design'],
-    status: 'open',
-    submittedAt: null,
-    completedAt: null,
-    cancelledAt: null,
-    createdAt: new Date(Date.now() - 3600000 * 12).toISOString(),
-    updatedAt: new Date().toISOString(),
-    requesterProfile: {
-      fullName: 'Sophia Chen',
-      username: 'sophiadesign',
-      avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=120&auto=format&fit=crop&q=80',
-      isVerified: true,
-      averageRating: 4.8,
-      reviewCount: 9,
-      completedSwapsCount: 5,
-    },
-  },
-];
-
 type ExploreSwapsPageProps = {
   onNavigate?: (path: string) => void;
 };
@@ -107,7 +52,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
       const res = await getOpenSwaps();
       if (res.error) {
         setFetchError(res.error);
-        setSwaps(SAMPLE_OPEN_SWAPS);
+        setSwaps([]);
       } else if (res.data && res.data.length > 0) {
         const mappedReal: Swap[] = res.data.map(mapSwapRecordToSwap);
         setSwaps(mappedReal);
@@ -125,12 +70,12 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
         });
         setCompletedSwapsMap(map);
       } else {
-        setSwaps(SAMPLE_OPEN_SWAPS);
+        setSwaps([]);
       }
     } catch (err) {
       console.error('Error loading real open swaps:', err);
       setFetchError(null);
-      setSwaps(SAMPLE_OPEN_SWAPS);
+      setSwaps([]);
     } finally {
       setIsLoading(false);
     }
