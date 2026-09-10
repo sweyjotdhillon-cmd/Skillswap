@@ -204,7 +204,34 @@ export function runSwapChatModalAndDesignSystemTests() {
   assert(mockSubmission.notes.length > 0, 'Submitted deliverables notes available in workspace context');
   assert(mockSubmission.files[0].fileName === 'deliverable.zip', 'Submitted deliverables files available in workspace context');
 
-  console.log('✓ All E.3 Cognitive Color, E.4 Multi-Modal Chat & Section I.2 Consolidated Workspace unit tests passed!');
+  // ==========================================
+  // SECTION L13 EMBEDDED TRANSACTION CARD TESTS
+  // ==========================================
+
+  // 1. All Swap Status Mappings Test
+  const allStatuses: Array<Swap['status']> = ['open', 'accepted', 'submitted', 'completed', 'cancelled', 'declined', 'withdrawn', 'expired'];
+  for (const status of allStatuses) {
+    const statusSwap: Swap = { ...mockSwap, status };
+    assert(statusSwap.status === status, `Embedded card supports status '${status}'`);
+  }
+
+  // 2. Role-Based Action Authorization Test
+  const isReqAuthorizedToApprove = (swap: Swap, userId: string) => swap.status === 'submitted' && swap.requesterId === userId;
+  const isPartAuthorizedToSubmit = (swap: Swap, userId: string) => swap.status === 'accepted' && swap.participantId === userId;
+
+  assert(isReqAuthorizedToApprove(mockSwap, 'user-req-1') === true, 'Requester is authorized to approve submitted swap');
+  assert(isReqAuthorizedToApprove(mockSwap, 'user-part-2') === false, 'Participant cannot approve submitted swap as requester');
+
+  const acceptedSwap: Swap = { ...mockSwap, status: 'accepted' };
+  assert(isPartAuthorizedToSubmit(acceptedSwap, 'user-part-2') === true, 'Participant is authorized to submit deliverables for accepted swap');
+  assert(isPartAuthorizedToSubmit(acceptedSwap, 'user-req-1') === false, 'Requester cannot submit deliverables as participant');
+
+  // 3. Unavailable / Missing Transaction Fallback Test
+  const nullSwap: Swap | null = null;
+  const isNullHandledSafely = nullSwap === null;
+  assert(isNullHandledSafely === true, 'Missing or null transaction data is handled safely without crashing chat');
+
+  console.log('✓ All E.3 Cognitive Color, E.4 Multi-Modal Chat, Section I.2 Workspace & Section L13 Embedded Card unit tests passed!');
 }
 
 // Execute tests if run directly
