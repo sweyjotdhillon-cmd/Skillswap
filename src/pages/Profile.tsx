@@ -18,6 +18,7 @@ import {
 } from '../lib/supabase/profile';
 import { getUserCompletedSwapsCount } from '../lib/supabase/credits';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
+import { VerificationBadge } from '../components/ui/VerificationBadge';
 
 type ProfilePageProps = {
   onNavigate?: (path: string) => void;
@@ -334,14 +335,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                 <h1 className="profile-full-name" style={{ margin: 0 }}>{profile.full_name}</h1>
 
                 {/* VERIFIED IDENTITY CUE (Strictly checks is_verified) */}
-                {profile.is_verified && (
-                  <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12" aria-hidden="true">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    Verified Profile
-                  </span>
-                )}
+                <VerificationBadge isVerified={profile.is_verified} label="Verified Profile" size="md" />
               </div>
 
               <div className="profile-username-row" style={{ marginTop: '0.35rem' }}>
@@ -509,14 +503,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                               {rev.reviewer_profile?.username && (
                                 <span style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>@{rev.reviewer_profile.username}</span>
                               )}
-                              {rev.reviewer_profile?.is_verified && (
-                                <span className="verification-badge" title="Verified Profile" aria-label="Verified profile" style={{ fontSize: '0.685rem', padding: '0.1rem 0.35rem' }}>
-                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="10" height="10" aria-hidden="true">
-                                    <polyline points="20 6 9 17 4 12" />
-                                  </svg>
-                                  Verified
-                                </span>
-                              )}
+                              <VerificationBadge isVerified={rev.reviewer_profile?.is_verified} size="sm" />
                             </div>
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{dateFormatted}</span>
                           </div>

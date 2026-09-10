@@ -14,6 +14,7 @@ import { getTagLabel, getTagSlug } from '../constants/tags';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
 import { MarketplaceCard } from '../components/credits/MarketplaceCard';
 import { Footer } from '../components/navigation/Footer';
+import { VerificationBadge } from '../components/ui/VerificationBadge';
 import { ScaffoldingCard } from '../components/ui/ScaffoldingCard';
 
 const SEEDED_19_CATEGORIES: readonly string[] = [
@@ -707,14 +708,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                     {selectedSwapForAccept.requesterProfile?.username && (
                       <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>@{selectedSwapForAccept.requesterProfile.username}</span>
                     )}
-                    {selectedSwapForAccept.requesterProfile?.isVerified && (
-                      <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        Verified
-                      </span>
-                    )}
+                    <VerificationBadge isVerified={selectedSwapForAccept.requesterProfile?.isVerified} size="sm" />
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
                     <span>

@@ -273,11 +273,11 @@ export function runSwapChatModalAndDesignSystemTests() {
   // 4. Mobile Tab Switcher State Contract (Breakpoints <= 768px)
   type MobileTab = 'chat' | 'workspace';
   let activeTabState: MobileTab = 'chat';
-
+  assert(activeTabState === 'chat', 'Initial mobile tab is chat');
   activeTabState = 'workspace';
-  assert((activeTabState as string) === 'workspace', 'Mobile tab switcher changes active view to workspace');
+  assert(activeTabState === 'workspace', 'Mobile tab switcher changes active view to workspace');
   activeTabState = 'chat';
-  assert((activeTabState as string) === 'chat', 'Mobile tab switcher restores active view to chat timeline');
+  assert(activeTabState === 'chat', 'Mobile tab switcher restores active view to chat timeline');
 
   // 5. Terminal Lifecycle State Notice Mapping
   for (const status of ['cancelled', 'declined', 'withdrawn', 'expired'] as const) {

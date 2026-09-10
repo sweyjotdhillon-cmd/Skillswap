@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { calculateRemainingAutoReleaseMs, formatRemainingTime } from '../transaction/TransactionProgress';
+import { VerificationBadge } from '../ui/VerificationBadge';
 
 // ==========================================
 // 1. PROTOTYPICAL MARKETPLACE CARD (SPOTTED PATTERN - SECTION K.1)
@@ -54,11 +55,7 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
             <span className="text-sm font-semibold text-slate-300">{creatorName}</span>
             {username && <span className="text-xs text-slate-400">@{username}</span>}
             <span className="text-xs text-slate-500">• {timeAgo}</span>
-            {isVerified && (
-              <span className="verification-badge" title="Verified Identity">
-                ✓ Verified
-              </span>
-            )}
+            <VerificationBadge isVerified={isVerified} size="sm" />
           </div>
 
           {/* Social Proof Row */}
