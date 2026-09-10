@@ -1,5 +1,5 @@
 import React from 'react';
-import { SWAP_TEMPLATES, SwapTemplate } from '../../constants/templates';
+import { SWAP_TEMPLATES, SwapTemplate, getTemplatePreFilledSummary } from '../../constants/templates';
 import { getTagLabel } from '../../constants/tags';
 
 interface TemplateGalleryProps {
@@ -26,7 +26,7 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="template-gallery-actions">
           {onDismiss && (
             <button
               type="button"
@@ -34,18 +34,6 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
               className="scaffolding-dismiss-btn"
               title="Don't show this again"
               aria-label="Don't show starter templates again"
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--color-structure-border, rgba(148, 163, 184, 0.25))',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: 'var(--color-text-muted, var(--text-muted))',
-                padding: '0.3rem 0.6rem',
-                lineHeight: 1.2,
-                whiteSpace: 'nowrap',
-              }}
             >
               Don't show this again
             </button>
@@ -62,13 +50,16 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
         </div>
       </div>
 
-      <div className="template-gallery-grid">
+      <div className="template-gallery-grid" role="region" aria-label="Swap Template Cards">
         {SWAP_TEMPLATES.map((tpl) => {
           const isActive = activeTemplateId === tpl.id;
+          const prefillSummary = getTemplatePreFilledSummary(tpl);
+
           return (
-            <div
+            <article
               key={tpl.id}
               className={`template-card ${isActive ? 'template-card--active' : ''}`}
+              aria-labelledby={`tpl-title-${tpl.id}`}
             >
               <div className="template-card-header">
                 <span className="template-icon" role="img" aria-hidden="true">
@@ -79,7 +70,7 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
                 </span>
               </div>
 
-              <h3 className="template-card-title">{tpl.name}</h3>
+              <h3 id={`tpl-title-${tpl.id}`} className="template-card-title">{tpl.name}</h3>
               <p className="template-card-desc">{tpl.description}</p>
 
               <div className="template-useful-box">
@@ -87,17 +78,24 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
                 <p className="template-useful-text">{tpl.usefulFor}</p>
               </div>
 
+              <div className="template-prefill-pill" aria-label={prefillSummary}>
+                <span className="template-prefill-icon" aria-hidden="true">📋</span>
+                <span className="template-prefill-text">
+                  <strong>Pre-fills:</strong> Topic, Tags, Description, <strong>{tpl.formValues.credits} Credits</strong> &amp; Requirements
+                </span>
+              </div>
+
               <div className="template-card-footer">
                 <button
                   type="button"
                   onClick={() => onSelectTemplate(tpl)}
                   className={`template-use-btn ${isActive ? 'template-use-btn--active' : ''}`}
-                  aria-label={`Use template: ${tpl.name}`}
+                  aria-label={isActive ? `Template applied: ${tpl.name}` : `Use template to pre-fill form: ${tpl.name}`}
                 >
                   {isActive ? '✓ Template Applied' : 'Use Template →'}
                 </button>
               </div>
-            </div>
+            </article>
           );
         })}
       </div>

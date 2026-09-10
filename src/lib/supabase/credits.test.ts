@@ -10,6 +10,7 @@ import { runAcceptSwapFlowUnitTests } from './accept_swap_flow.test';
 import { runSectionH3ScaffoldingUnitTests } from './scaffolding.test';
 import { runOnboardingProgressBarUnitTests } from '../../components/cognitive/OnboardingProgressBar.test';
 import { runErrorRecoveryUnitTests } from './error_recovery.test';
+import { runTemplateGalleryUnitTests } from '../../components/create-swap/TemplateGallery.test';
 import './credibility_verification.test';
 
 function assert(condition: boolean, message: string) {
@@ -39,6 +40,9 @@ export async function runCreditSystemTests() {
 
   // Run Section L.3 Error Recovery Unit Tests
   runErrorRecoveryUnitTests();
+
+  // Run Section L.14 Template Gallery & Form Prefill Unit Tests
+  runTemplateGalleryUnitTests();
 
   // 1. Initialize embedded PostgreSQL engine (PGlite)
   const db = new PGlite();

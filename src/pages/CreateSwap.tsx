@@ -46,6 +46,8 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
+  const [pendingTemplateForConfirm, setPendingTemplateForConfirm] = useState<SwapTemplate | null>(null);
+  const [showStartFromScratchConfirm, setShowStartFromScratchConfirm] = useState(false);
 
   const [formState, setFormState] = useState<CreateSwapFormState>(() => {
     try {
@@ -157,7 +159,19 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
     return step1Valid && step2Valid;
   };
 
-  const handleSelectTemplate = (template: SwapTemplate) => {
+  const hasMeaningfulUserData = (): boolean => {
+    return Boolean(
+      formState.topic.trim() ||
+      formState.description.trim() ||
+      formState.requirements.trim() ||
+      formState.credits.trim() ||
+      formState.additionalMessage.trim() ||
+      (formState.tags && formState.tags.length > 0) ||
+      (formState.attachments && formState.attachments.length > 0)
+    );
+  };
+
+  const applyTemplate = (template: SwapTemplate) => {
     const canonicalTags = template.formValues.tags
       .map((t) => getTagSlug(t))
       .filter((t) => Boolean(t) && isValidSwapTag(t));
@@ -182,14 +196,23 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
     if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
     statusTimerRef.current = setTimeout(() => setStatusMessage(null), 5000);
 
-    // Smooth scroll to form section
     const formEl = document.querySelector('.create-swap-form, .cs-stepper-container');
     if (formEl) {
       formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
-  const handleStartFromScratch = () => {
+  const handleSelectTemplate = (template: SwapTemplate) => {
+    if (activeTemplateId === template.id) return;
+
+    if (hasMeaningfulUserData()) {
+      setPendingTemplateForConfirm(template);
+    } else {
+      applyTemplate(template);
+    }
+  };
+
+  const executeStartFromScratch = () => {
     setFormState({
       topic: '',
       tags: [],
@@ -220,6 +243,14 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
     const formEl = document.querySelector('.create-swap-form, .cs-stepper-container');
     if (formEl) {
       formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const handleStartFromScratch = () => {
+    if (hasMeaningfulUserData()) {
+      setShowStartFromScratchConfirm(true);
+    } else {
+      executeStartFromScratch();
     }
   };
 
@@ -735,6 +766,81 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
           <SwapPreviewCard formState={formState} />
         </div>
       </main>
+
+      {/* CONFIRMATION MODAL: REPLACE FORM WITH TEMPLATE */}
+      {pendingTemplateForConfirm && (
+        <div className="modal-overlay" onClick={() => setPendingTemplateForConfirm(null)}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-tpl-title"
+          >
+            <h3 id="confirm-tpl-title" className="modal-title">Replace Current Form Content?</h3>
+            <p style={{ margin: '0 0 1.25rem', fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              You have unsaved entries in your swap request form. Applying the <strong>"{pendingTemplateForConfirm.name}"</strong> template will replace your current form inputs.
+            </p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn modal-btn--cancel"
+                onClick={() => setPendingTemplateForConfirm(null)}
+              >
+                Keep Current Entries
+              </button>
+              <button
+                type="button"
+                className="modal-btn modal-btn--confirm"
+                onClick={() => {
+                  const tpl = pendingTemplateForConfirm;
+                  setPendingTemplateForConfirm(null);
+                  applyTemplate(tpl);
+                }}
+              >
+                Replace with Template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMATION MODAL: START FROM SCRATCH */}
+      {showStartFromScratchConfirm && (
+        <div className="modal-overlay" onClick={() => setShowStartFromScratchConfirm(false)}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-scratch-title"
+          >
+            <h3 id="confirm-scratch-title" className="modal-title">Clear Form Content?</h3>
+            <p style={{ margin: '0 0 1.25rem', fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              Are you sure you want to clear your current form entries and start from scratch with a blank form?
+            </p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn modal-btn--cancel"
+                onClick={() => setShowStartFromScratchConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="modal-btn modal-btn--confirm"
+                onClick={() => {
+                  setShowStartFromScratchConfirm(false);
+                  executeStartFromScratch();
+                }}
+              >
+                Clear Form
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
