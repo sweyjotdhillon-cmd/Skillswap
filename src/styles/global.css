@@ -1373,15 +1373,15 @@ h1 span { color: #a8781d; }
   .page-shell { width: min(100% - 16px, 760px); margin: 8px auto; border-radius: 22px; }
   .site-header { align-items: center; }
   .main-nav { display: none; }
-  .header-cta { padding: .75rem 1rem; font-size: .9rem; }
+  .header-cta { padding: .75rem 1rem; font-size: .9rem; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
   .hero { flex-direction: column; align-items: stretch; min-height: auto; gap: 1.5rem; }
   .hero-top-grid { flex-direction: column; align-items: stretch; gap: 1.5rem; }
   .hero-bottom-bar { flex-direction: column; align-items: stretch; gap: 1.25rem; }
   .hero-copy { flex: auto; padding-top: 1rem; }
-  h1 { font-size: clamp(4.4rem, 18vw, 7rem); }
+  h1 { font-size: clamp(2.8rem, 12vw, 4.8rem); word-break: break-word; }
   .hero-actions { flex-direction: column; align-items: stretch; width: 100%; }
-  .action-button { width: 100%; }
-  .ecosystem { min-height: 380px; }
+  .action-button { width: 100%; min-height: 44px; }
+  .ecosystem { min-height: 320px; overflow: hidden; }
   .ecosystem--image { transform: none; min-height: 0; margin-bottom: 0; padding: 0 2%; }
   .ecosystem-image { max-width: 460px; margin: 0 auto; }
   .person--two em { left: -84px; top: 72px; }
@@ -1389,11 +1389,28 @@ h1 span { color: #a8781d; }
 @media (max-width: 440px) {
   .wordmark { font-size: 1.45rem; }
   .brand-mark { width: 29px; }
-  .header-cta { font-size: .78rem; }
-  .hero-copy { padding-top: 3rem; }
-  .ecosystem { min-height: 360px; transform: scale(.78); width: 128%; margin-left: -14%; }
-  .ecosystem--image { transform: none; width: 100%; margin-left: 0; min-height: 0; padding: 0 6%; }
-  .ecosystem-image { max-width: 360px; }
+  .header-cta { font-size: .78rem; min-height: 44px; }
+  .hero-copy { padding-top: 1.5rem; }
+  h1 { font-size: clamp(2.2rem, 10vw, 3.2rem); }
+  .ecosystem { min-height: 260px; transform: none; width: 100%; margin-left: 0; overflow: hidden; }
+  .ecosystem--image { transform: none; width: 100%; margin-left: 0; min-height: 0; padding: 0 2%; }
+  .ecosystem-image { max-width: 320px; }
+}
+
+/* Sign out button styling */
+.btn-signout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(17, 22, 28, 0.15);
+  background: transparent;
+  color: var(--text-color);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 /* Header User Actions */
@@ -1404,8 +1421,10 @@ h1 span { color: #a8781d; }
 }
 
 .header-icon-btn {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 50%;
   border: 1px solid rgba(17, 22, 28, 0.12);
   background: #fff;
