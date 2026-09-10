@@ -312,6 +312,174 @@ export const CreditReleaseEventCard: React.FC<{
 };
 
 /**
+ * 5. EMBEDDED TRANSACTION/STATUS CARD (Section L13)
+ * Compact embedded transaction object inside the chat workspace timeline.
+ * Surfaces swap context, credits, scannable status, participant context,
+ * and permitted actions without leaving the chat interface.
+ */
+export interface EmbeddedTransactionCardProps {
+  swap?: Swap | null;
+  currentUserId?: string | null;
+  onOpenSubmitWork?: () => void;
+  onApproveSwap?: () => Promise<void>;
+  isApproving?: boolean;
+}
+
+export const EmbeddedTransactionCard: React.FC<EmbeddedTransactionCardProps> = ({
+  swap,
+  currentUserId,
+  onOpenSubmitWork,
+  onApproveSwap,
+  isApproving = false,
+}) => {
+  if (!swap) {
+    return (
+      <div
+        className="embedded-transaction-card embedded-transaction-card--unavailable"
+        role="region"
+        aria-label="Transaction status summary"
+      >
+        <div className="embedded-tx-header">
+          <span className="embedded-tx-title">Transaction Summary</span>
+          <span className="embedded-tx-status-badge embedded-tx-status-badge--unavailable">
+            ⚠️ Unavailable
+          </span>
+        </div>
+        <p className="embedded-tx-description">
+          Transaction details are currently unavailable or inaccessible.
+        </p>
+      </div>
+    );
+  }
+
+  const isRequester = Boolean(currentUserId && swap.requesterId === currentUserId);
+  const isParticipant = Boolean(currentUserId && swap.participantId && swap.participantId === currentUserId);
+
+  let statusBadgeClass: string;
+  let statusBadgeText: string;
+
+  switch (swap.status) {
+    case 'accepted':
+      statusBadgeClass = 'embedded-tx-status-badge--accepted';
+      statusBadgeText = 'Accepted / In Progress';
+      break;
+    case 'submitted':
+      statusBadgeClass = 'embedded-tx-status-badge--submitted';
+      statusBadgeText = 'Submitted / Under Review';
+      break;
+    case 'completed':
+      statusBadgeClass = 'embedded-tx-status-badge--completed';
+      statusBadgeText = '✓ Completed & Settled';
+      break;
+    case 'cancelled':
+    case 'declined':
+    case 'withdrawn':
+    case 'expired':
+      statusBadgeClass = 'embedded-tx-status-badge--terminal';
+      statusBadgeText = `Closed (${swap.status})`;
+      break;
+    case 'open':
+    default:
+      statusBadgeClass = 'embedded-tx-status-badge--open';
+      statusBadgeText = 'Open Swap Listing';
+      break;
+  }
+
+  return (
+    <div
+      className="embedded-transaction-card"
+      role="region"
+      aria-label={`Transaction status card for ${swap.topic}`}
+    >
+      <div className="embedded-tx-header">
+        <div className="embedded-tx-topic-group">
+          <span className="embedded-tx-icon" aria-hidden="true">⚡</span>
+          <h4 className="embedded-tx-title">{swap.topic}</h4>
+        </div>
+        <span className={`embedded-tx-status-badge ${statusBadgeClass}`}>
+          ● {statusBadgeText}
+        </span>
+      </div>
+
+      <div className="embedded-tx-meta">
+        <span className="embedded-tx-credits-badge">
+          {swap.creditAmount} SkillCredits
+        </span>
+        {swap.requirements && (
+          <p className="embedded-tx-description">
+            {swap.requirements}
+          </p>
+        )}
+      </div>
+
+      {/* Role-based Context Banner & Permitted Action CTAs */}
+      <div className="embedded-tx-footer">
+        {swap.status === 'open' && (
+          <span className="embedded-tx-subtext">
+            Open swap listing available on SkillSwap.
+          </span>
+        )}
+
+        {swap.status === 'accepted' && (
+          <>
+            <span className="embedded-tx-subtext">
+              {isParticipant
+                ? '⚡ Swap active. Complete agreed work and submit deliverables.'
+                : isRequester
+                ? '⏳ Swap active. Waiting for participant to submit deliverables.'
+                : 'Swap active.'}
+            </span>
+            {isParticipant && onOpenSubmitWork && (
+              <button
+                type="button"
+                className="embedded-tx-action-btn embedded-tx-action-btn--primary"
+                onClick={onOpenSubmitWork}
+              >
+                Submit Deliverables
+              </button>
+            )}
+          </>
+        )}
+
+        {swap.status === 'submitted' && (
+          <>
+            <span className="embedded-tx-subtext">
+              {isRequester
+                ? '⚡ Deliverables submitted. Review work and release credits.'
+                : isParticipant
+                ? '⏳ Deliverables submitted. Waiting for requester review.'
+                : 'Deliverables submitted under review.'}
+            </span>
+            {isRequester && onApproveSwap && (
+              <button
+                type="button"
+                className="embedded-tx-action-btn embedded-tx-action-btn--primary"
+                disabled={isApproving}
+                onClick={onApproveSwap}
+              >
+                {isApproving ? 'Settling...' : `Approve & Release ${swap.creditAmount} Credits`}
+              </button>
+            )}
+          </>
+        )}
+
+        {swap.status === 'completed' && (
+          <span className="embedded-tx-subtext embedded-tx-subtext--success">
+            ✓ Escrow settled successfully. {swap.creditAmount} SkillCredits transferred.
+          </span>
+        )}
+
+        {['cancelled', 'declined', 'withdrawn', 'expired'].includes(swap.status) && (
+          <span className="embedded-tx-subtext embedded-tx-subtext--warning">
+            This swap is no longer active ({swap.status}).
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/**
  * Unified Transaction Event component router
  */
 export const TransactionEventCard: React.FC<TransactionEventProps> = (props) => {

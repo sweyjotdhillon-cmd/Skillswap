@@ -14,6 +14,7 @@ import {
 import type { Swap, SwapMessage, SwapSubmission } from '../../types/swap';
 import { TransactionProgress } from '../transaction/TransactionProgress';
 import {
+  EmbeddedTransactionCard,
   SubmissionEventCard,
   SettlementEventCard,
   StatusChangeEventCard,
@@ -341,6 +342,15 @@ export function SwapChatModal({
           {/* MAIN / LEFT AREA: CHAT TIMELINE WITH EMBEDDED SYSTEM CARDS */}
           <div className="chat-workspace-main">
             <div className="chat-messages-container">
+              {/* SECTION L13: EMBEDDED TRANSACTION / STATUS CARD INSIDE CHAT */}
+              <EmbeddedTransactionCard
+                swap={swap}
+                currentUserId={user?.id}
+                onOpenSubmitWork={onOpenSubmitWork}
+                onApproveSwap={onApproveSwap}
+                isApproving={isApproving}
+              />
+
               {/* SYSTEM CARD 1: ESCROW ALLOCATION INITIALIZATION */}
               <div className="chat-system-card chat-system-card--reserved">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>

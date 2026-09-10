@@ -3143,6 +3143,238 @@ h1 span { color: #a8781d; }
   background: rgba(255, 255, 255, 0.02);
 }
 
+/* Section L13: Embedded Transaction / Status Card in Chat Timeline */
+.embedded-transaction-card {
+  align-self: center;
+  width: 100%;
+  max-width: 520px;
+  padding: 1rem 1.15rem;
+  border-radius: 16px;
+  margin: 0.5rem 0 0.85rem;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-structure-border, rgba(56, 189, 248, 0.3));
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+[data-theme='dark'] .embedded-transaction-card {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(56, 189, 248, 0.25);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.embedded-transaction-card--unavailable {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.embedded-tx-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.embedded-tx-topic-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.embedded-tx-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.embedded-tx-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text-primary, var(--text-color));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.embedded-tx-status-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.embedded-tx-status-badge--open {
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--color-structure, #0284c7);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.embedded-tx-status-badge--accepted {
+  background: rgba(214, 166, 74, 0.12);
+  color: var(--color-transactional, #a8781d);
+  border: 1px solid rgba(214, 166, 74, 0.3);
+}
+
+.embedded-tx-status-badge--submitted {
+  background: rgba(168, 85, 247, 0.12);
+  color: #9333ea;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+[data-theme='dark'] .embedded-tx-status-badge--submitted {
+  color: #c084fc;
+}
+
+.embedded-tx-status-badge--completed {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+[data-theme='dark'] .embedded-tx-status-badge--completed {
+  color: #34d399;
+}
+
+.embedded-tx-status-badge--terminal {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+[data-theme='dark'] .embedded-tx-status-badge--terminal {
+  color: #f87171;
+}
+
+.embedded-tx-status-badge--unavailable {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--color-text-muted, #64748b);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.embedded-tx-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.embedded-tx-credits-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: var(--color-transactional, #a8781d);
+  background: rgba(214, 166, 74, 0.12);
+  border: 1px solid rgba(214, 166, 74, 0.25);
+  padding: 0.2rem 0.6rem;
+  border-radius: 8px;
+}
+
+.embedded-tx-description {
+  margin: 0;
+  font-size: 0.825rem;
+  color: var(--color-text-secondary, var(--text-secondary));
+  line-height: 1.45;
+}
+
+.embedded-tx-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--color-structure-border, rgba(148, 163, 184, 0.15));
+  flex-wrap: wrap;
+}
+
+.embedded-tx-subtext {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, var(--text-secondary));
+  flex: 1;
+  min-width: 180px;
+}
+
+.embedded-tx-subtext--success {
+  color: #059669;
+  font-weight: 600;
+}
+
+[data-theme='dark'] .embedded-tx-subtext--success {
+  color: #34d399;
+}
+
+.embedded-tx-subtext--warning {
+  color: #dc2626;
+}
+
+[data-theme='dark'] .embedded-tx-subtext--warning {
+  color: #f87171;
+}
+
+.embedded-tx-action-btn {
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  font-size: 0.825rem;
+  font-weight: 700;
+  border-radius: 10px;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.1s ease, filter 0.15s ease, background 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.embedded-tx-action-btn--primary {
+  background: var(--color-transactional, #d6a64a);
+  color: #0f172a;
+}
+
+.embedded-tx-action-btn--primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.embedded-tx-action-btn--primary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.embedded-tx-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .embedded-transaction-card {
+    padding: 0.85rem;
+    margin: 0.35rem 0 0.65rem;
+  }
+
+  .embedded-tx-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .embedded-tx-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .embedded-tx-action-btn {
+    width: 100%;
+  }
+}
+
 /* System Event Cards in Chat Timeline */
 .chat-system-card {
   align-self: center;
