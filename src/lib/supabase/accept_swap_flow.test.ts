@@ -253,6 +253,163 @@ export function runAcceptSwapFlowUnitTests() {
   assert(acceptCreditSwapCallCount === 1, 'Test 7: acceptCreditSwap() called exactly 1 time despite duplicate acceptance triggers');
 
   console.log('✓ All Section H.2 Reversible Accept Swap Flow unit tests passed perfectly!');
+
+  // =========================================================================
+  // SECTION L2: 5-Second Reversible Release Credits State Machine Verification
+  // =========================================================================
+  console.log('--- Starting Section L2 Reversible Release Credits Flow Unit Tests ---');
+
+  let completeCreditSwapCallCount = 0;
+  let lastCompletedSwapId: string | null = null;
+
+  const mockCompleteCreditSwap = async (swapId: string): Promise<{ success: boolean; error?: string }> => {
+    completeCreditSwapCallCount++;
+    lastCompletedSwapId = swapId;
+    return { success: true };
+  };
+
+  assert(lastCompletedSwapId === null, 'Initial lastCompletedSwapId is null');
+
+  class PendingReleaseStateMachine {
+    pendingRelease: { swap: Swap; seconds: number } | null = null;
+    timer: ReturnType<typeof setInterval> | null = null;
+    isExecuting = false;
+    errorMessage: string | null = null;
+    successToast: string | null = null;
+
+    getErrorMessage() {
+      return this.errorMessage;
+    }
+
+    getSuccessToast() {
+      return this.successToast;
+    }
+
+    startPending(swap: Swap) {
+      if (this.timer) {
+        clearInterval(this.timer);
+        this.timer = null;
+      }
+      this.errorMessage = null;
+      this.successToast = null;
+      this.pendingRelease = { swap, seconds: 5 };
+    }
+
+    tickSecond() {
+      if (!this.pendingRelease) return;
+      if (this.pendingRelease.seconds <= 1) {
+        if (this.timer) {
+          clearInterval(this.timer);
+          this.timer = null;
+        }
+        const swapToCommit = this.pendingRelease.swap;
+        this.pendingRelease = null;
+        this.commitRelease(swapToCommit);
+      } else {
+        this.pendingRelease = { ...this.pendingRelease, seconds: this.pendingRelease.seconds - 1 };
+      }
+    }
+
+    undo() {
+      if (this.timer) {
+        clearInterval(this.timer);
+        this.timer = null;
+      }
+      this.pendingRelease = null;
+    }
+
+    async commitRelease(swap: Swap) {
+      if (this.isExecuting) return;
+      this.isExecuting = true;
+      try {
+        const res = await mockCompleteCreditSwap(swap.id);
+        if (res.success) {
+          this.successToast = `Swap completed and settled ${swap.creditAmount} SkillCredits.`;
+        } else {
+          this.errorMessage = res.error || 'Failed to complete swap.';
+        }
+      } catch (err) {
+        this.errorMessage = err instanceof Error ? err.message : 'An error occurred.';
+      } finally {
+        this.isExecuting = false;
+      }
+    }
+
+    cleanup() {
+      if (this.timer) {
+        clearInterval(this.timer);
+        this.timer = null;
+      }
+      this.pendingRelease = null;
+    }
+  }
+
+  // TEST L2-1: Release Credits trigger starts 5-second pending state
+  completeCreditSwapCallCount = 0;
+  const relState1 = new PendingReleaseStateMachine();
+  assert(relState1.pendingRelease === null, 'Test L2-1: Initial pending release is null');
+  relState1.startPending(mockSwap);
+  assert(relState1.pendingRelease !== null, 'Test L2-1: Pending release state is set');
+  assert(relState1.pendingRelease?.seconds === 5, 'Test L2-1: Release countdown starts at 5 seconds');
+  assert(completeCreditSwapCallCount === 0, 'Test L2-1: completeCreditSwap is NOT called immediately (t=0s)');
+
+  // TEST L2-2: completeCreditSwap is NOT called during countdown ticks (t=1s..4s)
+  relState1.tickSecond(); // 5 -> 4
+  assert(completeCreditSwapCallCount === 0, 'Test L2-2: completeCreditSwap is 0 calls at t=1s');
+  relState1.tickSecond(); // 4 -> 3
+  assert(completeCreditSwapCallCount === 0, 'Test L2-2: completeCreditSwap is 0 calls at t=2s');
+
+  // TEST L2-3: Clicking Undo within 5 seconds cancels release permanently
+  relState1.undo();
+  assert(relState1.pendingRelease === null, 'Test L2-3: Pending release cleared on Undo');
+  assert(completeCreditSwapCallCount === 0, 'Test L2-3: completeCreditSwap was NEVER called');
+
+  // Additional ticks after undo
+  relState1.tickSecond();
+  relState1.tickSecond();
+  assert(completeCreditSwapCallCount === 0, 'Test L2-3: completeCreditSwap remains 0 calls');
+
+  // TEST L2-4: Countdown completion executes completeCreditSwap exactly once
+  completeCreditSwapCallCount = 0;
+  lastCompletedSwapId = null;
+  const relState2 = new PendingReleaseStateMachine();
+  relState2.startPending(mockSwap); // 5s
+
+  for (let i = 0; i < 4; i++) {
+    relState2.tickSecond();
+  }
+  assert(completeCreditSwapCallCount === 0, 'Test L2-4: completeCreditSwap not called before 5s expires');
+
+  relState2.tickSecond(); // 0s expiration
+  assert(completeCreditSwapCallCount === 1, 'Test L2-4: completeCreditSwap called exactly once on countdown completion');
+  assert(lastCompletedSwapId === mockSwap.id, 'Test L2-4: Completed swap ID matches target');
+
+  // TEST L2-5: Rapid duplicate clicks reset/deduplicate and fire exactly once
+  completeCreditSwapCallCount = 0;
+  const relState3 = new PendingReleaseStateMachine();
+  relState3.startPending(mockSwap);
+  relState3.startPending(mockSwap);
+  relState3.startPending(mockSwap);
+
+  assert(relState3.pendingRelease?.seconds === 5, 'Test L2-5: Countdown reset to 5s on duplicate start');
+
+  for (let i = 0; i < 5; i++) {
+    relState3.tickSecond();
+  }
+  assert(completeCreditSwapCallCount === 1, 'Test L2-5: completeCreditSwap called exactly once despite duplicate triggers');
+
+  // TEST L2-6: Unmount cleanup prevents post-unmount execution
+  completeCreditSwapCallCount = 0;
+  const relState4 = new PendingReleaseStateMachine();
+  relState4.startPending(mockSwap);
+  relState4.cleanup(); // simulate unmount
+
+  for (let i = 0; i < 5; i++) {
+    relState4.tickSecond();
+  }
+  assert(completeCreditSwapCallCount === 0, 'Test L2-6: Unmount cleanup prevented release execution');
+
+  console.log('✓ All Section L2 Reversible Release Credits Flow unit tests passed perfectly!');
 }
 
 // Execute if run directly
