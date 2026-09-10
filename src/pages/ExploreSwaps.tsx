@@ -603,7 +603,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
               </button>
             </div>
           ) : filteredSwaps.length > 0 ? (
-            <div className="swaps-grid flex flex-col gap-4">
+            <div id="swaps-results-grid" className="swaps-grid" role="region" aria-label="Available Swaps Results">
               {filteredSwaps.map((swap) => {
                 const completedCount = swap.requesterProfile?.completedSwapsCount ?? completedSwapsMap[swap.requesterId] ?? 0;
 
