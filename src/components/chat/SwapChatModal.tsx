@@ -14,6 +14,7 @@ import {
 import type { Swap, SwapMessage, SwapSubmission } from '../../types/swap';
 import { getTagLabel } from '../../constants/tags';
 import { TransactionProgress } from '../transaction/TransactionProgress';
+import { VerificationBadge } from '../ui/VerificationBadge';
 import {
   EmbeddedTransactionCard,
   SubmissionEventCard,
@@ -308,14 +309,7 @@ export function SwapChatModal({
                     @{partnerProfile.username}
                   </span>
                 )}
-                {isPartnerVerified && (
-                  <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    Verified
-                  </span>
-                )}
+                <VerificationBadge isVerified={isPartnerVerified} size="sm" />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.15rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)', flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: (partnerProfile?.reviewCount ?? 0) > 0 ? 600 : 400, color: (partnerProfile?.reviewCount ?? 0) > 0 ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>
@@ -493,14 +487,7 @@ export function SwapChatModal({
                 <div className="ws-partner-card-info">
                   <div className="ws-partner-name-row">
                     <h4 className="ws-partner-name">{displayName}</h4>
-                    {isPartnerVerified && (
-                      <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        Verified
-                      </span>
-                    )}
+                    <VerificationBadge isVerified={isPartnerVerified} size="sm" />
                   </div>
                   {partnerProfile?.username && (
                     <span className="ws-partner-username">@{partnerProfile.username}</span>

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Swap } from '../../types/swap';
 import { getTagLabel, getTagSlug } from '../../constants/tags';
+import { VerificationBadge } from '../ui/VerificationBadge';
 
 export interface MarketplaceCardProps {
   swap: Swap;
@@ -282,14 +283,7 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
             )}
             <span className="text-slate-500">• {formattedDate}</span>
 
-            {isVerifiedUser && (
-              <span className="verification-badge inline-flex items-center gap-1 text-[11px] font-bold text-sky-400 bg-sky-500/10 px-1.5 py-0.5 rounded border border-sky-500/30" title="Verified Profile" aria-label="Verified profile">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="10" height="10" aria-hidden="true">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Verified
-              </span>
-            )}
+            <VerificationBadge isVerified={isVerifiedUser} size="sm" />
           </div>
 
           {/* Social Proof Snapshot */}

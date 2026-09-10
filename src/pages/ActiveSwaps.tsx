@@ -23,6 +23,7 @@ import { mapSwapRecordToSwap, type Swap, type SwapSubmission } from '../types/sw
 import { SwapChatModal } from '../components/chat/SwapChatModal';
 import { TransactionProgress } from '../components/transaction/TransactionProgress';
 import { useScaffolding } from '../hooks/useScaffolding';
+import { VerificationBadge } from '../components/ui/VerificationBadge';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 
@@ -960,14 +961,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                       <div className="as-detail-user-info">
                         <div className="as-detail-name-row" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                           <h2 className="as-detail-user-name" style={{ margin: 0 }}>{currentAcceptedItem.partner.name}</h2>
-                          {currentAcceptedItem.partner.isVerified && (
-                            <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                              Verified
-                            </span>
-                          )}
+                          <VerificationBadge isVerified={currentAcceptedItem.partner.isVerified} size="sm" />
                           <button
                             type="button"
                             className="as-view-profile-link"
@@ -1205,14 +1199,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                       <div className="as-detail-user-info">
                         <div className="as-detail-name-row" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                           <h2 className="as-detail-user-name" style={{ margin: 0 }}>{currentGivenItem.partner.name}</h2>
-                          {currentGivenItem.partner.isVerified && (
-                            <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                              Verified
-                            </span>
-                          )}
+                          <VerificationBadge isVerified={currentGivenItem.partner.isVerified} size="sm" />
                           <button
                             type="button"
                             className="as-view-profile-link"
@@ -1758,14 +1745,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                   <h3 className="as-modal-title" style={{ margin: 0 }}>{selectedProfileModal.name}</h3>
-                  {selectedProfileModal.isVerified && (
-                    <span className="verification-badge" title="Verified Profile" aria-label="Verified profile">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="11" height="11" aria-hidden="true">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      Verified
-                    </span>
-                  )}
+                  <VerificationBadge isVerified={selectedProfileModal.isVerified} size="sm" />
                 </div>
                 <p className="as-modal-subtitle">{selectedProfileModal.location}</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
