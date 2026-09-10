@@ -8,6 +8,7 @@ import {
   getUserCompletedSwapsCount,
   formatAcceptSwapErrorMessage,
 } from '../lib/supabase/credits';
+import { getSkillsCatalog, type Skill } from '../lib/supabase/profile';
 import { mapSwapRecordToSwap, type Swap } from '../types/swap';
 import { SWAP_TAG_OPTIONS, getTagLabel, getTagSlug } from '../constants/tags';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
@@ -15,7 +16,27 @@ import { MarketplaceCard } from '../components/credits/MarketplaceCard';
 import { Footer } from '../components/navigation/Footer';
 import { ScaffoldingCard } from '../components/ui/ScaffoldingCard';
 
-const CATEGORIES = ['All', ...SWAP_TAG_OPTIONS.map((t) => t.label)];
+const SEEDED_19_CATEGORIES: readonly string[] = [
+  'Programming',
+  'Web Development',
+  'Mobile Development',
+  'AI & Machine Learning',
+  'Data & Analytics',
+  'Design',
+  'Video & Media',
+  'Marketing',
+  'Business',
+  'Finance',
+  'Writing',
+  'Communication',
+  'Languages',
+  'Education',
+  'Music',
+  'Photography',
+  'Productivity',
+  'Career',
+  'Other',
+] as const;
 
 const SAMPLE_OPEN_SWAPS: Swap[] = [
   {
@@ -80,6 +101,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   const { user, profile, account, refreshAccount } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [categories, setCategories] = useState<string[]>(['All', ...SEEDED_19_CATEGORIES]);
 
   const [swaps, setSwaps] = useState<Swap[]>([]);
   const [completedSwapsMap, setCompletedSwapsMap] = useState<Record<string, number>>({});
@@ -139,6 +161,30 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   useEffect(() => {
     loadRealOpenSwaps();
   }, [loadRealOpenSwaps]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadCategories() {
+      try {
+        const catalog = await getSkillsCatalog();
+        if (isMounted && catalog && catalog.length > 0) {
+          const uniqueCats = Array.from(new Set(catalog.map((s) => s.category))).filter(Boolean);
+          if (uniqueCats.length > 0) {
+            // Keep canonical ordering or sort if needed, ensuring All is first
+            const sortedCats = SEEDED_19_CATEGORIES.filter((cat) => uniqueCats.includes(cat));
+            const remainingCats = uniqueCats.filter((cat) => !SEEDED_19_CATEGORIES.includes(cat as any));
+            setCategories(['All', ...sortedCats, ...remainingCats]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching skills catalog categories:', err);
+      }
+    }
+    loadCategories();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Clean up pending accept timer on unmount to prevent stale execution
   useEffect(() => {
@@ -264,12 +310,44 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
   const filteredSwaps = swaps
     .filter((swap) => {
-      const selectedSlug = getTagSlug(selectedCategory);
-      const hasTags = Array.isArray(swap.tags) && swap.tags.length > 0;
+      let matchesCategory = selectedCategory === 'All';
+      if (!matchesCategory) {
+        const categoryLower = selectedCategory.toLowerCase();
+        const selectedSlug = getTagSlug(selectedCategory);
 
-      let matchesTag = selectedCategory === 'All';
-      if (!matchesTag) {
-        matchesTag = hasTags && swap.tags.some((t) => getTagSlug(t) === selectedSlug);
+        if (Array.isArray(swap.tags) && swap.tags.length > 0) {
+          const directMatch = swap.tags.some((t) => {
+            const tagSlug = getTagSlug(t);
+            const tagLabelLower = getTagLabel(t).toLowerCase();
+            return (
+              tagSlug === selectedSlug ||
+              t.toLowerCase() === categoryLower ||
+              tagLabelLower === categoryLower
+            );
+          });
+
+          if (directMatch) {
+            matchesCategory = true;
+          } else {
+            // Cross-category mapping for 19 seeded categories to canonical swap tags
+            const codingCategories = ['programming', 'web development', 'mobile development', 'ai & machine learning', 'data & analytics'];
+            const careerCategories = ['business', 'finance', 'communication', 'education', 'productivity'];
+
+            if (codingCategories.includes(categoryLower) && swap.tags.some((t) => getTagSlug(t) === 'coding')) {
+              matchesCategory = true;
+            } else if (categoryLower === 'video & media' && swap.tags.some((t) => getTagSlug(t) === 'video-editing')) {
+              matchesCategory = true;
+            } else if (careerCategories.includes(categoryLower) && swap.tags.some((t) => getTagSlug(t) === 'career')) {
+              matchesCategory = true;
+            }
+          }
+        }
+
+        if (!matchesCategory) {
+          const topicLower = swap.topic.toLowerCase();
+          const descLower = swap.description.toLowerCase();
+          matchesCategory = topicLower.includes(categoryLower) || descLower.includes(categoryLower);
+        }
       }
 
       const query = searchTerm.toLowerCase().trim();
@@ -282,7 +360,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
         (Array.isArray(swap.tags) &&
           swap.tags.some((t) => t.toLowerCase().includes(query) || getTagLabel(t).toLowerCase().includes(query) || getTagSlug(t).includes(query)));
 
-      return matchesTag && matchesSearch;
+      return matchesCategory && matchesSearch;
     })
     .sort((a, b) => {
       const scoreA = calculateSwapRankingScore(a);
@@ -395,7 +473,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
               role="tablist"
               aria-label="Skill Category Filter Chips"
             >
-              {CATEGORIES.map((category) => {
+              {categories.map((category) => {
                 const isActive = selectedCategory === category;
                 return (
                   <button
@@ -405,7 +483,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                     aria-selected={isActive}
                     aria-controls="swaps-results-grid"
                     className={`category-pill ${isActive ? 'category-pill--active' : ''}`}
-                    onClick={() => setSelectedCategory(category)}
+                    onClick={() => setSelectedCategory((prev) => (prev === category && category !== 'All' ? 'All' : category))}
                   >
                     {category === 'All' ? 'All Skill Domains' : category}
                   </button>
