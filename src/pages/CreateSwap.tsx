@@ -12,6 +12,7 @@ import { SwapPreviewCard } from '../components/create-swap/SwapPreviewCard';
 import { TemplateGallery } from '../components/create-swap/TemplateGallery';
 import { SwapTemplate } from '../constants/templates';
 import { useAuth } from '../context/AuthContext';
+import { useScaffolding } from '../hooks/useScaffolding';
 import { createCreditSwap, uploadSwapAttachments, cancelCreditSwap } from '../lib/supabase/credits';
 import { getTagSlug, getTagLabel, isValidSwapTag } from '../constants/tags';
 import { generateUUID } from '../lib/uuid';
@@ -40,6 +41,7 @@ type CreateSwapPageProps = {
 
 export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
   const { user, profile, account, refreshAccount } = useAuth();
+  const templateScaffold = useScaffolding('create_swap_template_gallery');
   const draftKey = user ? `skillswap_create_swap_draft_${user.id}` : 'skillswap_create_swap_draft_guest';
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
@@ -415,12 +417,25 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
           <div className="create-swap-card">
             <CreateSwapHeader />
 
-            {/* SECTION I.1 TEMPLATE GALLERY */}
-            <TemplateGallery
-              onSelectTemplate={handleSelectTemplate}
-              onStartFromScratch={handleStartFromScratch}
-              activeTemplateId={activeTemplateId}
-            />
+            {/* SECTION I.1 TEMPLATE GALLERY (H.3 / L.4 Scaffolding Fading) */}
+            {templateScaffold.shouldShow ? (
+              <TemplateGallery
+                onSelectTemplate={handleSelectTemplate}
+                onStartFromScratch={handleStartFromScratch}
+                activeTemplateId={activeTemplateId}
+              />
+            ) : (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                <button
+                  type="button"
+                  className="reset-filter-btn"
+                  onClick={templateScaffold.toggleExpanded}
+                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.65rem', borderRadius: '6px' }}
+                >
+                  ⚡ Show Starter Templates
+                </button>
+              </div>
+            )}
 
             {/* STEPPER PROGRESS INDICATOR */}
             <div className="cs-stepper-container" aria-label="Creation progress">
