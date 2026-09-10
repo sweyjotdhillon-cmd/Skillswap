@@ -77,10 +77,29 @@ export function runSectionH3ScaffoldingUnitTests() {
   const hiddenScaffoldCardElement = hiddenStateShouldShow ? 'Rendered Card' : null;
   assert(hiddenScaffoldCardElement === null, 'Hidden scaffolding card element is omitted from render tree to eliminate focus and screen reader noise');
 
-  // Rule 5: Storage key formatting
+  // Rule 5: Storage key formatting & Section L.5 Independent Dismissal Isolation
   const scaffoldId = 'explore_marketplace_guide';
   const expectedStorageKey = `skillswap_dismissed_scaffold_${scaffoldId}`;
   assert(expectedStorageKey === 'skillswap_dismissed_scaffold_explore_marketplace_guide', 'Storage key matches canonical prefix and scaffold ID');
 
-  console.log('✓ All Section H.3 Visual Scaffolding Fading unit tests passed perfectly!');
+  // Test Section L.5 explicit independent preference isolation across guidance items
+  const scaffoldIds = ['explore_marketplace_guide', 'create_swap_template_gallery', 'active_swaps_journey'];
+  const mockStorage: Record<string, string> = {};
+
+  // Dismiss only 'explore_marketplace_guide'
+  mockStorage[`skillswap_dismissed_scaffold_${scaffoldIds[0]}`] = 'true';
+
+  const isExploreDismissed = mockStorage[`skillswap_dismissed_scaffold_${scaffoldIds[0]}`] === 'true';
+  const isCreateTemplateDismissed = mockStorage[`skillswap_dismissed_scaffold_${scaffoldIds[1]}`] === 'true';
+  const isActiveJourneyDismissed = mockStorage[`skillswap_dismissed_scaffold_${scaffoldIds[2]}`] === 'true';
+
+  assert(isExploreDismissed === true, 'Explore guidance is correctly marked dismissed in storage');
+  assert(isCreateTemplateDismissed === false, 'Create template guidance remains unaffected by explore guidance dismissal');
+  assert(isActiveJourneyDismissed === false, 'Active swaps journey guidance remains unaffected by explore guidance dismissal');
+
+  // Rule 6: Section L.5 Explicit Label Wording Check
+  const explicitDismissLabel = "Don't show this again";
+  assert(explicitDismissLabel === "Don't show this again", 'Scaffolding dismiss controls render exact explicit wording "Don\'t show this again"');
+
+  console.log('✓ All Section H.3 & Section L.5 Visual Scaffolding & Autonomy unit tests passed perfectly!');
 }

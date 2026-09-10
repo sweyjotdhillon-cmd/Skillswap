@@ -5,12 +5,14 @@ import { getTagLabel } from '../../constants/tags';
 interface TemplateGalleryProps {
   onSelectTemplate: (template: SwapTemplate) => void;
   onStartFromScratch: () => void;
+  onDismiss?: () => void;
   activeTemplateId?: string | null;
 }
 
 export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
   onSelectTemplate,
   onStartFromScratch,
+  onDismiss,
   activeTemplateId,
 }) => {
   return (
@@ -24,14 +26,40 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onStartFromScratch}
-          className="start-from-scratch-btn"
-          aria-label="Start with a blank swap form from scratch"
-        >
-          <span>✏️ Start from scratch</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {onDismiss && (
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="scaffolding-dismiss-btn"
+              title="Don't show this again"
+              aria-label="Don't show starter templates again"
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--color-structure-border, rgba(148, 163, 184, 0.25))',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: 'var(--color-text-muted, var(--text-muted))',
+                padding: '0.3rem 0.6rem',
+                lineHeight: 1.2,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Don't show this again
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onStartFromScratch}
+            className="start-from-scratch-btn"
+            aria-label="Start with a blank swap form from scratch"
+          >
+            <span>✏️ Start from scratch</span>
+          </button>
+        </div>
       </div>
 
       <div className="template-gallery-grid">

@@ -64,21 +64,25 @@ export const ScaffoldingCard: React.FC<ScaffoldingCardProps> = ({
           </div>
           <button
             type="button"
-            className="as-toast-close"
+            className="scaffolding-dismiss-btn"
             title="Don't show this again"
             aria-label={`Don't show ${title} guidance again`}
             onClick={dismissScaffold}
             style={{
               background: 'transparent',
-              border: 'none',
+              border: '1px solid var(--color-structure-border, rgba(148, 163, 184, 0.25))',
+              borderRadius: '6px',
               cursor: 'pointer',
-              fontSize: '1.1rem',
+              fontSize: '0.75rem',
+              fontWeight: 600,
               color: 'var(--color-text-muted, var(--text-muted))',
-              padding: '0.1rem 0.4rem',
-              lineHeight: 1,
+              padding: '0.2rem 0.5rem',
+              lineHeight: 1.2,
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
             }}
           >
-            ×
+            Don't show this again
           </button>
         </div>
 
