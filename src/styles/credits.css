@@ -11,6 +11,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.65rem;
+  min-height: 44px;
   background: var(--card-bg, rgba(255, 255, 255, 0.9));
   border: 1px solid rgba(214, 166, 74, 0.35);
   border-radius: 14px;
