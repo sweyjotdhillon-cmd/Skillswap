@@ -3088,35 +3088,84 @@ h1 span { color: #a8781d; }
   font-size: 0.95rem;
 }
 
-/* Consolidated Swap Workspace Modal Layout */
+/* Consolidated Swap Workspace Modal & Sidebar Layout (Section L15) */
 .chat-workspace-content {
-  width: min(920px, calc(100vw - 1.5rem));
+  width: min(960px, calc(100vw - 1.5rem));
   max-width: 100%;
   padding: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  height: min(90vh, 720px);
+  height: min(90vh, 740px);
   max-height: 90vh;
   border-radius: 24px;
 }
 
+/* Mobile Nav Tabs (hidden by default on desktop) */
+.chat-mobile-nav-tabs {
+  display: none;
+  border-bottom: 1px solid var(--color-structure-border, rgba(56, 189, 248, 0.2));
+  background: var(--color-surface, #ffffff);
+  padding: 0.35rem 0.75rem;
+  gap: 0.5rem;
+}
+
+[data-theme='dark'] .chat-mobile-nav-tabs {
+  background: #1e293b;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.chat-mobile-tab {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.825rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chat-mobile-tab--active {
+  background: var(--color-accent-muted, rgba(214, 166, 74, 0.15));
+  border-color: var(--color-transactional, #d6a64a);
+  color: var(--color-text, #0f172a);
+}
+
+[data-theme='dark'] .chat-mobile-tab--active {
+  color: #f8fafc;
+}
+
 .chat-workspace-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 1fr);
   flex: 1;
   min-height: 0;
   overflow: hidden;
 }
 
 @media (max-width: 768px) {
+  .chat-mobile-nav-tabs {
+    display: flex;
+  }
   .chat-workspace-grid {
     grid-template-columns: 1fr;
-    overflow-y: auto;
+    overflow: hidden;
+  }
+  .chat-workspace-main {
+    display: none !important;
+  }
+  .chat-workspace-main--mobile-active {
+    display: flex !important;
   }
   .chat-workspace-sidebar {
+    display: none !important;
     border-left: none !important;
-    border-top: 1px solid rgba(17, 22, 28, 0.08);
+  }
+  .chat-workspace-sidebar--mobile-active {
+    display: flex !important;
   }
 }
 
@@ -3134,13 +3183,223 @@ h1 span { color: #a8781d; }
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.15rem;
+  font-size: 0.85rem;
 }
 
 [data-theme='dark'] .chat-workspace-sidebar {
   border-left-color: rgba(255, 255, 255, 0.08);
-  border-top-color: rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.02);
+}
+
+/* L15 Workspace Sidebar Cards & Typography */
+.ws-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  border-radius: 14px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+[data-theme='dark'] .ws-section {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.ws-section-title {
+  font-size: 0.785rem;
+  font-weight: 700;
+  color: var(--text-muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+/* Partner Card */
+.ws-partner-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ws-partner-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.ws-partner-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.ws-partner-name {
+  margin: 0;
+  font-size: 0.925rem;
+  font-weight: 700;
+  color: var(--text-color, #0f172a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-partner-username {
+  font-size: 0.785rem;
+  color: var(--text-muted, #64748b);
+  font-weight: 500;
+}
+
+.ws-partner-role-badge {
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: var(--color-structure, #0284c7);
+  background: rgba(56, 189, 248, 0.1);
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  align-self: flex-start;
+  margin-top: 0.15rem;
+}
+
+.ws-partner-metrics {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #64748b);
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='dark'] .ws-partner-metrics {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+.ws-metric-rating {
+  font-weight: 600;
+  color: var(--color-warning, #d6a64a);
+}
+
+/* Details & Credits Badge */
+.ws-details-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ws-credits-badge {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--color-warning, #d6a64a);
+  background: var(--color-accent-muted, rgba(214, 166, 74, 0.12));
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.ws-topic-text {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-color, #0f172a);
+  line-height: 1.35;
+}
+
+.ws-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.1rem;
+}
+
+.ws-tag-chip {
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: var(--color-structure, #0284c7);
+  background: rgba(56, 189, 248, 0.08);
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+}
+
+.ws-description-text,
+.ws-requirements-text {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #475569);
+  line-height: 1.45;
+}
+
+.ws-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--color-structure, #0284c7);
+  font-size: 0.785rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 0 0 0.35rem;
+  text-decoration: underline;
+}
+
+.ws-toggle-btn:hover,
+.ws-toggle-btn:focus-visible {
+  color: var(--color-transactional, #d6a64a);
+}
+
+.ws-submission-notes {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #475569);
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.ws-files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.2rem;
+}
+
+.ws-file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.65rem;
+  border-radius: 8px;
+  background: rgba(17, 22, 28, 0.04);
+  font-size: 0.8rem;
+}
+
+[data-theme='dark'] .ws-file-item {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ws-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  padding-right: 0.5rem;
+}
+
+.ws-file-dl-btn {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.725rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-mobile-tab,
+  .ws-toggle-btn,
+  .chat-workspace-content {
+    transition: none !important;
+  }
 }
 
 /* Section L13: Embedded Transaction / Status Card in Chat Timeline */

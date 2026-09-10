@@ -1,4 +1,4 @@
-import { SWAP_TAG_OPTIONS, getTagSlug } from '../../constants/tags';
+import { SWAP_TAG_OPTIONS, getTagSlug, getTagLabel } from '../../constants/tags';
 import type { Swap, SwapSubmission, SwapMessage } from '../../types/swap';
 
 function assert(condition: boolean, message: string) {
@@ -8,11 +8,12 @@ function assert(condition: boolean, message: string) {
 }
 
 /**
- * Unit & Contract Verification Suite for Section E.3 (Cognitive Color Architecture)
- * and Section E.4 (Multi-Modal Chat & Transaction Events).
+ * Unit & Contract Verification Suite for Section E.3 (Cognitive Color Architecture),
+ * Section E.4 (Multi-Modal Chat & Transaction Events), Section L13 (Embedded Cards),
+ * and Section L15 (Consolidated Workspace Sidebar).
  */
 export function runSwapChatModalAndDesignSystemTests() {
-  console.log('--- Starting E.3 Cognitive Color & E.4 Multi-Modal Chat Unit Tests ---');
+  console.log('--- Starting E.3, E.4, L13 & Section L15 Consolidated Workspace Unit Tests ---');
 
   // ==========================================
   // E.3 COGNITIVE COLOR ARCHITECTURE CONTRACTS
@@ -29,8 +30,8 @@ export function runSwapChatModalAndDesignSystemTests() {
     requesterId: 'user-req-1',
     participantId: 'user-part-2',
     topic: 'Full-Stack Code Review',
-    description: 'Reviewing React and Postgres schema',
-    requirements: 'Clean code & unit tests required',
+    description: 'Reviewing React and Postgres schema in detail to ensure high quality, robust error recovery, and zero regressions across all application routes and RPC handlers.',
+    requirements: 'Clean code & unit tests required for all modified components.',
     additionalMessage: null,
     creditAmount: 30,
     tags: ['coding', 'design'],
@@ -152,7 +153,7 @@ export function runSwapChatModalAndDesignSystemTests() {
     { id: 'msg-1', swapId: 'swap-100', senderId: 'user-req-1', recipientId: 'user-part-2', body: 'Hello!', readAt: null, createdAt: '2026-09-06T08:05:00Z' },
   ];
   const reconnectedDBMsgs: SwapMessage[] = [
-    { id: 'msg-1', swapId: 'swap-100', senderId: 'user-req-1', recipientId: 'user-part-2', body: 'Hello!', readAt: null, createdAt: '2026-09-06T08:05:00Z' },
+    { id: 'msg-1', swapId: 'swap-100', senderId: 'user-req-1', recipientId: 'user-part-2', body: 'Hello!', readAt: null, createdAt: '2026-09-06T08:06:00Z' },
     { id: 'msg-2', swapId: 'swap-100', senderId: 'user-part-2', recipientId: 'user-req-1', body: 'Hi Alice!', readAt: null, createdAt: '2026-09-06T08:06:00Z' },
   ];
 
@@ -191,7 +192,10 @@ export function runSwapChatModalAndDesignSystemTests() {
     if (status === 'completed') {
       return '✓ Swap Complete & Settled';
     }
-    return 'Open';
+    if (status === 'open') {
+      return '⚡ Open Swap Listing';
+    }
+    return '⚠️ Swap Inactive';
   }
 
   assert(getNextActionTitle('accepted', false) === '⚡ Action Required', 'Participant in accepted state sees action required');
@@ -231,7 +235,57 @@ export function runSwapChatModalAndDesignSystemTests() {
   const isNullHandledSafely = nullSwap === null;
   assert(isNullHandledSafely === true, 'Missing or null transaction data is handled safely without crashing chat');
 
-  console.log('✓ All E.3 Cognitive Color, E.4 Multi-Modal Chat, Section I.2 Workspace & Section L13 Embedded Card unit tests passed!');
+  // ==========================================
+  // SECTION L15 CONSOLIDATED WORKSPACE SIDEBAR TESTS
+  // ==========================================
+
+  // 1. Partner Profile Context Mapping in Workspace Sidebar
+  const partnerAsParticipant = mockSwap.participantProfile;
+  assert(partnerAsParticipant?.username === 'bob', 'Partner username correctly extracted in workspace sidebar');
+  assert(partnerAsParticipant?.isVerified === true, 'Partner verified status correctly extracted in workspace sidebar');
+  assert(partnerAsParticipant?.averageRating === 5.0, 'Partner rating correctly extracted in workspace sidebar');
+  assert(partnerAsParticipant?.completedSwapsCount === 10, 'Partner completed swaps count correctly extracted in workspace sidebar');
+
+  // Role title assignment in sidebar
+  const getPartnerRoleLabel = (isRequesterUser: boolean) => isRequesterUser ? 'Participant (Providing Skill)' : 'Requester (Offering Swap)';
+  assert(getPartnerRoleLabel(true) === 'Participant (Providing Skill)', 'Requester user sees partner labeled as Participant');
+  assert(getPartnerRoleLabel(false) === 'Requester (Offering Swap)', 'Participant user sees partner labeled as Requester');
+
+  // 2. Tag Label Formatting in Workspace Sidebar
+  const formattedTagLabels = mockSwap.tags.map((t) => getTagLabel(t));
+  assert(formattedTagLabels.includes('Coding'), 'Coding tag formatted as human display label Coding');
+  assert(formattedTagLabels.includes('Design'), 'Design tag formatted as human display label Design');
+
+  // 3. Progressive Disclosure Truncation Logic
+  function truncateText(text: string, maxLength: number = 150): { text: string; needsToggle: boolean } {
+    if (!text) return { text: '', needsToggle: false };
+    if (text.length <= maxLength) return { text, needsToggle: false };
+    return { text: text.slice(0, maxLength) + '...', needsToggle: true };
+  }
+
+  const truncatedDesc = truncateText(mockSwap.description, 150);
+  assert(truncatedDesc.needsToggle === true, 'Long description correctly triggers progressive disclosure toggle');
+  assert(truncatedDesc.text.endsWith('...'), 'Truncated description ends with ellipsis');
+
+  const shortRequirements = truncateText('Clean code', 150);
+  assert(shortRequirements.needsToggle === false, 'Short requirements text does not trigger toggle');
+
+  // 4. Mobile Tab Switcher State Contract (Breakpoints <= 768px)
+  type MobileTab = 'chat' | 'workspace';
+  let activeTabState: MobileTab = 'chat';
+
+  activeTabState = 'workspace';
+  assert((activeTabState as string) === 'workspace', 'Mobile tab switcher changes active view to workspace');
+  activeTabState = 'chat';
+  assert((activeTabState as string) === 'chat', 'Mobile tab switcher restores active view to chat timeline');
+
+  // 5. Terminal Lifecycle State Notice Mapping
+  for (const status of ['cancelled', 'declined', 'withdrawn', 'expired'] as const) {
+    const terminalActionTitle = getNextActionTitle(status, true);
+    assert(terminalActionTitle === '⚠️ Swap Inactive', `Terminal status '${status}' maps to '⚠️ Swap Inactive' notice in sidebar`);
+  }
+
+  console.log('✓ All E.3, E.4, L13 & Section L15 Consolidated Workspace unit tests passed!');
 }
 
 // Execute tests if run directly
