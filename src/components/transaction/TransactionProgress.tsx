@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import type { SwapStatus } from '../../types/swap';
+import { CompletionConfirmation } from './CompletionConfirmation';
 
 export interface TransactionProgressProps {
+  swapId?: string;
   status: SwapStatus;
   autoReleaseAt?: string | null;
   submittedAt?: string | null;
@@ -114,6 +116,7 @@ export function formatCountdown(seconds: number): string {
 }
 
 export const TransactionProgress: React.FC<TransactionProgressProps> = ({
+  swapId,
   status,
   autoReleaseAt,
   submittedAt,
@@ -378,34 +381,11 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
         )}
 
         {status === 'completed' && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '0.5rem',
-              background: 'rgba(16, 185, 129, 0.08)',
-              borderLeft: '4px solid #10b981',
-              padding: '0.65rem 0.85rem',
-              borderRadius: '8px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ color: '#10b981', fontSize: '1rem', fontWeight: 800 }} aria-hidden="true">✓</span>
-              <div>
-                <strong style={{ fontSize: '0.875rem', color: '#10b981', display: 'block' }}>Swap Completed</strong>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #cbd5e1)' }}>
-                  Escrow settled successfully.
-                </span>
-              </div>
-            </div>
-            {creditAmount !== undefined && (
-              <span style={{ fontSize: '0.875rem', fontWeight: 800, color: '#10b981', background: 'rgba(16, 185, 129, 0.15)', padding: '0.25rem 0.6rem', borderRadius: '6px' }}>
-                +{creditAmount} SkillCredits
-              </span>
-            )}
-          </div>
+          <CompletionConfirmation
+            swapId={swapId}
+            status={status}
+            creditAmount={creditAmount}
+          />
         )}
 
         {isTerminated && (
