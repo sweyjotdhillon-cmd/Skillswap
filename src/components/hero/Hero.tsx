@@ -22,9 +22,11 @@ export function Hero({ onNavigate }: HeroProps) {
   };
 
   return (
-    <section className="hero" aria-labelledby="hero-title">
+    <section className="hero" aria-labelledby="hero-title" data-z-pattern="container">
+      {/* Section L20: Repeated Z-Pattern Homepage Narrative Layout */}
       <div className="hero-top-grid">
-        <div className="hero-copy">
+        {/* Z-Pattern Node 1: Top-Left Primary Value Proposition */}
+        <div className="hero-copy" data-z-step="1-top-left-headline">
           <span className="eyebrow">Reciprocal Skill Exchange</span>
           <h1 id="hero-title">
             Skills<br />are your<br /><span>currency.</span>
@@ -35,7 +37,10 @@ export function Hero({ onNavigate }: HeroProps) {
           </p>
         </div>
 
-        <HeroVisual />
+        {/* Z-Pattern Node 3: Center/Diagonal Ecosystem Diagram */}
+        <div data-z-step="3-middle-diagonal-visual">
+          <HeroVisual />
+        </div>
       </div>
 
       <div className="hero-bottom-bar">
@@ -43,7 +48,9 @@ export function Hero({ onNavigate }: HeroProps) {
           A community where value flows directly<br />
           through human capability, not money.
         </p>
-        <div className="hero-actions" aria-label="Primary conversion actions">
+
+        {/* Z-Pattern Node 4: Bottom-Right Terminal Conversion CTAs */}
+        <div className="hero-actions" aria-label="Primary conversion actions" data-z-step="4-bottom-right-cta">
           <ActionButton href="/create-swap" variant="filled" onClick={handleCreateSwapClick}>
             Create Swap
           </ActionButton>
