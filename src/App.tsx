@@ -14,6 +14,7 @@ import { ResetPasswordPage } from './pages/ResetPassword';
 import { ChangePasswordPage } from './pages/ChangePassword';
 import { OnboardingPage } from './pages/Onboarding';
 import { ProfilePage } from './pages/Profile';
+import { PublicProfilePage } from './pages/PublicProfile';
 import { ThemeToggle } from './components/ui/ThemeToggle';
 
 const PROTECTED_ROUTES = ['/profile', '/create-swap', '/active-swaps', '/change-password'];
@@ -40,6 +41,9 @@ function AppContent() {
   useEffect(() => {
     if (path === '/profile') {
       document.title = 'My Profile — SkillSwap';
+    } else if (path.startsWith('/@') || path.startsWith('/u/') || (path.startsWith('/profile/') && path !== '/profile')) {
+      const u = path.replace(/^(\/@|\/u\/|\/profile\/)/, '').split('?')[0];
+      document.title = u ? `@${u} — SkillSwap Profile` : 'Member Profile — SkillSwap';
     } else if (path === '/onboarding') {
       document.title = 'Complete Profile — SkillSwap';
     } else if (path === '/active-swaps' || path === '/swap-requests') {
@@ -147,6 +151,19 @@ function AppContent() {
 
   if (path === '/reset-password') {
     return <ResetPasswordPage onNavigate={navigate} />;
+  }
+
+  // Public profile routes (@username, /u/username, /profile/username, /profile?u=username)
+  if (path.startsWith('/@') || path.startsWith('/u/') || (path.startsWith('/profile/') && path !== '/profile')) {
+    const rawUserParam = path.replace(/^(\/@|\/u\/|\/profile\/)/, '').split('?')[0];
+    const cleanUsername = rawUserParam ? rawUserParam.trim().replace(/^@/, '') : undefined;
+    return <PublicProfilePage targetUsername={cleanUsername} onNavigate={navigate} />;
+  }
+
+  // Handle /profile?u=username query parameter fallback
+  const urlUserParam = urlParams.get('u');
+  if (path === '/profile' && urlUserParam) {
+    return <PublicProfilePage targetUsername={urlUserParam.trim().replace(/^@/, '')} onNavigate={navigate} />;
   }
 
   if (path === '/profile') {

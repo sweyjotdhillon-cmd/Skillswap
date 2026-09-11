@@ -12,6 +12,7 @@ import { runSectionH3ScaffoldingUnitTests } from './scaffolding.test';
 import { runOnboardingProgressBarUnitTests } from '../../components/cognitive/OnboardingProgressBar.test';
 import { runErrorRecoveryUnitTests } from './error_recovery.test';
 import { runTemplateGalleryUnitTests } from '../../components/create-swap/TemplateGallery.test';
+import { runL18GuestModeUnitTests } from './l18_guest_mode.test';
 import './credibility_verification.test';
 
 function assert(condition: boolean, message: string) {
@@ -45,6 +46,9 @@ export async function runCreditSystemTests() {
 
   // Run Section L.14 Template Gallery & Form Prefill Unit Tests
   runTemplateGalleryUnitTests();
+
+  // Run L18 Guest Mode & Motivational Trigger Unit Tests
+  runL18GuestModeUnitTests();
 
   // 1. Initialize embedded PostgreSQL engine (PGlite)
   const db = new PGlite();
