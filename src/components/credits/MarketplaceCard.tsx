@@ -245,6 +245,8 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
     day: 'numeric',
   });
 
+  const displayCredits = typeof swap.creditAmount === 'number' && !isNaN(swap.creditAmount) ? swap.creditAmount : 0;
+
   return (
     <div className="swap-card w-full bg-[#1E293B] border border-slate-700/80 hover:border-slate-500/80 rounded-xl p-4 sm:p-5 transition-all duration-200 shadow-md hover:shadow-xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
       {/* LEFT / PRIMARY ANCHOR: Identity, Context & Details */}
@@ -358,13 +360,17 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
 
       {/* RIGHT / SECONDARY ANCHOR: Value & Actions */}
       <div className="flex md:flex-col items-center md:items-end justify-between md:justify-center gap-3 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-slate-800/80 flex-shrink-0">
-        {/* Prominent SkillCredits Value Anchor */}
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 shadow-sm shadow-amber-500/5">
-          <span className="text-amber-400 font-bold text-base" aria-hidden="true">⚡</span>
-          <span className="text-lg font-extrabold tracking-tight text-slate-100 leading-none">
-            {swap.creditAmount}
+        {/* Warm-Gold SkillCredits Value Badge (L21 Spotted-Scanning Anchor) */}
+        <div
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-400 dark:text-amber-300 shadow-sm shadow-amber-500/10 flex-shrink-0 whitespace-nowrap"
+          aria-label={`${displayCredits} SkillCredits`}
+          title={`${displayCredits} SkillCredits`}
+        >
+          <span className="text-amber-400 dark:text-amber-300 font-bold text-base" aria-hidden="true">⚡</span>
+          <span className="text-lg font-extrabold tracking-tight text-amber-400 dark:text-amber-300 leading-none">
+            {displayCredits}
           </span>
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-400/90">
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-400/90 dark:text-amber-300/90">
             SkillCredits
           </span>
         </div>
