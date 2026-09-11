@@ -5,6 +5,7 @@ import { getNormalizedMimeType, formatSubmissionErrorMessage, sanitizeFileName }
 import { SWAP_TAG_OPTIONS, getTagSlug, getTagLabel, isValidSwapTag, validateSwapTags } from '../../constants/tags';
 import { runTransactionProgressUnitTests } from '../../components/transaction/TransactionProgress.test';
 import { runCompletionConfirmationUnitTests } from '../../components/transaction/CompletionConfirmation.test';
+import { runPendingTransactionVaultUnitTests } from '../../components/transaction/PendingTransactionVault.test';
 import { runSwapChatModalAndDesignSystemTests } from '../../components/chat/SwapChatModal.test';
 import { runAcceptSwapFlowUnitTests } from './accept_swap_flow.test';
 import { runSectionH3ScaffoldingUnitTests } from './scaffolding.test';
@@ -25,6 +26,7 @@ export async function runCreditSystemTests() {
   // Run E.2 Transaction Progress Unit Tests
   runTransactionProgressUnitTests();
   runCompletionConfirmationUnitTests();
+  runPendingTransactionVaultUnitTests();
 
   // Run E.3 Cognitive Color & E.4 Multi-Modal Chat Unit Tests
   runSwapChatModalAndDesignSystemTests();

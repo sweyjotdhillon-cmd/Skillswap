@@ -14,6 +14,7 @@ import {
 import type { Swap, SwapMessage, SwapSubmission } from '../../types/swap';
 import { getTagLabel } from '../../constants/tags';
 import { TransactionProgress } from '../transaction/TransactionProgress';
+import { PendingTransactionVault } from '../transaction/PendingTransactionVault';
 import { VerificationBadge } from '../ui/VerificationBadge';
 import {
   EmbeddedTransactionCard,
@@ -384,15 +385,11 @@ export function SwapChatModal({
                 isApproving={isApproving}
               />
 
-              {/* SYSTEM CARD 1: ESCROW ALLOCATION INITIALIZATION */}
-              <div className="chat-system-card chat-system-card--reserved">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
-                  <span>⚡ Escrow Allocation Active</span>
-                </div>
-                <span>
-                  {swap.creditAmount} SkillCredits are held safely in escrow ledger for this swap agreement.
-                </span>
-              </div>
+              {/* SECTION L17: PENDING TRANSACTION VAULT SYSTEM CARD */}
+              <PendingTransactionVault
+                creditAmount={swap.creditAmount}
+                status={swap.status}
+              />
 
               {/* STATUS CHANGE: ACCEPTED */}
               {isAccepted && (
