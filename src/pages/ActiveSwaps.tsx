@@ -22,6 +22,7 @@ import { getTagLabel } from '../constants/tags';
 import { mapSwapRecordToSwap, type Swap, type SwapSubmission } from '../types/swap';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
 import { TransactionProgress } from '../components/transaction/TransactionProgress';
+import { PendingTransactionVault } from '../components/transaction/PendingTransactionVault';
 import { useScaffolding } from '../hooks/useScaffolding';
 import { VerificationBadge } from '../components/ui/VerificationBadge';
 
@@ -996,6 +997,13 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     <p className="as-detail-swap-desc">{currentAcceptedItem.swap.description}</p>
                   </div>
 
+                  {/* PENDING TRANSACTION VAULT DISPLAY */}
+                  <PendingTransactionVault
+                    creditAmount={currentAcceptedItem.swap.creditAmount}
+                    status={currentAcceptedItem.swap.status}
+                    compact
+                  />
+
                   {/* HORIZONTAL STATS ROW */}
                   <div className="as-stats-row">
                     <div className="as-stat-item">
@@ -1233,6 +1241,13 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                     <h3 className="as-detail-swap-title">{currentGivenItem.swap.topic}</h3>
                     <p className="as-detail-swap-desc">{currentGivenItem.swap.description}</p>
                   </div>
+
+                  {/* PENDING TRANSACTION VAULT DISPLAY */}
+                  <PendingTransactionVault
+                    creditAmount={currentGivenItem.swap.creditAmount}
+                    status={currentGivenItem.swap.status}
+                    compact
+                  />
 
                   {/* HORIZONTAL STATS ROW */}
                   <div className="as-stats-row">
@@ -1480,6 +1495,13 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                       </div>
                     </div>
                   )}
+
+                  {/* PENDING TRANSACTION VAULT DISPLAY */}
+                  <PendingTransactionVault
+                    creditAmount={currentOpenItem.swap.creditAmount}
+                    status={currentOpenItem.swap.status}
+                    compact
+                  />
 
                   {/* HORIZONTAL STATS ROW */}
                   <div className="as-stats-row">

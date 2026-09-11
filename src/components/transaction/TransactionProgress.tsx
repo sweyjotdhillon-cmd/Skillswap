@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { SwapStatus } from '../../types/swap';
 import { CompletionConfirmation } from './CompletionConfirmation';
+import { PendingTransactionVault } from './PendingTransactionVault';
 
 export interface TransactionProgressProps {
   swapId?: string;
@@ -333,6 +334,15 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
           );
         })}
       </ol>
+
+      {/* L17 PENDING TRANSACTION VAULT INDICATOR */}
+      {typeof creditAmount === 'number' && creditAmount > 0 && (
+        <PendingTransactionVault
+          creditAmount={creditAmount}
+          status={status}
+          compact
+        />
+      )}
 
       {/* DYNAMIC CONTEXTUAL DETAILS & COUNTDOWN / CLOSURE BANNER */}
       <div className="tx-progress-details" style={{ marginTop: '0.85rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '0.75rem' }}>
