@@ -22,8 +22,8 @@ export function Hero({ onNavigate }: HeroProps) {
   };
 
   return (
-    {/* Section L20: Repeated Z-Pattern Homepage Narrative Layout */}
     <section className="hero" aria-labelledby="hero-title" data-z-pattern="container">
+      {/* Section L20: Repeated Z-Pattern Homepage Narrative Layout */}
       <div className="hero-top-grid">
         {/* Z-Pattern Node 1: Top-Left Primary Value Proposition */}
         <div className="hero-copy" data-z-step="1-top-left-headline">
