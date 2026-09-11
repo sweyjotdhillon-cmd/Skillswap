@@ -405,6 +405,33 @@ export async function getProfile(userId: string): Promise<Profile | null> {
 }
 
 /**
+ * Fetch public profile for a specific username (case-insensitive).
+ */
+export async function getProfileByUsername(username: string): Promise<Profile | null> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase || !username) return null;
+
+  const cleanUsername = username.trim().replace(/^@/, '').toLowerCase();
+  if (!cleanUsername) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .ilike('username', cleanUsername)
+      .maybeSingle();
+
+    if (error || !data) {
+      return null;
+    }
+    return data as Profile;
+  } catch (err) {
+    console.error('Error fetching profile by username:', err);
+    return null;
+  }
+}
+
+/**
  * Fetch account balance & statistics for the current user.
  */
 export async function getAccount(userId: string): Promise<Account | null> {

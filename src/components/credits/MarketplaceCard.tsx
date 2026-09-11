@@ -273,13 +273,31 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
         <div className="flex flex-col gap-1 text-left min-w-0 flex-1">
           {/* Creator & Trust Meta */}
           <div className="flex items-center flex-wrap gap-2 text-xs">
-            <span className="font-semibold text-slate-200 hover:text-white transition-colors">
-              {requesterName}
-            </span>
-            {requesterProfile?.username && (
-              <span className="text-slate-400 font-mono text-[11px]">
-                @{requesterProfile.username}
+            {requesterProfile?.username ? (
+              <a
+                href={`/@${requesterProfile.username}`}
+                className="font-semibold text-slate-200 hover:text-[#38BDF8] transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                {requesterName}
+              </a>
+            ) : (
+              <span className="font-semibold text-slate-200 transition-colors">
+                {requesterName}
               </span>
+            )}
+            {requesterProfile?.username && (
+              <a
+                href={`/@${requesterProfile.username}`}
+                className="text-slate-400 font-mono text-[11px] hover:text-[#38BDF8] transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                @{requesterProfile.username}
+              </a>
             )}
             <span className="text-slate-500">• {formattedDate}</span>
 
