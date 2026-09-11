@@ -173,6 +173,7 @@ export async function runCreditSystemTests() {
     '031_harden_credit_ledger_and_invariants.sql',
     '032_privacy_and_onboarding_hardening.sql',
     '033_harden_trust_metrics_and_reviews.sql',
+    '034_complete_profile_rls_reinforcement.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -1807,6 +1808,36 @@ export async function runCreditSystemTests() {
     unauthCompErr = (err as Error).message.includes('permission denied') || (err as Error).message.includes('Not authenticated');
   }
   assert(unauthCompErr, 'Unauthenticated user denied execution on complete_profile()');
+
+  // 22h: Authenticated user D attempts complete_profile(userA_id) -> MUST BE REJECTED (L19 parameter ownership protection)
+  await setAuthUser(userD);
+  let paramBypassCaught = false;
+  try {
+    await db.query(`SELECT public.complete_profile('${userA}'::uuid);`);
+  } catch (err: unknown) {
+    paramBypassCaught = (err as Error).message.includes('Unauthorized: Cannot complete profile for another user');
+  }
+  assert(paramBypassCaught, 'complete_profile(other_user_id) parameter bypass attempt rejected');
+
+  // 22i: Authenticated user D calls complete_profile(userD_id) with own ID -> MUST SUCCEED
+  const paramSelfSuccess = await db.query<{ complete_profile: { success: boolean; profile_completed: boolean } }>(`
+    SELECT public.complete_profile('${userD}'::uuid);
+  `);
+  assert(paramSelfSuccess.rows[0].complete_profile.success === true, 'complete_profile(own_user_id) succeeded');
+
+  // 22j: Session variable leakage prevention check — direct client update to profile_completed after complete_profile() is BLOCKED
+  let directClientUpdateBlocked = false;
+  try {
+    await db.query(`UPDATE public.profiles SET profile_completed = FALSE WHERE id = '${userD}';`);
+  } catch (err: unknown) {
+    directClientUpdateBlocked = (err as Error).message.includes('profile_completed cannot be updated directly by clients');
+  }
+  assert(directClientUpdateBlocked, 'Direct client update on profile_completed blocked (no session leakage)');
+
+  // 22k: Direct client update attempt on another user's profile is blocked by RLS
+  await db.query(`UPDATE public.profiles SET full_name = 'Hacked User A' WHERE id = '${userA}';`);
+  const userANameAfterAttack = (await db.query<{ full_name: string }>(`SELECT full_name FROM public.profiles WHERE id = '${userA}';`)).rows[0].full_name;
+  assert(userANameAfterAttack === 'User A', 'RLS policy blocks direct UPDATE on another user profile');
 
   console.log('  -> Section F.2 Privacy, Onboarding & RLS Security verified cleanly!');
 
