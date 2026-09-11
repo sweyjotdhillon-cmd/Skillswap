@@ -37,6 +37,8 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
   reviewCount = 0,
   completedSwapsCount = 0,
 }) => {
+  const displayCredits = typeof credits === 'number' && !isNaN(credits) ? credits : 0;
+
   return (
     <div className="w-full bg-[#1E293B] border border-slate-700 hover:border-slate-500 rounded-xl p-5 transition-all duration-300 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
       {/* Left Anchor: Identity & Context (Gestalt Proximity) */}
@@ -82,15 +84,19 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
 
       {/* Right Anchor: Saliency, Value & Action (Von Restorff Effect) */}
       <div className="flex md:flex-col items-end justify-between md:justify-center gap-3 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-slate-800 flex-shrink-0">
-        {/* High-Contrast Numerals Badge */}
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 shadow-sm shadow-amber-500/5">
-          <span className="text-sm" aria-hidden="true">⚡</span>
-          <span className="text-lg font-extrabold tracking-tight text-amber-400">{credits}</span>
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-500/80">SkillCredits</span>
+        {/* Warm-Gold SkillCredits Value Badge (L21 Spotted-Scanning Anchor) */}
+        <div
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-400 dark:text-amber-300 shadow-sm shadow-amber-500/10 flex-shrink-0 whitespace-nowrap"
+          aria-label={`${displayCredits} SkillCredits`}
+          title={`${displayCredits} SkillCredits`}
+        >
+          <span className="text-amber-400 dark:text-amber-300 font-bold text-base" aria-hidden="true">⚡</span>
+          <span className="text-lg font-extrabold tracking-tight text-amber-400 dark:text-amber-300 leading-none">{displayCredits}</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-400/90 dark:text-amber-300/90">SkillCredits</span>
         </div>
         <button
           onClick={onAccept}
-          className="w-full md:w-auto px-5 py-2 text-sm font-bold text-slate-950 bg-[#d6a64a] hover:bg-[#e4af48] active:scale-95 rounded-lg shadow-md hover:shadow-[#d6a64a]/25 transition-all duration-150"
+          className="w-full md:w-auto min-h-[44px] px-5 py-2 text-sm font-bold text-slate-950 bg-[#d6a64a] hover:bg-[#e4af48] active:scale-95 rounded-lg shadow-md hover:shadow-[#d6a64a]/25 transition-all duration-150 flex items-center justify-center"
         >
           Accept Swap
         </button>

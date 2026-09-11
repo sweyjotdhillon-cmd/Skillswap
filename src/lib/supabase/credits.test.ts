@@ -13,6 +13,7 @@ import { runOnboardingProgressBarUnitTests } from '../../components/cognitive/On
 import { runErrorRecoveryUnitTests } from './error_recovery.test';
 import { runTemplateGalleryUnitTests } from '../../components/create-swap/TemplateGallery.test';
 import { runL18GuestModeUnitTests } from './l18_guest_mode.test';
+import { runMarketplaceCardUnitTests } from '../../components/credits/MarketplaceCard.test';
 import './credibility_verification.test';
 
 function assert(condition: boolean, message: string) {
@@ -49,6 +50,9 @@ export async function runCreditSystemTests() {
 
   // Run L18 Guest Mode & Motivational Trigger Unit Tests
   runL18GuestModeUnitTests();
+
+  // Run Section L21 Marketplace Card & Warm-Gold Credit Badge Unit Tests
+  runMarketplaceCardUnitTests();
 
   // 1. Initialize embedded PostgreSQL engine (PGlite)
   const db = new PGlite();
