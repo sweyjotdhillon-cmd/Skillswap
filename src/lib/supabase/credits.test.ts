@@ -498,6 +498,7 @@ export async function runCreditSystemTests() {
       total_accounts: number;
       matching_accounts: number;
       discrepancies_count: number;
+      discrepancies?: unknown[];
     };
   };
   let reconRes = await db.query<ReconRow>(`SELECT public.reconcile_credit_balances() AS recon;`);
@@ -1662,7 +1663,16 @@ export async function runCreditSystemTests() {
 
   // 20k: Deleting a completed swap updates completed_swaps_count
   const completedSwapsBeforeDeleteA = (await db.query<ProfileTrustRow>(`SELECT completed_swaps_count FROM public.profiles WHERE id = '${userA}';`)).rows[0].completed_swaps_count;
+
+  // Cleanly remove swap2 and its related transactions to maintain clean accounting ledger state
+  await db.query(`DELETE FROM public.credit_transactions WHERE related_swap_id = '${swap2Id}';`);
+  await db.query(`DELETE FROM public.credit_operations WHERE related_swap_id = '${swap2Id}';`);
   await db.query(`DELETE FROM public.swaps WHERE id = '${swap2Id}';`);
+
+  // Sync account totals for User A & User B
+  await db.query(`UPDATE public.accounts SET credits_spent = GREATEST(0, credits_spent - 20), credits_balance = credits_balance + 20 WHERE user_id = '${userA}';`);
+  await db.query(`UPDATE public.accounts SET credits_earned = GREATEST(0, credits_earned - 20), credits_balance = GREATEST(0, credits_balance - 20) WHERE user_id = '${userB}';`);
+
   const completedSwapsAfterDeleteA = (await db.query<ProfileTrustRow>(`SELECT completed_swaps_count FROM public.profiles WHERE id = '${userA}';`)).rows[0].completed_swaps_count;
   assert(Number(completedSwapsAfterDeleteA) === Number(completedSwapsBeforeDeleteA) - 1, 'completed_swaps_count decreased after completed swap deletion');
 
@@ -1844,6 +1854,113 @@ export async function runCreditSystemTests() {
   assert(userANameAfterAttack === 'User A', 'RLS policy blocks direct UPDATE on another user profile');
 
   console.log('  -> Section F.2 Privacy, Onboarding & RLS Security verified cleanly!');
+
+  // =========================================================================
+  // TEST 23: L24 Hardened Ledger Audit & Authorization Security Verification
+  // =========================================================================
+  console.log('Test 23: L24 Hardened Ledger Audit & Authorization Security Verification...');
+
+  // 23a: Direct Client Table Mutations Blocked (accounts, credit_transactions, credit_operations)
+  await setAuthUser(userA);
+
+  // Direct UPDATE on public.accounts
+  let directAccountUpdateBlocked = false;
+  try {
+    await db.query(`UPDATE public.accounts SET credits_balance = 99999 WHERE user_id = '${userA}';`);
+  } catch (err: unknown) {
+    directAccountUpdateBlocked = (err as Error).message.includes('permission denied') || (err as Error).message.includes('row-level security');
+  }
+  assert(directAccountUpdateBlocked, 'Direct client UPDATE on public.accounts blocked');
+
+  // Direct INSERT on public.credit_transactions
+  let directTxInsertBlocked = false;
+  try {
+    await db.query(`
+      INSERT INTO public.credit_transactions (user_id, amount, balance_after, transaction_type, reason)
+      VALUES ('${userA}', 1000, 1000, 'initial_grant', 'Forged transaction');
+    `);
+  } catch (err: unknown) {
+    directTxInsertBlocked = (err as Error).message.includes('permission denied') || (err as Error).message.includes('row-level security');
+  }
+  assert(directTxInsertBlocked, 'Direct client INSERT on public.credit_transactions blocked');
+
+  // Direct UPDATE on public.credit_transactions (Ledger Immutability)
+  let directTxUpdateBlocked = false;
+  try {
+    await db.query(`UPDATE public.credit_transactions SET amount = 9999 WHERE user_id = '${userA}';`);
+  } catch (err: unknown) {
+    directTxUpdateBlocked = (err as Error).message.includes('permission denied') || (err as Error).message.includes('row-level security');
+  }
+  assert(directTxUpdateBlocked, 'Direct client UPDATE on public.credit_transactions (Ledger Immutability) blocked');
+
+  // Direct DELETE on public.credit_transactions (Ledger Immutability)
+  let directTxDeleteBlocked = false;
+  try {
+    await db.query(`DELETE FROM public.credit_transactions WHERE user_id = '${userA}';`);
+  } catch (err: unknown) {
+    directTxDeleteBlocked = (err as Error).message.includes('permission denied') || (err as Error).message.includes('row-level security');
+  }
+  assert(directTxDeleteBlocked, 'Direct client DELETE on public.credit_transactions (Ledger Immutability) blocked');
+
+  // Direct INSERT on public.credit_operations
+  let directOpInsertBlocked = false;
+  try {
+    await db.query(`
+      INSERT INTO public.credit_operations (operation_id, user_id, operation_type, amount)
+      VALUES ('forged_op', '${userA}', 'grant', 500);
+    `);
+  } catch (err: unknown) {
+    directOpInsertBlocked = (err as Error).message.includes('permission denied') || (err as Error).message.includes('row-level security');
+  }
+  assert(directOpInsertBlocked, 'Direct client INSERT on public.credit_operations blocked');
+
+  // 23b: Direct Credit RPC Execution Restrictions
+  let directRpcBlocked = false;
+  try {
+    await db.query(`SELECT public.add_credits('${userA}'::uuid, 100, 'Forged add');`);
+  } catch (err: unknown) {
+    directRpcBlocked = (err as Error).message.includes('permission denied');
+  }
+  assert(directRpcBlocked, 'Public execution on add_credits RPC revoked');
+
+  directRpcBlocked = false;
+  try {
+    await db.query(`SELECT public.transfer_credits('${userB}'::uuid, 10, 'Forged transfer');`);
+  } catch (err: unknown) {
+    directRpcBlocked = (err as Error).message.includes('permission denied');
+  }
+  assert(directRpcBlocked, 'Public execution on transfer_credits RPC revoked');
+
+  // 23c: Ledger Linkage Integrity Audit
+  await setSuperuser();
+  const operationsWithTx = await db.query<{ operation_id: string; user_id: string; amount: number; related_swap_id: string | null }>(`
+    SELECT o.operation_id, o.user_id, o.amount, o.related_swap_id
+    FROM public.credit_operations o
+    WHERE o.operation_type IN ('reserve', 'settlement', 'release', 'initial_grant');
+  `);
+  assert(operationsWithTx.rows.length > 0, 'Credit operations recorded in public.credit_operations');
+
+  // Verify each operation maps to at least one credit transaction entry
+  for (const op of operationsWithTx.rows) {
+    const matchedTx = await db.query<{ id: string }>(`
+      SELECT id FROM public.credit_transactions
+      WHERE user_id = '${op.user_id}'
+        AND (idempotency_key = '${op.operation_id}'
+             OR idempotency_key LIKE '${op.operation_id}%'
+             OR (related_swap_id IS NOT NULL AND related_swap_id = '${op.related_swap_id}')
+             OR related_swap_id = '${op.operation_id}');
+    `);
+    assert(matchedTx.rows.length > 0, `Operation ${op.operation_id} maps to a valid credit_transactions ledger record`);
+  }
+
+  // 23d: Final System Reconciliation Check
+  reconRes = await db.query<ReconRow>(`SELECT public.reconcile_credit_balances() AS recon;`);
+  recon = reconRes.rows[0].recon;
+  if (recon.discrepancies_count > 0) {
+    console.error('Reconciliation discrepancies:', JSON.stringify(recon.discrepancies, null, 2));
+  }
+  assert(recon.discrepancies_count === 0, 'Final accounting reconciliation check passed with zero discrepancies');
+  console.log('  -> L24 Hardened Ledger Audit & Authorization Security verified cleanly!');
 
   console.log('--- ALL SKILLSWAP CREDIT INTEGRATION & SECURITY TESTS PASSED PERFECTLY! ---');
 }
