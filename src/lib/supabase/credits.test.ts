@@ -9,7 +9,7 @@ import { runPendingTransactionVaultUnitTests } from '../../components/transactio
 import { runSwapChatModalAndDesignSystemTests } from '../../components/chat/SwapChatModal.test';
 import { runAcceptSwapFlowUnitTests } from './accept_swap_flow.test';
 import { runSectionH3ScaffoldingUnitTests } from './scaffolding.test';
-import { runOnboardingProgressBarUnitTests } from '../../components/cognitive/OnboardingProgressBar.test';
+import { runCognitiveUIComponentsUnitTests } from '../../components/cognitive/CognitiveUIComponents.test';
 import { runErrorRecoveryUnitTests } from './error_recovery.test';
 import { runTemplateGalleryUnitTests } from '../../components/create-swap/TemplateGallery.test';
 import { runL18GuestModeUnitTests } from './l18_guest_mode.test';
@@ -39,8 +39,8 @@ export async function runCreditSystemTests() {
   // Run Section H.3 Visual Scaffolding Fading Unit Tests
   runSectionH3ScaffoldingUnitTests();
 
-  // Run Section K.3 & K.4 Empowered Progress Onboarding Bar Unit Tests
-  runOnboardingProgressBarUnitTests();
+  // Run Section K Cognitive UI Components Unit Tests
+  runCognitiveUIComponentsUnitTests();
 
   // Run Section L.3 Error Recovery Unit Tests
   runErrorRecoveryUnitTests();

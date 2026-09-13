@@ -49,7 +49,7 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
             alt={creatorName}
             className="w-12 h-12 rounded-full object-cover ring-2 ring-[#38BDF8]"
           />
-          <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-[#1E293B] rounded-full"></span>
+          <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-[#1E293B] rounded-full" title="Active Community Member" aria-label="Active presence"></span>
         </div>
         {/* Text Details (Left-aligned reading anchors to prevent eye fatigue) */}
         <div className="flex flex-col gap-1 text-left min-w-0 flex-1">
@@ -196,11 +196,11 @@ export const MultiModalChat: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[500px] w-full max-w-xl bg-[#0F172A] border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+    <div className="flex flex-col h-[500px] w-full max-w-xl bg-[#0F172A] border border-slate-800 rounded-xl overflow-hidden shadow-2xl" role="region" aria-label="Multi-Modal Chat Workspace">
       {/* Header */}
       <div className="px-4 py-3 bg-[#1E293B] border-b border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></div>
+          <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" aria-hidden="true"></div>
           <div>
             <h4 className="text-sm font-bold text-slate-100">Swap Room: Landing Page Refactor</h4>
             <p className="text-xs text-slate-400">Collaborating with @sohan</p>
@@ -217,7 +217,7 @@ export const MultiModalChat: React.FC = () => {
               return (
                 <div key={msg.id} className="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-4 my-2 text-left shadow-inner flex flex-col gap-3">
                   <div className="flex items-center gap-2 text-amber-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     <span className="text-sm font-bold tracking-tight">Deliverables Submitted</span>
@@ -225,7 +225,7 @@ export const MultiModalChat: React.FC = () => {
                   {/* File Metadata */}
                   <div className="flex items-center justify-between p-2.5 bg-slate-950/50 rounded-lg border border-slate-800">
                     <div className="flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                       </svg>
                       <span className="text-xs font-semibold text-slate-300 truncate max-w-[180px]">{msg.systemEventDetails?.fileName}</span>
@@ -254,7 +254,7 @@ export const MultiModalChat: React.FC = () => {
               return (
                 <div key={msg.id} className="w-full bg-emerald-950/25 border border-emerald-500/20 rounded-xl p-4 my-1 flex items-center justify-between text-left">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-500/10 rounded-full text-emerald-400">
+                    <div className="p-2 bg-emerald-500/10 rounded-full text-emerald-400" aria-hidden="true">
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
@@ -292,13 +292,15 @@ export const MultiModalChat: React.FC = () => {
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
           placeholder="Collaborate securely..."
+          aria-label="Chat input message"
           className="flex-1 bg-slate-900 border border-slate-700 text-sm text-slate-100 rounded-lg px-3 py-2 focus:outline-none focus:border-[#38BDF8]"
         />
         <button
           onClick={handleSendMessage}
-          className="p-2 bg-[#38BDF8] hover:bg-[#7DD3FC] text-slate-900 rounded-lg transition-colors duration-150"
+          aria-label="Send message"
+          className="p-2 bg-[#38BDF8] hover:bg-[#7DD3FC] text-slate-900 rounded-lg transition-colors duration-150 flex items-center justify-center min-w-[36px] min-h-[36px]"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
           </svg>
         </button>
