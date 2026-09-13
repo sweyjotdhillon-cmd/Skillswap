@@ -14,6 +14,7 @@ import { runErrorRecoveryUnitTests } from './error_recovery.test';
 import { runTemplateGalleryUnitTests } from '../../components/create-swap/TemplateGallery.test';
 import { runL18GuestModeUnitTests } from './l18_guest_mode.test';
 import { runMarketplaceCardUnitTests } from '../../components/credits/MarketplaceCard.test';
+import { runFileLifecycleUnitTests } from './file_lifecycle.test';
 import './credibility_verification.test';
 
 function assert(condition: boolean, message: string) {
@@ -178,6 +179,7 @@ export async function runCreditSystemTests() {
     '032_privacy_and_onboarding_hardening.sql',
     '033_harden_trust_metrics_and_reviews.sql',
     '034_complete_profile_rls_reinforcement.sql',
+    '035_file_lifecycle_system.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -1961,6 +1963,9 @@ export async function runCreditSystemTests() {
   }
   assert(recon.discrepancies_count === 0, 'Final accounting reconciliation check passed with zero discrepancies');
   console.log('  -> L24 Hardened Ledger Audit & Authorization Security verified cleanly!');
+
+  // Test 24: File Lifecycle System Integration
+  await runFileLifecycleUnitTests(db, { userA, userB, userC });
 
   console.log('--- ALL SKILLSWAP CREDIT INTEGRATION & SECURITY TESTS PASSED PERFECTLY! ---');
 }
