@@ -40,29 +40,29 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
   const displayCredits = typeof credits === 'number' && !isNaN(credits) ? credits : 0;
 
   return (
-    <div className="w-full bg-[#1E293B] border border-slate-700 hover:border-slate-500 rounded-xl p-5 transition-all duration-300 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+    <div className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-structure-border)] rounded-xl p-5 transition-all duration-300 shadow-sm hover:shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-[var(--color-text-primary)]">
       {/* Left Anchor: Identity & Context (Gestalt Proximity) */}
       <div className="flex items-start gap-4 flex-1 min-w-0">
         <div className="relative flex-shrink-0">
           <img
             src={creatorAvatar}
             alt={creatorName}
-            className="w-12 h-12 rounded-full object-cover ring-2 ring-[#38BDF8]"
+            className="w-12 h-12 rounded-full object-cover ring-2 ring-[var(--color-structure)]"
           />
-          <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-[#1E293B] rounded-full" title="Active Community Member" aria-label="Active presence"></span>
+          <span className="absolute bottom-0 right-0 w-3 h-3 bg-[var(--status-success)] border-2 border-[var(--color-surface)] rounded-full" title="Active Community Member" aria-label="Active presence"></span>
         </div>
         {/* Text Details (Left-aligned reading anchors to prevent eye fatigue) */}
         <div className="flex flex-col gap-1 text-left min-w-0 flex-1">
           <div className="flex items-center flex-wrap gap-2">
-            <span className="text-sm font-semibold text-slate-300">{creatorName}</span>
-            {username && <span className="text-xs text-slate-400">@{username}</span>}
-            <span className="text-xs text-slate-500">• {timeAgo}</span>
+            <span className="text-sm font-semibold text-[var(--color-text-primary)]">{creatorName}</span>
+            {username && <span className="text-xs text-[var(--color-text-muted)]">@{username}</span>}
+            <span className="text-xs text-[var(--color-text-muted)]">• {timeAgo}</span>
             <VerificationBadge isVerified={isVerified} size="sm" />
           </div>
 
           {/* Social Proof Row */}
-          <div className="flex items-center flex-wrap gap-2 text-xs text-slate-400">
-            <span style={{ color: reviewCount > 0 ? '#d97706' : 'var(--text-muted)' }}>
+          <div className="flex items-center flex-wrap gap-2 text-xs text-[var(--color-text-muted)]">
+            <span style={{ color: reviewCount > 0 ? 'var(--color-accent)' : 'var(--color-text-muted)' }}>
               {reviewCount > 0 && averageRating !== null
                 ? `★ ${averageRating.toFixed(1)} (${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'})`
                 : 'No reviews yet'}
@@ -71,11 +71,11 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
             <span><strong>{completedSwapsCount}</strong> completed</span>
           </div>
 
-          <h3 className="text-lg font-bold text-slate-100 tracking-tight break-words">{title}</h3>
-          <p className="text-sm text-slate-400 line-clamp-2 max-w-2xl break-words">{description}</p>
+          <h3 className="text-lg font-bold text-[var(--color-text-primary)] tracking-tight break-words">{title}</h3>
+          <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2 max-w-2xl break-words">{description}</p>
           {/* Metadata Row */}
           <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-slate-800 text-[#38BDF8] border border-slate-700">
+            <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-[var(--color-structure-muted)] text-[var(--color-structure)] border border-[var(--color-structure-border)]">
               {category}
             </span>
           </div>
@@ -83,20 +83,20 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
       </div>
 
       {/* Right Anchor: Saliency, Value & Action (Von Restorff Effect) */}
-      <div className="flex md:flex-col items-end justify-between md:justify-center gap-3 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-slate-800 flex-shrink-0">
+      <div className="flex md:flex-col items-end justify-between md:justify-center gap-3 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-[var(--color-border)] flex-shrink-0">
         {/* Warm-Gold SkillCredits Value Badge (L21 Spotted-Scanning Anchor) */}
         <div
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-400 dark:text-amber-300 shadow-sm shadow-amber-500/10 flex-shrink-0 whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-accent-muted)] border border-[var(--color-accent)]/40 text-[var(--color-accent)] shadow-sm flex-shrink-0 whitespace-nowrap"
           aria-label={`${displayCredits} SkillCredits`}
           title={`${displayCredits} SkillCredits`}
         >
-          <span className="text-amber-400 dark:text-amber-300 font-bold text-base" aria-hidden="true">⚡</span>
-          <span className="text-lg font-extrabold tracking-tight text-amber-400 dark:text-amber-300 leading-none">{displayCredits}</span>
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-400/90 dark:text-amber-300/90">SkillCredits</span>
+          <span className="text-[var(--color-accent)] font-bold text-base" aria-hidden="true">⚡</span>
+          <span className="text-lg font-extrabold tracking-tight text-[var(--color-accent)] leading-none">{displayCredits}</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]/90">SkillCredits</span>
         </div>
         <button
           onClick={onAccept}
-          className="w-full md:w-auto min-h-[44px] px-5 py-2 text-sm font-bold text-slate-950 bg-[#d6a64a] hover:bg-[#e4af48] active:scale-95 rounded-lg shadow-md hover:shadow-[#d6a64a]/25 transition-all duration-150 flex items-center justify-center"
+          className="w-full md:w-auto min-h-[44px] px-5 py-2 text-sm font-bold text-white dark:text-[#0f172a] bg-[var(--color-structure)] hover:bg-[var(--color-structure-hover)] active:scale-95 rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center"
         >
           Accept Swap
         </button>
