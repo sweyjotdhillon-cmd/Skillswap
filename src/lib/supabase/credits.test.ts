@@ -180,6 +180,7 @@ export async function runCreditSystemTests() {
     '033_harden_trust_metrics_and_reviews.sql',
     '034_complete_profile_rls_reinforcement.sql',
     '035_file_lifecycle_system.sql',
+    '036_fix_file_lifecycle_expiry_system.sql',
   ];
 
   for (const file of migrationFiles) {
