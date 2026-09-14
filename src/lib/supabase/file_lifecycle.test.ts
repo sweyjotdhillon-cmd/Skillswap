@@ -107,6 +107,27 @@ export async function runFileLifecycleUnitTests(
   const chatAttId = chatAttRes.rows[0].id;
   assert(chatAttRes.rows[0].delete_status === 'active', 'Chat attachment initial status must be active');
 
+  // Insert active and failed chat attachments that are past delete_after to test claim_expired_file_cleanup
+  const expiredActiveChatRes = await db.query<{ id: string }>(`
+    INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after, delete_status)
+    VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'chat-attachments/${swapId}/expired_active.pdf', 'expired_active.pdf', 'application/pdf', 1024, NOW() - INTERVAL '1 hour', 'active')
+    RETURNING id;
+  `);
+  const expiredActiveChatId = expiredActiveChatRes.rows[0].id;
+
+  const expiredFailedChatRes = await db.query<{ id: string }>(`
+    INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after, delete_status)
+    VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'chat-attachments/${swapId}/expired_failed.pdf', 'expired_failed.pdf', 'application/pdf', 1024, NOW() - INTERVAL '1 hour', 'failed')
+    RETURNING id;
+  `);
+  const expiredFailedChatId = expiredFailedChatRes.rows[0].id;
+
+  const claimedChatRes = await db.query<{ file_id: string }>(`
+    SELECT * FROM public.claim_expired_file_cleanup(500);
+  `);
+  assert(claimedChatRes.rows.some(r => r.file_id === expiredActiveChatId), 'claim_expired_file_cleanup MUST claim expired active chat attachment');
+  assert(claimedChatRes.rows.some(r => r.file_id === expiredFailedChatId), 'claim_expired_file_cleanup MUST claim expired failed chat attachment');
+
   // Sender manually deletes attachment within 6h window
   await setAuthUser(testUsers.userA);
   const deleteRes = await db.query<{ delete_chat_attachment_manual: { success: boolean } }>(`
