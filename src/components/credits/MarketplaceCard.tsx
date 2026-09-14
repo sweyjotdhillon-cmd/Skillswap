@@ -248,18 +248,18 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
   const displayCredits = typeof swap.creditAmount === 'number' && !isNaN(swap.creditAmount) ? swap.creditAmount : 0;
 
   return (
-    <div className="swap-card w-full bg-[#1E293B] border border-slate-700/80 hover:border-slate-500/80 rounded-xl p-4 sm:p-5 transition-all duration-200 shadow-md hover:shadow-xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-      {/* LEFT / PRIMARY ANCHOR: Identity, Context & Details */}
-      <div className="flex items-start gap-3.5 flex-1 min-w-0 w-full">
+    <div className="swap-card w-full bg-[#1E293B] border border-slate-700/80 hover:border-slate-600/80 rounded-xl p-4 sm:p-5 transition-all duration-200 shadow-md hover:shadow-xl flex flex-col gap-3.5 box-border">
+      {/* 1. USER PROFILE SECTION */}
+      <div className="flex items-start gap-3 w-full min-w-0">
         <div className="relative flex-shrink-0 mt-0.5">
           {requesterAvatar ? (
             <img
               src={requesterAvatar}
               alt={`Profile photo of ${requesterName}`}
-              className="w-12 h-12 rounded-full object-cover ring-2 ring-[#38BDF8] shadow-sm"
+              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-[#38BDF8] shadow-sm"
             />
           ) : (
-            <div className="w-12 h-12 rounded-full bg-slate-800 ring-2 ring-[#38BDF8] text-[#38BDF8] flex items-center justify-center font-bold text-sm shadow-sm">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-slate-800 ring-2 ring-[#38BDF8] text-[#38BDF8] flex items-center justify-center font-bold text-sm shadow-sm">
               {requesterInitials}
             </div>
           )}
@@ -271,128 +271,125 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
           />
         </div>
 
-        {/* Text Grouping (Left-aligned reading anchors) */}
-        <div className="flex flex-col gap-1 text-left min-w-0 flex-1">
-          {/* Creator & Trust Meta */}
-          <div className="flex items-center flex-wrap gap-2 text-xs">
+        {/* User Identity Text & Metadata */}
+        <div className="flex flex-col min-w-0 flex-1">
+          <div className="flex items-center flex-wrap gap-1.5 min-w-0">
             {requesterProfile?.username ? (
               <a
                 href={`/@${requesterProfile.username}`}
-                className="font-semibold text-slate-200 hover:text-[#38BDF8] transition-colors cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
+                className="font-bold text-sm sm:text-base text-slate-100 hover:text-[#38BDF8] transition-colors truncate"
+                onClick={(e) => e.stopPropagation()}
               >
                 {requesterName}
               </a>
             ) : (
-              <span className="font-semibold text-slate-200 transition-colors">
+              <span className="font-bold text-sm sm:text-base text-slate-100 truncate">
                 {requesterName}
               </span>
             )}
-            {requesterProfile?.username && (
-              <a
-                href={`/@${requesterProfile.username}`}
-                className="text-slate-400 font-mono text-[11px] hover:text-[#38BDF8] transition-colors cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-              >
-                @{requesterProfile.username}
-              </a>
-            )}
-            <span className="text-slate-500">• {formattedDate}</span>
-
             <VerificationBadge isVerified={isVerifiedUser} size="sm" />
           </div>
 
-          {/* Social Proof Snapshot */}
-          <div className="flex items-center flex-wrap gap-2 text-xs text-slate-400">
-            <span className={reviewCount > 0 ? 'text-amber-400 font-semibold' : 'text-slate-500'}>
+          {requesterProfile?.username && (
+            <a
+              href={`/@${requesterProfile.username}`}
+              className="text-slate-400 font-mono text-xs hover:text-[#38BDF8] transition-colors truncate"
+              onClick={(e) => e.stopPropagation()}
+            >
+              @{requesterProfile.username}
+            </a>
+          )}
+
+          <div className="flex items-center flex-wrap gap-2 text-xs text-slate-400 mt-1">
+            <span>• {formattedDate}</span>
+            <span className="opacity-40">•</span>
+            <span className={reviewCount > 0 ? 'text-amber-400 font-semibold' : 'text-slate-400'}>
               {reviewCount > 0 && avgRating !== null
                 ? `★ ${avgRating.toFixed(1)} (${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'})`
                 : 'No reviews yet'}
             </span>
-            <span className="opacity-40">•</span>
-            <span>
-              <strong className="text-slate-300">{displayCompletedCount}</strong> {displayCompletedCount === 1 ? 'swap completed' : 'swaps completed'}
-            </span>
           </div>
-
-          {/* Prominent Swap Title & 2-Line Description */}
-          <h3 className="text-base sm:text-lg font-bold text-slate-100 tracking-tight leading-snug mt-0.5 break-words">
-            {swap.topic}
-          </h3>
-          <p className="text-xs sm:text-sm text-slate-300/80 leading-relaxed line-clamp-2 max-w-2xl break-words">
-            {swap.description}
-          </p>
-
-          {/* Skill Tag / Category Chips with Canonical Geon Iconography */}
-          {swap.tags && swap.tags.length > 0 && (
-            <div className="flex items-center flex-wrap gap-1.5 mt-2">
-              {swap.tags.map((tag) => {
-                const label = getTagLabel(tag);
-                const isSelected = getTagSlug(selectedCategory) === getTagSlug(tag);
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full transition-colors border ${
-                      isSelected
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold'
-                        : 'bg-slate-800 text-[#38BDF8] border-slate-700 hover:border-slate-500'
-                    }`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onSelectCategory) onSelectCategory(label);
-                    }}
-                    aria-label={`Filter by ${label}`}
-                  >
-                    <CategoryGeonIcon slug={tag} />
-                    <span>{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
       </div>
 
-      {/* RIGHT / SECONDARY ANCHOR: Value & Actions */}
-      <div className="flex md:flex-col items-center md:items-end justify-between md:justify-center gap-3 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-slate-800/80 flex-shrink-0">
-        {/* Warm-Gold SkillCredits Value Badge (L21 Spotted-Scanning Anchor) */}
-        <div
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-400 dark:text-amber-300 shadow-sm shadow-amber-500/10 flex-shrink-0 whitespace-nowrap"
-          aria-label={`${displayCredits} SkillCredits`}
-          title={`${displayCredits} SkillCredits`}
-        >
-          <span className="text-amber-400 dark:text-amber-300 font-bold text-base" aria-hidden="true">⚡</span>
-          <span className="text-lg font-extrabold tracking-tight text-amber-400 dark:text-amber-300 leading-none">
-            {displayCredits}
-          </span>
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-400/90 dark:text-amber-300/90">
-            SkillCredits
-          </span>
-        </div>
+      {/* 2. SWAP INFORMATION (Topic & Description) */}
+      <div className="flex flex-col gap-1 w-full min-w-0">
+        <h3 className="text-base sm:text-lg font-bold text-slate-100 tracking-tight leading-snug break-words">
+          {swap.topic}
+        </h3>
+        <p className="text-xs sm:text-sm text-slate-300/80 leading-relaxed line-clamp-3 break-words">
+          {swap.description}
+        </p>
+      </div>
 
-        {/* Primary Action CTAs */}
-        <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-          <button
-            type="button"
-            className="w-full md:w-auto min-h-[44px] px-5 py-2 text-sm font-bold text-slate-900 bg-[#38BDF8] hover:bg-[#7DD3FC] active:scale-95 rounded-lg shadow-md hover:shadow-[#38BDF8]/20 transition-all duration-150 flex items-center justify-center"
-            onClick={() => onAccept(swap)}
-          >
-            Accept Swap
-          </button>
-          <button
-            type="button"
-            className="min-h-[44px] px-3.5 py-2 text-sm font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white border border-slate-700 active:scale-95 rounded-lg transition-all duration-150 flex items-center justify-center"
-            onClick={() => onChat(swap)}
-            aria-label={`Chat with ${requesterName} about ${swap.topic}`}
-          >
-            Chat
-          </button>
+      {/* 3. CATEGORY / SKILL CHIPS */}
+      {swap.tags && swap.tags.length > 0 && (
+        <div className="flex items-center flex-wrap gap-1.5 w-full">
+          {swap.tags.map((tag) => {
+            const label = getTagLabel(tag);
+            const isSelected = getTagSlug(selectedCategory) === getTagSlug(tag);
+            return (
+              <button
+                key={tag}
+                type="button"
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full transition-colors border ${
+                  isSelected
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold'
+                    : 'bg-slate-800 text-[#38BDF8] border-slate-700 hover:border-slate-500'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onSelectCategory) onSelectCategory(label);
+                }}
+                aria-label={`Filter by ${label}`}
+              >
+                <CategoryGeonIcon slug={tag} />
+                <span>{label}</span>
+              </button>
+            );
+          })}
         </div>
+      )}
+
+      {/* 4. SKILLCREDITS SECTION (Distinct inner box) */}
+      <div
+        className="w-full rounded-lg bg-amber-500/10 border border-amber-500/30 p-2.5 sm:p-3 flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap"
+        aria-label={`${displayCredits} SkillCredits`}
+        title={`${displayCredits} SkillCredits`}
+      >
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-amber-400 dark:text-amber-300 font-black text-xl" aria-hidden="true">⚡</span>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-xl sm:text-2xl font-extrabold text-amber-400 dark:text-amber-300 leading-none">
+              {displayCredits}
+            </span>
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-400/90 dark:text-amber-300/90">
+              SkillCredits
+            </span>
+          </div>
+        </div>
+        <div className="text-xs font-medium text-slate-300 text-left sm:text-right flex-shrink-0">
+          <strong className="text-amber-300 font-bold">{displayCompletedCount}</strong> {displayCompletedCount === 1 ? 'swap completed' : 'swaps completed'}
+        </div>
+      </div>
+
+      {/* 5. PRIMARY ACTION BUTTONS */}
+      <div className="flex items-center gap-2 w-full pt-0.5">
+        <button
+          type="button"
+          className="flex-1 min-h-[44px] px-4 py-2.5 text-sm font-bold text-slate-900 bg-[#38BDF8] hover:bg-[#7DD3FC] active:scale-98 rounded-lg shadow-md hover:shadow-[#38BDF8]/20 transition-all duration-150 flex items-center justify-center text-center"
+          onClick={() => onAccept(swap)}
+        >
+          Accept Swap
+        </button>
+        <button
+          type="button"
+          className="min-h-[44px] px-4 py-2.5 text-sm font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white border border-slate-700 active:scale-98 rounded-lg transition-all duration-150 flex items-center justify-center text-center"
+          onClick={() => onChat(swap)}
+          aria-label={`Chat with ${requesterName} about ${swap.topic}`}
+        >
+          Chat
+        </button>
       </div>
     </div>
   );
