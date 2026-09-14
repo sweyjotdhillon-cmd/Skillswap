@@ -21,10 +21,9 @@ function CategoryGeonIcon({ slug }: { slug: string }) {
 
   switch (canonicalSlug) {
     case 'coding':
-      // 3/4 perspective code block / brackets geon
       return (
         <svg
-          className="w-3.5 h-3.5 flex-shrink-0 text-[#38BDF8]"
+          className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-structure)]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -39,10 +38,9 @@ function CategoryGeonIcon({ slug }: { slug: string }) {
         </svg>
       );
     case 'design':
-      // Slight 3/4 perspective geometric layer / diamond geon
       return (
         <svg
-          className="w-3.5 h-3.5 flex-shrink-0 text-[#38BDF8]"
+          className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-structure)]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -57,10 +55,9 @@ function CategoryGeonIcon({ slug }: { slug: string }) {
         </svg>
       );
     case 'writing':
-      // Geometric document quill / page geon
       return (
         <svg
-          className="w-3.5 h-3.5 flex-shrink-0 text-[#38BDF8]"
+          className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-structure)]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -76,10 +73,9 @@ function CategoryGeonIcon({ slug }: { slug: string }) {
         </svg>
       );
     case 'video-editing':
-      // 3/4 perspective film slate / media geon
       return (
         <svg
-          className="w-3.5 h-3.5 flex-shrink-0 text-[#38BDF8]"
+          className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-structure)]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -94,10 +90,9 @@ function CategoryGeonIcon({ slug }: { slug: string }) {
         </svg>
       );
     case 'marketing':
-      // 3/4 perspective isometric bar chart / growth geon
       return (
         <svg
-          className="w-3.5 h-3.5 flex-shrink-0 text-[#38BDF8]"
+          className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-structure)]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -112,10 +107,9 @@ function CategoryGeonIcon({ slug }: { slug: string }) {
         </svg>
       );
     case 'languages':
-      // Slight 3/4 chat bubble geon
       return (
         <svg
-          className="w-3.5 h-3.5 flex-shrink-0 text-[#38BDF8]"
+          className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-structure)]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -128,10 +122,9 @@ function CategoryGeonIcon({ slug }: { slug: string }) {
         </svg>
       );
     case 'career':
-      // 3/4 perspective briefcase / identity geon
       return (
         <svg
-          className="w-3.5 h-3.5 flex-shrink-0 text-[#38BDF8]"
+          className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-structure)]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -145,10 +138,9 @@ function CategoryGeonIcon({ slug }: { slug: string }) {
         </svg>
       );
     case 'photography':
-      // 3/4 perspective camera lens geon
       return (
         <svg
-          className="w-3.5 h-3.5 flex-shrink-0 text-[#38BDF8]"
+          className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-structure)]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -162,10 +154,9 @@ function CategoryGeonIcon({ slug }: { slug: string }) {
         </svg>
       );
     case 'music':
-      // Geometric music note geon
       return (
         <svg
-          className="w-3.5 h-3.5 flex-shrink-0 text-[#38BDF8]"
+          className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-structure)]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -180,10 +171,9 @@ function CategoryGeonIcon({ slug }: { slug: string }) {
         </svg>
       );
     case 'fitness':
-      // Geometric dumbbell geon
       return (
         <svg
-          className="w-3.5 h-3.5 flex-shrink-0 text-[#38BDF8]"
+          className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-structure)]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -196,10 +186,9 @@ function CategoryGeonIcon({ slug }: { slug: string }) {
         </svg>
       );
     default:
-      // Canonical 3/4 perspective geometric cube geon
       return (
         <svg
-          className="w-3.5 h-3.5 flex-shrink-0 text-[#38BDF8]"
+          className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-structure)]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -248,7 +237,7 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
   const displayCredits = typeof swap.creditAmount === 'number' && !isNaN(swap.creditAmount) ? swap.creditAmount : 0;
 
   return (
-    <div className="swap-card w-full bg-[#1E293B] border border-slate-700/80 hover:border-slate-600/80 rounded-xl p-4 sm:p-5 transition-all duration-200 shadow-md hover:shadow-xl flex flex-col gap-3.5 box-border">
+    <div className="swap-card w-full bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-structure-border)] rounded-xl p-4 sm:p-5 transition-all duration-200 shadow-sm hover:shadow-md flex flex-col gap-3.5 box-border text-[var(--color-text-primary)]">
       {/* 1. USER PROFILE SECTION */}
       <div className="flex items-start gap-3 w-full min-w-0">
         <div className="relative flex-shrink-0 mt-0.5">
@@ -256,16 +245,16 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
             <img
               src={requesterAvatar}
               alt={`Profile photo of ${requesterName}`}
-              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-[#38BDF8] shadow-sm"
+              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-[var(--color-structure)] shadow-sm"
             />
           ) : (
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-slate-800 ring-2 ring-[#38BDF8] text-[#38BDF8] flex items-center justify-center font-bold text-sm shadow-sm">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[var(--color-surface-muted)] ring-2 ring-[var(--color-structure)] text-[var(--color-structure)] flex items-center justify-center font-bold text-sm shadow-sm">
               {requesterInitials}
             </div>
           )}
           {/* Active Presence Dot */}
           <span
-            className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-[#1E293B] rounded-full"
+            className="absolute bottom-0 right-0 w-3 h-3 bg-[var(--status-success)] border-2 border-[var(--color-surface)] rounded-full"
             title="Active Community Member"
             aria-label="Active presence"
           />
@@ -277,13 +266,13 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
             {requesterProfile?.username ? (
               <a
                 href={`/@${requesterProfile.username}`}
-                className="font-bold text-sm sm:text-base text-slate-100 hover:text-[#38BDF8] transition-colors truncate"
+                className="font-bold text-sm sm:text-base text-[var(--color-text-primary)] hover:text-[var(--color-structure)] transition-colors truncate"
                 onClick={(e) => e.stopPropagation()}
               >
                 {requesterName}
               </a>
             ) : (
-              <span className="font-bold text-sm sm:text-base text-slate-100 truncate">
+              <span className="font-bold text-sm sm:text-base text-[var(--color-text-primary)] truncate">
                 {requesterName}
               </span>
             )}
@@ -293,17 +282,17 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
           {requesterProfile?.username && (
             <a
               href={`/@${requesterProfile.username}`}
-              className="text-slate-400 font-mono text-xs hover:text-[#38BDF8] transition-colors truncate"
+              className="text-[var(--color-text-muted)] font-mono text-xs hover:text-[var(--color-structure)] transition-colors truncate"
               onClick={(e) => e.stopPropagation()}
             >
               @{requesterProfile.username}
             </a>
           )}
 
-          <div className="flex items-center flex-wrap gap-2 text-xs text-slate-400 mt-1">
+          <div className="flex items-center flex-wrap gap-2 text-xs text-[var(--color-text-muted)] mt-1">
             <span>• {formattedDate}</span>
             <span className="opacity-40">•</span>
-            <span className={reviewCount > 0 ? 'text-amber-400 font-semibold' : 'text-slate-400'}>
+            <span className={reviewCount > 0 ? 'text-[var(--color-accent)] font-semibold' : 'text-[var(--color-text-muted)]'}>
               {reviewCount > 0 && avgRating !== null
                 ? `★ ${avgRating.toFixed(1)} (${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'})`
                 : 'No reviews yet'}
@@ -314,10 +303,10 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
 
       {/* 2. SWAP INFORMATION (Topic & Description) */}
       <div className="flex flex-col gap-1 w-full min-w-0">
-        <h3 className="text-base sm:text-lg font-bold text-slate-100 tracking-tight leading-snug break-words">
+        <h3 className="text-base sm:text-lg font-bold text-[var(--color-text-primary)] tracking-tight leading-snug break-words">
           {swap.topic}
         </h3>
-        <p className="text-xs sm:text-sm text-slate-300/80 leading-relaxed line-clamp-3 break-words">
+        <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] leading-relaxed line-clamp-3 break-words">
           {swap.description}
         </p>
       </div>
@@ -334,8 +323,8 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
                 type="button"
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full transition-colors border ${
                   isSelected
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold'
-                    : 'bg-slate-800 text-[#38BDF8] border-slate-700 hover:border-slate-500'
+                    ? 'bg-[var(--color-accent-muted)] text-[var(--color-accent)] border-[var(--color-accent)]/50 font-bold'
+                    : 'bg-[var(--color-structure-muted)] text-[var(--color-structure)] border-[var(--color-structure-border)] hover:border-[var(--color-structure)]'
                 }`}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -353,23 +342,23 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
 
       {/* 4. SKILLCREDITS SECTION (Distinct inner box) */}
       <div
-        className="w-full rounded-lg bg-amber-500/10 border border-amber-500/30 p-2.5 sm:p-3 flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap"
+        className="w-full rounded-lg bg-[var(--color-accent-muted)] border border-[var(--color-accent)]/30 p-2.5 sm:p-3 flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap"
         aria-label={`${displayCredits} SkillCredits`}
         title={`${displayCredits} SkillCredits`}
       >
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-amber-400 dark:text-amber-300 font-black text-xl" aria-hidden="true">⚡</span>
+          <span className="text-[var(--color-accent)] font-black text-xl" aria-hidden="true">⚡</span>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-xl sm:text-2xl font-extrabold text-amber-400 dark:text-amber-300 leading-none">
+            <span className="text-xl sm:text-2xl font-extrabold text-[var(--color-accent)] leading-none">
               {displayCredits}
             </span>
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-400/90 dark:text-amber-300/90">
+            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]/90">
               SkillCredits
             </span>
           </div>
         </div>
-        <div className="text-xs font-medium text-slate-300 text-left sm:text-right flex-shrink-0">
-          <strong className="text-amber-300 font-bold">{displayCompletedCount}</strong> {displayCompletedCount === 1 ? 'swap completed' : 'swaps completed'}
+        <div className="text-xs font-medium text-[var(--color-text-secondary)] text-left sm:text-right flex-shrink-0">
+          <strong className="text-[var(--color-text-primary)] font-bold">{displayCompletedCount}</strong> {displayCompletedCount === 1 ? 'swap completed' : 'swaps completed'}
         </div>
       </div>
 
@@ -377,14 +366,14 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
       <div className="flex items-center gap-2 w-full pt-0.5">
         <button
           type="button"
-          className="flex-1 min-h-[44px] px-4 py-2.5 text-sm font-bold text-slate-900 bg-[#38BDF8] hover:bg-[#7DD3FC] active:scale-98 rounded-lg shadow-md hover:shadow-[#38BDF8]/20 transition-all duration-150 flex items-center justify-center text-center"
+          className="flex-1 min-h-[44px] px-4 py-2.5 text-sm font-bold text-white dark:text-[#0f172a] bg-[var(--color-structure)] hover:bg-[var(--color-structure-hover)] active:scale-98 rounded-lg shadow-sm hover:shadow-md transition-all duration-150 flex items-center justify-center text-center"
           onClick={() => onAccept(swap)}
         >
           Accept Swap
         </button>
         <button
           type="button"
-          className="min-h-[44px] px-4 py-2.5 text-sm font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white border border-slate-700 active:scale-98 rounded-lg transition-all duration-150 flex items-center justify-center text-center"
+          className="min-h-[44px] px-4 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-muted)] border border-[var(--color-border)] active:scale-98 rounded-lg transition-all duration-150 flex items-center justify-center text-center"
           onClick={() => onChat(swap)}
           aria-label={`Chat with ${requesterName} about ${swap.topic}`}
         >
