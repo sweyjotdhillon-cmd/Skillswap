@@ -181,6 +181,7 @@ export async function runCreditSystemTests() {
     '034_complete_profile_rls_reinforcement.sql',
     '035_file_lifecycle_system.sql',
     '036_fix_file_lifecycle_expiry_system.sql',
+    '037_drop_idx_swap_submissions_swap_id.sql',
   ];
 
   for (const file of migrationFiles) {
