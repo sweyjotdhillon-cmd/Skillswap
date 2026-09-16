@@ -3,15 +3,17 @@ import { useAuth } from '../../context/AuthContext';
 import { getSupabaseBrowserClient } from '../../lib/supabase/client';
 import {
   getSwapMessages,
-  sendSwapMessage,
+  sendSwapMessageWithAttachments,
   getSwapSubmission,
   getSwapAttachments,
   getSubmissionFileSignedUrl,
   getSwapAttachmentSignedUrl,
+  getSwapMessageAttachmentSignedUrl,
   downloadFileFromSignedUrl,
+  deleteChatAttachmentManual,
   type SwapAttachment,
 } from '../../lib/supabase/credits';
-import type { Swap, SwapMessage, SwapSubmission } from '../../types/swap';
+import type { Swap, SwapMessage, SwapSubmission, SwapMessageAttachment } from '../../types/swap';
 import { getTagLabel } from '../../constants/tags';
 import { TransactionProgress } from '../transaction/TransactionProgress';
 import { PendingTransactionVault } from '../transaction/PendingTransactionVault';
@@ -70,6 +72,7 @@ export function SwapChatModal({
   const { user } = useAuth();
   const [messages, setMessages] = useState<SwapMessage[]>([]);
   const [input, setInput] = useState<string>('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [sending, setSending] = useState<boolean>(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
@@ -85,6 +88,7 @@ export function SwapChatModal({
   const [creatorAttachments, setCreatorAttachments] = useState<SwapAttachment[]>([]);
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const channelRef = useRef<ReturnType<NonNullable<ReturnType<typeof getSupabaseBrowserClient>>['channel']> | null>(null);
 
@@ -195,6 +199,7 @@ export function SwapChatModal({
             body: string;
             read_at?: string | null;
             created_at: string;
+            expires_at?: string;
           };
 
           if (raw && raw.id && raw.swap_id === swap.id) {
@@ -206,9 +211,13 @@ export function SwapChatModal({
               body: raw.body,
               readAt: raw.read_at ?? null,
               createdAt: raw.created_at,
+              expiresAt: raw.expires_at,
+              attachments: [],
             };
 
             setMessages((prev) => mergeAndDeduplicate(prev, [incomingMsg]));
+            // Refresh to load attachments if any
+            void fetchPersistedMessages();
           }
         }
       )
@@ -235,16 +244,43 @@ export function SwapChatModal({
     }
   }, [messages, mobileActiveTab]);
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const newFiles = Array.from(e.target.files);
+
+    const validFiles: File[] = [];
+    for (const f of newFiles) {
+      if (f.size > 25 * 1024 * 1024) {
+        setChatError(`File "${f.name}" exceeds maximum allowed size of 25MB.`);
+        return;
+      }
+      validFiles.push(f);
+    }
+
+    if (selectedFiles.length + validFiles.length > 5) {
+      setChatError('Maximum 5 files allowed per message.');
+      return;
+    }
+
+    setChatError(null);
+    setSelectedFiles((prev) => [...prev, ...validFiles]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanText = input.trim();
-    if (!cleanText || sending || !user || !recipientId) return;
+    if ((!cleanText && selectedFiles.length === 0) || sending || !user || !recipientId) return;
 
     setSending(true);
     setChatError(null);
 
-    // Persist via DB RPC/RLS first
-    const dbRes = await sendSwapMessage(swap.id, recipientId, cleanText);
+    // Persist via DB RPC/RLS first with optional attachments
+    const dbRes = await sendSwapMessageWithAttachments(swap.id, recipientId, cleanText, selectedFiles);
     if (!dbRes.success || !dbRes.message) {
       setChatError(dbRes.error || 'Failed to send message.');
       setSending(false);
@@ -256,6 +292,7 @@ export function SwapChatModal({
     // Optimistically update local message state using the canonical DB message record
     setMessages((prev) => mergeAndDeduplicate(prev, [newMessage]));
     setInput('');
+    setSelectedFiles([]);
 
     if (channelRef.current) {
       try {
@@ -285,6 +322,37 @@ export function SwapChatModal({
       console.error('Workspace download error:', err);
     } finally {
       setDownloadingFileId(null);
+    }
+  };
+
+  const handleDownloadChatAttachment = async (storagePath: string, fileName: string, fileId: string) => {
+    setDownloadingFileId(fileId);
+    try {
+      const signedUrl = await getSwapMessageAttachmentSignedUrl(storagePath);
+      if (signedUrl) {
+        await downloadFileFromSignedUrl(signedUrl, fileName);
+      }
+    } catch (err) {
+      console.error('Chat attachment download error:', err);
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
+
+  const handleDeleteChatAttachment = async (attachmentId: string) => {
+    try {
+      const res = await deleteChatAttachmentManual(attachmentId);
+      if (res.success) {
+        // Refresh messages to reflect pending_deletion tombstone
+        const msgsRes = await getSwapMessages(swap.id);
+        if (msgsRes.data) {
+          setMessages(msgsRes.data);
+        }
+      } else {
+        setChatError(res.error || 'Failed to delete attachment.');
+      }
+    } catch (err) {
+      console.error('Manual chat attachment deletion error:', err);
     }
   };
 
@@ -419,6 +487,81 @@ export function SwapChatModal({
                       className={`chat-message-bubble ${isUser ? 'chat-message--user' : 'chat-message--other'}`}
                     >
                       <p className="chat-message-text">{msg.body}</p>
+
+                      {/* CHAT ATTACHMENTS DISPLAY */}
+                      {msg.attachments && msg.attachments.length > 0 && (
+                        <div className="chat-message-attachments" style={{ marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                          {msg.attachments.map((att) => {
+                            const isExpired = att.deleteStatus === 'deleted' || att.deleteStatus === 'pending_deletion' || (att.deleteAfter && new Date(att.deleteAfter).getTime() <= Date.now());
+                            const isOwner = user && att.uploadedBy === user.id;
+                            const sizeKb = att.fileSize ? Math.round(att.fileSize / 1024) : 0;
+
+                            return (
+                              <div
+                                key={att.id}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  background: 'rgba(0,0,0,0.18)',
+                                  padding: '0.35rem 0.6rem',
+                                  borderRadius: '8px',
+                                  fontSize: '0.8rem',
+                                  gap: '0.5rem',
+                                }}
+                              >
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  📎 <strong>{att.fileName}</strong> {sizeKb > 0 ? `(${sizeKb} KB)` : ''}
+                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                                  {isExpired ? (
+                                    <span style={{ fontSize: '0.75rem', opacity: 0.7, fontStyle: 'italic' }}>
+                                      {att.deleteStatus === 'deleted' ? 'Deleted' : 'Expired'}
+                                    </span>
+                                  ) : (
+                                    <>
+                                      <button
+                                        type="button"
+                                        style={{
+                                          background: 'transparent',
+                                          border: '1px solid currentColor',
+                                          color: 'inherit',
+                                          borderRadius: '4px',
+                                          padding: '0.15rem 0.45rem',
+                                          fontSize: '0.75rem',
+                                          cursor: 'pointer',
+                                        }}
+                                        disabled={downloadingFileId === att.id}
+                                        onClick={() => handleDownloadChatAttachment(att.storagePath, att.fileName, att.id)}
+                                      >
+                                        {downloadingFileId === att.id ? '...' : 'Download'}
+                                      </button>
+                                      {isOwner && (
+                                        <button
+                                          type="button"
+                                          title="Delete attachment (6-hour window)"
+                                          style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: 'var(--color-error, #ef4444)',
+                                            fontSize: '0.85rem',
+                                            cursor: 'pointer',
+                                            padding: '0 0.2rem',
+                                          }}
+                                          onClick={() => handleDeleteChatAttachment(att.id)}
+                                        >
+                                          🗑️
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
                       <span className="chat-message-time">{timeFormatted}</span>
                     </div>
                   );
@@ -455,7 +598,62 @@ export function SwapChatModal({
               </div>
             )}
 
+            {/* SELECTED FILES PREVIEW CHIPS */}
+            {selectedFiles.length > 0 && (
+              <div style={{ padding: '0.5rem 1rem', display: 'flex', gap: '0.4rem', flexWrap: 'wrap', background: 'var(--color-surface-muted, rgba(0,0,0,0.1))' }}>
+                {selectedFiles.map((file, idx) => (
+                  <span
+                    key={`${file.name}-${idx}`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      background: 'var(--color-surface, #1e293b)',
+                      border: '1px solid var(--border-color, rgba(255,255,255,0.15))',
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: '999px',
+                      fontSize: '0.75rem',
+                    }}
+                  >
+                    📎 {file.name} ({Math.round(file.size / 1024)} KB)
+                    <button
+                      type="button"
+                      style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, marginLeft: '0.2rem' }}
+                      onClick={() => handleRemoveFile(idx)}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
             <form onSubmit={handleSendMessage} className="chat-input-form">
+              <input
+                type="file"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                onChange={handleFileSelect}
+                multiple
+                accept="image/*,application/pdf,application/zip,text/*,video/*"
+              />
+              <button
+                type="button"
+                className="chat-attach-btn"
+                title="Attach file (max 25MB, 6h retention)"
+                disabled={sending || !recipientId}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.1rem',
+                  cursor: 'pointer',
+                  padding: '0.4rem',
+                  opacity: sending ? 0.5 : 1,
+                }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                📎
+              </button>
               <input
                 type="text"
                 className="chat-input"
@@ -464,7 +662,7 @@ export function SwapChatModal({
                 disabled={sending || !recipientId}
                 onChange={(e) => setInput(e.target.value)}
               />
-              <button type="submit" className="chat-send-btn" disabled={sending || !input.trim() || !recipientId}>
+              <button type="submit" className="chat-send-btn" disabled={sending || (!input.trim() && selectedFiles.length === 0) || !recipientId}>
                 {sending ? 'Sending...' : 'Send'}
               </button>
             </form>

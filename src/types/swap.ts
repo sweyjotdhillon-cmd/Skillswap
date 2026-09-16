@@ -34,6 +34,7 @@ export interface Swap {
   tags: string[];
   status: SwapStatus;
   idempotencyKey?: string | null;
+  acceptedAt?: string | null;
   submittedAt: string | null;
   autoReleaseAt?: string | null;
   completedAt: string | null;
@@ -44,6 +45,22 @@ export interface Swap {
   participantProfile?: SwapProfile | null;
 }
 
+export interface SwapMessageAttachment {
+  id: string;
+  messageId: string;
+  swapId: string;
+  uploadedBy: string;
+  storagePath: string;
+  fileName: string;
+  mimeType?: string | null;
+  fileSize?: number | null;
+  createdAt: string;
+  deleteAfter: string;
+  deletedAt?: string | null;
+  deleteStatus: 'active' | 'in_progress' | 'pending_deletion' | 'deleted' | 'failed';
+  deleteError?: string | null;
+}
+
 export interface SwapMessage {
   id: string;
   swapId: string;
@@ -52,6 +69,8 @@ export interface SwapMessage {
   body: string;
   readAt?: string | null;
   createdAt: string;
+  expiresAt?: string;
+  attachments?: SwapMessageAttachment[];
 }
 
 export interface SwapSubmissionFile {
@@ -93,6 +112,7 @@ export function mapSwapRecordToSwap(record: SwapRecord): Swap {
     tags: extractSwapTagSlugs(record),
     status: record.status,
     idempotencyKey: record.idempotency_key ?? null,
+    acceptedAt: record.accepted_at ?? null,
     submittedAt: record.submitted_at,
     autoReleaseAt: record.auto_release_at ?? null,
     completedAt: record.completed_at,

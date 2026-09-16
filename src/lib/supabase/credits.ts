@@ -55,6 +55,7 @@ export interface SwapRecord {
   }> | null;
   status: 'open' | 'accepted' | 'submitted' | 'completed' | 'cancelled' | 'declined' | 'withdrawn' | 'expired';
   idempotency_key?: string | null;
+  accepted_at?: string | null;
   submitted_at: string | null;
   auto_release_at?: string | null;
   completed_at: string | null;
@@ -791,7 +792,10 @@ export async function getSwapMessages(swapId: string): Promise<{ data: SwapMessa
   try {
     const { data, error } = await supabase
       .from('swap_messages')
-      .select('*')
+      .select(`
+        *,
+        swap_message_attachments(*)
+      `)
       .eq('swap_id', swapId)
       .order('created_at', { ascending: true });
 
@@ -800,15 +804,37 @@ export async function getSwapMessages(swapId: string): Promise<{ data: SwapMessa
       return { data: [], error: formatFriendlyErrorMessage(error) };
     }
 
-    const messages: SwapMessage[] = (data || []).map((m) => ({
-      id: m.id,
-      swapId: m.swap_id,
-      senderId: m.sender_id,
-      recipientId: m.recipient_id,
-      body: m.body,
-      readAt: m.read_at,
-      createdAt: m.created_at,
-    }));
+    const messages: SwapMessage[] = (data || []).map((m) => {
+      const attachments = Array.isArray(m.swap_message_attachments)
+        ? m.swap_message_attachments.map((att: Record<string, unknown>) => ({
+            id: att.id as string,
+            messageId: att.message_id as string,
+            swapId: att.swap_id as string,
+            uploadedBy: att.uploaded_by as string,
+            storagePath: att.storage_path as string,
+            fileName: att.file_name as string,
+            mimeType: att.mime_type as string | null,
+            fileSize: typeof att.file_size === 'number' ? att.file_size : Number(att.file_size || 0),
+            createdAt: att.created_at as string,
+            deleteAfter: att.delete_after as string,
+            deletedAt: att.deleted_at as string | null,
+            deleteStatus: (att.delete_status as 'active' | 'in_progress' | 'pending_deletion' | 'deleted' | 'failed') || 'active',
+            deleteError: att.delete_error as string | null,
+          }))
+        : [];
+
+      return {
+        id: m.id,
+        swapId: m.swap_id,
+        senderId: m.sender_id,
+        recipientId: m.recipient_id,
+        body: m.body,
+        readAt: m.read_at,
+        createdAt: m.created_at,
+        expiresAt: m.expires_at,
+        attachments,
+      };
+    });
 
     return { data: messages };
   } catch (err) {
@@ -857,11 +883,160 @@ export async function sendSwapMessage(
       body: data.body,
       readAt: data.read_at,
       createdAt: data.created_at,
+      expiresAt: data.expires_at,
+      attachments: [],
     };
 
     return { success: true, message };
   } catch (err) {
     console.error('Unexpected error sending message:', err);
+    return { success: false, error: formatFriendlyErrorMessage(err) };
+  }
+}
+
+/**
+ * Sends a chat message with optional file attachments uploaded to swap-chat-attachments bucket.
+ * Atomic design: if upload or RPC registration fails, uploaded files are cleaned up from Storage.
+ */
+export async function sendSwapMessageWithAttachments(
+  swapId: string,
+  recipientId: string,
+  body: string,
+  files?: File[]
+): Promise<{ success: boolean; message?: SwapMessage; error?: string }> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'You must be logged in to send messages.' };
+
+  const cleanBody = body.trim();
+  const fileCount = files?.length || 0;
+
+  if (!cleanBody && fileCount === 0) {
+    return { success: false, error: 'Message must contain text or at least one file attachment.' };
+  }
+
+  // 1. Send chat message record to get message.id
+  const msgRes = await sendSwapMessage(swapId, recipientId, cleanBody || '📎 [File Attachment]');
+  if (!msgRes.success || !msgRes.message) {
+    return { success: false, error: msgRes.error || 'Failed to send chat message.' };
+  }
+
+  const message = msgRes.message;
+  if (!files || files.length === 0) {
+    return { success: true, message };
+  }
+
+  const uploadedPaths: string[] = [];
+  const registeredAttachments = [];
+
+  for (const file of files) {
+    if (file.size > 25 * 1024 * 1024) {
+      // Rollback uploaded files
+      if (uploadedPaths.length > 0) {
+        await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
+      }
+      return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
+    }
+
+    const storedFileName = sanitizeFileName(file.name);
+    const normalizedMime = getNormalizedMimeType(storedFileName, file.type);
+    const storagePath = `chat-attachments/${swapId}/${message.id}/${generateUUID()}-${storedFileName}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from('swap-chat-attachments')
+      .upload(storagePath, file, {
+        contentType: normalizedMime,
+        upsert: false,
+      });
+
+    if (uploadErr) {
+      console.error('Chat attachment upload failed:', uploadErr);
+      if (uploadedPaths.length > 0) {
+        await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
+      }
+      return { success: false, error: formatSubmissionErrorMessage(uploadErr, file.name) };
+    }
+
+    uploadedPaths.push(storagePath);
+
+    // Register attachment via register_swap_message_attachment RPC
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('register_swap_message_attachment', {
+      p_message_id: message.id,
+      p_swap_id: swapId,
+      p_storage_path: storagePath,
+      p_file_name: storedFileName,
+      p_mime_type: normalizedMime,
+      p_file_size: file.size,
+    });
+
+    if (rpcErr) {
+      console.error('register_swap_message_attachment RPC failed:', rpcErr);
+      if (uploadedPaths.length > 0) {
+        await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
+      }
+      return { success: false, error: formatSubmissionErrorMessage(rpcErr, file.name) };
+    }
+
+    const resObj = rpcData as { success?: boolean; attachment_id?: string; delete_after?: string };
+    if (resObj && resObj.success && resObj.attachment_id) {
+      registeredAttachments.push({
+        id: resObj.attachment_id,
+        messageId: message.id,
+        swapId,
+        uploadedBy: user.id,
+        storagePath,
+        fileName: storedFileName,
+        mimeType: normalizedMime,
+        fileSize: file.size,
+        createdAt: new Date().toISOString(),
+        deleteAfter: resObj.delete_after || new Date(Date.now() + 6 * 3600 * 1000).toISOString(),
+        deleteStatus: 'active' as const,
+      });
+    }
+  }
+
+  message.attachments = registeredAttachments;
+  return { success: true, message };
+}
+
+export async function getSwapMessageAttachmentSignedUrl(storagePath: string): Promise<string | null> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase || !storagePath) return null;
+
+  try {
+    const { data, error } = await supabase.storage
+      .from('swap-chat-attachments')
+      .createSignedUrl(storagePath, 3600);
+
+    if (error || !data) {
+      console.error('Error generating chat attachment signed URL:', error);
+      return null;
+    }
+
+    return data.signedUrl;
+  } catch (err) {
+    console.error('Unexpected error generating chat attachment signed URL:', err);
+    return null;
+  }
+}
+
+export async function deleteChatAttachmentManual(attachmentId: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
+
+  try {
+    const { data, error } = await supabase.rpc('delete_chat_attachment_manual', {
+      p_attachment_id: attachmentId,
+    });
+
+    if (error) {
+      return { success: false, error: formatFriendlyErrorMessage(error) };
+    }
+
+    return { success: true };
+  } catch (err) {
     return { success: false, error: formatFriendlyErrorMessage(err) };
   }
 }
