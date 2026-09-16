@@ -896,7 +896,8 @@ export async function sendSwapMessage(
 
 /**
  * Sends a chat message with optional file attachments uploaded to swap-chat-attachments bucket.
- * Atomic design: if upload or RPC registration fails, uploaded files are cleaned up from Storage.
+ * Atomic design: if upload or RPC registration fails, uploaded files are cleaned up from Storage
+ * and NO orphan messages or metadata remain in the database.
  */
 export async function sendSwapMessageWithAttachments(
   swapId: string,
@@ -917,23 +918,22 @@ export async function sendSwapMessageWithAttachments(
     return { success: false, error: 'Message must contain text or at least one file attachment.' };
   }
 
-  // 1. Send chat message record to get message.id
-  const msgRes = await sendSwapMessage(swapId, recipientId, cleanBody || '📎 [File Attachment]');
-  if (!msgRes.success || !msgRes.message) {
-    return { success: false, error: msgRes.error || 'Failed to send chat message.' };
+  if (fileCount > 5) {
+    return { success: false, error: 'Maximum 5 attachments allowed per message.' };
   }
 
-  const message = msgRes.message;
+  // 1. TEXT ONLY case
   if (!files || files.length === 0) {
-    return { success: true, message };
+    return sendSwapMessage(swapId, recipientId, cleanBody);
   }
 
+  // 2. TEXT + ATTACHMENT or ATTACHMENT ONLY case
+  const messageId = generateUUID();
   const uploadedPaths: string[] = [];
-  const registeredAttachments = [];
+  const filePayloads: Array<{ storage_path: string; file_name: string; file_size: number }> = [];
 
   for (const file of files) {
     if (file.size > 25 * 1024 * 1024) {
-      // Rollback uploaded files
       if (uploadedPaths.length > 0) {
         await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
       }
@@ -942,7 +942,7 @@ export async function sendSwapMessageWithAttachments(
 
     const storedFileName = sanitizeFileName(file.name);
     const normalizedMime = getNormalizedMimeType(storedFileName, file.type);
-    const storagePath = `chat-attachments/${swapId}/${message.id}/${generateUUID()}-${storedFileName}`;
+    const storagePath = `chat-attachments/${swapId}/${messageId}/${generateUUID()}-${storedFileName}`;
 
     const { error: uploadErr } = await supabase.storage
       .from('swap-chat-attachments')
@@ -960,44 +960,83 @@ export async function sendSwapMessageWithAttachments(
     }
 
     uploadedPaths.push(storagePath);
-
-    // Register attachment via register_swap_message_attachment RPC
-    const { data: rpcData, error: rpcErr } = await supabase.rpc('register_swap_message_attachment', {
-      p_message_id: message.id,
-      p_swap_id: swapId,
-      p_storage_path: storagePath,
-      p_file_name: storedFileName,
-      p_mime_type: normalizedMime,
-      p_file_size: file.size,
+    filePayloads.push({
+      storage_path: storagePath,
+      file_name: storedFileName,
+      file_size: file.size,
     });
-
-    if (rpcErr) {
-      console.error('register_swap_message_attachment RPC failed:', rpcErr);
-      if (uploadedPaths.length > 0) {
-        await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
-      }
-      return { success: false, error: formatSubmissionErrorMessage(rpcErr, file.name) };
-    }
-
-    const resObj = rpcData as { success?: boolean; attachment_id?: string; delete_after?: string };
-    if (resObj && resObj.success && resObj.attachment_id) {
-      registeredAttachments.push({
-        id: resObj.attachment_id,
-        messageId: message.id,
-        swapId,
-        uploadedBy: user.id,
-        storagePath,
-        fileName: storedFileName,
-        mimeType: normalizedMime,
-        fileSize: file.size,
-        createdAt: new Date().toISOString(),
-        deleteAfter: resObj.delete_after || new Date(Date.now() + 6 * 3600 * 1000).toISOString(),
-        deleteStatus: 'active' as const,
-      });
-    }
   }
 
-  message.attachments = registeredAttachments;
+  // Execute atomic send_chat_message_with_attachments RPC
+  const { data: rpcData, error: rpcErr } = await supabase.rpc('send_chat_message_with_attachments', {
+    p_swap_id: swapId,
+    p_recipient_id: recipientId,
+    p_body: cleanBody,
+    p_attachments: filePayloads,
+    p_message_id: messageId,
+  });
+
+  if (rpcErr || !rpcData) {
+    console.error('send_chat_message_with_attachments RPC failed:', rpcErr);
+    if (uploadedPaths.length > 0) {
+      await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
+    }
+    return { success: false, error: formatSubmissionErrorMessage(rpcErr ?? new Error('Failed to send message with attachments.')) };
+  }
+
+  const resObj = rpcData as {
+    success?: boolean;
+    error?: string;
+    message?: {
+      id: string;
+      swap_id: string;
+      sender_id: string;
+      recipient_id: string;
+      body: string;
+      created_at: string;
+      expires_at: string;
+      attachments: Array<Record<string, unknown>>;
+    };
+  };
+
+  if (!resObj.success || !resObj.message) {
+    if (uploadedPaths.length > 0) {
+      await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
+    }
+    return { success: false, error: resObj.error || 'Failed to send message with attachments.' };
+  }
+
+  const rawMsg = resObj.message;
+  const attachments = Array.isArray(rawMsg.attachments)
+    ? rawMsg.attachments.map((att) => ({
+        id: att.id as string,
+        messageId: att.message_id as string,
+        swapId: att.swap_id as string,
+        uploadedBy: att.uploaded_by as string,
+        storagePath: att.storage_path as string,
+        fileName: att.file_name as string,
+        mimeType: att.mime_type as string | null,
+        fileSize: typeof att.file_size === 'number' ? att.file_size : Number(att.file_size || 0),
+        createdAt: att.created_at as string,
+        deleteAfter: att.delete_after as string,
+        deletedAt: (att.deleted_at as string) || null,
+        deleteStatus: (att.delete_status as 'active' | 'in_progress' | 'pending_deletion' | 'deleted' | 'failed') || 'active',
+        deleteError: (att.delete_error as string) || null,
+      }))
+    : [];
+
+  const message: SwapMessage = {
+    id: rawMsg.id,
+    swapId: rawMsg.swap_id,
+    senderId: rawMsg.sender_id,
+    recipientId: rawMsg.recipient_id,
+    body: rawMsg.body,
+    readAt: null,
+    createdAt: rawMsg.created_at,
+    expiresAt: rawMsg.expires_at,
+    attachments,
+  };
+
   return { success: true, message };
 }
 
