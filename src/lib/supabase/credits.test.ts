@@ -184,6 +184,7 @@ export async function runCreditSystemTests() {
     '037_drop_idx_swap_submissions_swap_id.sql',
     '038_file_lifecycle_and_chat_attachments.sql',
     '039_phase1b_correction_pass.sql',
+    '040_phase2_consolidation_and_cleanup.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -1382,16 +1383,10 @@ export async function runCreditSystemTests() {
   `);
   assert(attRows.rows.length === realisticTestFiles.length, 'Creator (User A) can view creator attachments in swap_attachment_files');
 
-  // Verify compatibility view public.swap_attachments maps to public.swap_attachment_files
-  const attViewRows = await db.query<{ file_name: string }>(`
-    SELECT file_name FROM public.swap_attachments WHERE swap_id = '${swapAttId}';
-  `);
-  assert(attViewRows.rows.length === realisticTestFiles.length, 'Compatibility view swap_attachments returns attachment');
-
   // User B (not yet participant) attempts to read creator attachments on open swap -> returns 0 rows due to RLS
   await setAuthUser(userB);
   let attRowsB = await db.query<{ file_name: string }>(`
-    SELECT file_name FROM public.swap_attachments WHERE swap_id = '${swapAttId}';
+    SELECT file_name FROM public.swap_attachment_files WHERE swap_id = '${swapAttId}';
   `);
   assert(attRowsB.rows.length === 0, 'Non-participant User B cannot view creator attachments for open swap');
 
@@ -1400,14 +1395,14 @@ export async function runCreditSystemTests() {
 
   // User B (now accepted participant) can view creator attachments
   attRowsB = await db.query<{ file_name: string }>(`
-    SELECT file_name FROM public.swap_attachments WHERE swap_id = '${swapAttId}';
+    SELECT file_name FROM public.swap_attachment_files WHERE swap_id = '${swapAttId}';
   `);
   assert(attRowsB.rows.length === realisticTestFiles.length, 'Accepted participant (User B) can view creator attachments');
 
   // Unrelated User C attempts to view creator attachments -> returns 0 rows
   await setAuthUser(userC);
   const attRowsC = await db.query<{ file_name: string }>(`
-    SELECT file_name FROM public.swap_attachments WHERE swap_id = '${swapAttId}';
+    SELECT file_name FROM public.swap_attachment_files WHERE swap_id = '${swapAttId}';
   `);
   assert(attRowsC.rows.length === 0, 'Unrelated User C cannot view creator attachments due to RLS');
 
