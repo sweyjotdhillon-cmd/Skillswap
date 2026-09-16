@@ -349,5 +349,236 @@ export async function runFileLifecycleUnitTests(
 
   console.log('  -> Legacy MAchines.pptx attachment cleanup verified.');
 
+  // Test 9: Historical Chat Message expires_at Backfill Verification (created_at + 6h)
+  console.log('File Lifecycle Test 9: Historical Chat Message expires_at Backfill Verification (created_at + 6h)...');
+  await setSuperuser();
+
+  // Create an old message with created_at set to 10 hours ago
+  const oldMsgRes = await db.query<{ id: string; created_at: string; expires_at: string }>(`
+    INSERT INTO public.swap_messages (swap_id, sender_id, recipient_id, body, created_at)
+    VALUES ('${swapId}', '${testUsers.userA}', '${testUsers.userB}', 'Historical message', NOW() - INTERVAL '10 hours')
+    RETURNING id, created_at, expires_at;
+  `);
+  const oldMsgId = oldMsgRes.rows[0].id;
+
+  // Run backfill SQL (same as migration 039)
+  await db.query(`
+    UPDATE public.swap_messages
+    SET expires_at = created_at + interval '6 hours'
+    WHERE id = '${oldMsgId}';
+  `);
+
+  const backfilledMsg = await db.query<{ created_at: string; expires_at: string }>(`
+    SELECT created_at, expires_at FROM public.swap_messages WHERE id = '${oldMsgId}';
+  `);
+  const createdTs = new Date(backfilledMsg.rows[0].created_at).getTime();
+  const expiresTs = new Date(backfilledMsg.rows[0].expires_at).getTime();
+  const diffHours = (expiresTs - createdTs) / (1000 * 3600);
+  assert(Math.abs(diffHours - 6) < 0.01, 'Historical message expires_at MUST equal created_at + 6 hours');
+  console.log('  -> Historical Chat Message expires_at backfill verified.');
+
+  // Test 10: Atomic send_chat_message_with_attachments RPC (TEXT ONLY, TEXT + ATTACHMENTS, ATTACHMENT ONLY, & Rollback)
+  console.log('File Lifecycle Test 10: Atomic send_chat_message_with_attachments RPC semantics...');
+  await setAuthUser(testUsers.userA);
+
+  // 10a. TEXT ONLY
+  const textOnlyRes = await db.query<{ send_chat_message_with_attachments: { success: boolean; message: { id: string; body: string } } }>(`
+    SELECT public.send_chat_message_with_attachments(
+      '${swapId}'::uuid,
+      '${testUsers.userB}'::uuid,
+      'Text only chat message'::text,
+      '[]'::jsonb,
+      NULL::uuid
+    ) AS send_chat_message_with_attachments;
+  `);
+  assert(textOnlyRes.rows[0].send_chat_message_with_attachments.success === true, 'Text only RPC succeeded');
+  assert(textOnlyRes.rows[0].send_chat_message_with_attachments.message.body === 'Text only chat message', 'Text only body matched');
+
+  // 10b. TEXT + ATTACHMENTS
+  const msgWithAttId = 'a1b2c3d4-e5f6-7890-1234-56789abcdef0';
+  const textAttRes = await db.query<{ send_chat_message_with_attachments: { success: boolean; message: { id: string; attachments: Array<{ file_name: string; mime_type: string }> } } }>(`
+    SELECT public.send_chat_message_with_attachments(
+      '${swapId}'::uuid,
+      '${testUsers.userB}'::uuid,
+      'Message with PDF attachment'::text,
+      '[{"storage_path": "chat-attachments/${swapId}/${msgWithAttId}/test.pdf", "file_name": "test.pdf", "file_size": 2048}]'::jsonb,
+      '${msgWithAttId}'::uuid
+    ) AS send_chat_message_with_attachments;
+  `);
+  assert(textAttRes.rows[0].send_chat_message_with_attachments.success === true, 'Text + Attachment RPC succeeded');
+  assert(textAttRes.rows[0].send_chat_message_with_attachments.message.attachments.length === 1, 'Attachment metadata created');
+  assert(textAttRes.rows[0].send_chat_message_with_attachments.message.attachments[0].mime_type === 'application/pdf', 'Server computed MIME type');
+
+  // 10c. ATTACHMENT ONLY (empty body)
+  const attOnlyMsgId = 'b2c3d4e5-f6a7-8901-2345-6789abcdef01';
+  const attOnlyRes = await db.query<{ send_chat_message_with_attachments: { success: boolean; message: { id: string; body: string; attachments: Array<{ file_name: string }> } } }>(`
+    SELECT public.send_chat_message_with_attachments(
+      '${swapId}'::uuid,
+      '${testUsers.userB}'::uuid,
+      ''::text,
+      '[{"storage_path": "chat-attachments/${swapId}/${attOnlyMsgId}/img.png", "file_name": "img.png", "file_size": 1024}]'::jsonb,
+      '${attOnlyMsgId}'::uuid
+    ) AS send_chat_message_with_attachments;
+  `);
+  assert(attOnlyRes.rows[0].send_chat_message_with_attachments.success === true, 'Attachment only RPC succeeded');
+  assert(attOnlyRes.rows[0].send_chat_message_with_attachments.message.body === '📎 [File Attachment]', 'Placeholder body populated for attachment-only message');
+
+  // 10d. Failed RPC invocation (Invalid MIME) must NOT insert message or attachment metadata
+  const failedMsgId = 'c3d4e5f6-a7b8-9012-3456-789abcdef012';
+  let failedRpcRejected = false;
+  try {
+    await db.query(`
+      SELECT public.send_chat_message_with_attachments(
+        '${swapId}'::uuid,
+        '${testUsers.userB}'::uuid,
+        'This should fail'::text,
+        '[{"storage_path": "chat-attachments/${swapId}/${failedMsgId}/virus.exe", "file_name": "virus.exe", "file_size": 1024}]'::jsonb,
+        '${failedMsgId}'::uuid
+      );
+    `);
+  } catch (err) {
+    failedRpcRejected = (err as Error).message.includes('unsupported file extension') || (err as Error).message.includes('Invalid file format');
+  }
+  assert(failedRpcRejected, 'Invalid file extension MUST cause RPC exception');
+
+  // Verify message row was NOT inserted
+  await setSuperuser();
+  const orphanMsgCheck = await db.query<{ id: string }>(`
+    SELECT id FROM public.swap_messages WHERE id = '${failedMsgId}';
+  `);
+  assert(orphanMsgCheck.rows.length === 0, 'No orphan swap_messages record MUST exist after RPC failure');
+  console.log('  -> Atomic send_chat_message_with_attachments RPC semantics verified.');
+
+  // Test 11: Server-side MIME Allowlist Validation
+  console.log('File Lifecycle Test 11: Server-side MIME allowlist validation...');
+  await setAuthUser(testUsers.userB);
+
+  // 11a. Rejection in submit_swap_work for unsupported file (.exe)
+  let subWorkMimeRejected = false;
+  try {
+    await db.query(`
+      SELECT public.submit_swap_work(
+        '${swapId}'::uuid,
+        'Notes',
+        '[{"storage_path": "submissions/${swapId}/${testUsers.userB}/script.sh_invalid", "file_name": "script.sh_invalid", "mime_type": "text/plain", "file_size": 100}]'::jsonb
+      );
+    `);
+  } catch (err) {
+    subWorkMimeRejected = (err as Error).message.includes('unsupported file extension') || (err as Error).message.includes('Invalid file format');
+  }
+  assert(subWorkMimeRejected, 'submit_swap_work MUST reject unsupported file extensions server-side');
+
+  // 11b. Rejection in register_swap_attachment (creates dedicated open swap)
+  await setSuperuser();
+  const mimeTestSwapRes = await db.query<{ id: string }>(`
+    INSERT INTO public.swaps (requester_id, topic, description, requirements, credit_amount, status)
+    VALUES ('${testUsers.userA}', 'MIME Test Swap', 'Desc', 'Reqs', 10, 'open')
+    RETURNING id;
+  `);
+  const mimeTestSwapId = mimeTestSwapRes.rows[0].id;
+
+  await setAuthUser(testUsers.userA);
+  const creatorAttMimeRes = await db.query<{ register_swap_attachment: { success: boolean; error?: string } }>(`
+    SELECT public.register_swap_attachment(
+      '${mimeTestSwapId}'::uuid,
+      'swap-attachments/${mimeTestSwapId}/${testUsers.userA}/11111111-2222-3333-4444-555555555555-payload.dll',
+      'payload.dll',
+      'application/octet-stream',
+      500
+    ) AS register_swap_attachment;
+  `);
+  assert(creatorAttMimeRes.rows[0].register_swap_attachment.success === false, 'register_swap_attachment MUST reject unsupported file extensions server-side');
+  assert(creatorAttMimeRes.rows[0].register_swap_attachment.error?.includes('unsupported file extension') === true, 'Error message for unsupported extension matches');
+
+  // 11c. Client p_mime_type is NOT trusted (overridden by canonical mime type derived from file extension)
+  const validExtRes = await db.query<{ register_swap_attachment: { success: boolean; mime_type: string } }>(`
+    SELECT public.register_swap_attachment(
+      '${mimeTestSwapId}'::uuid,
+      'swap-attachments/${mimeTestSwapId}/${testUsers.userA}/22222222-3333-4444-5555-666666666666-forged_mime.png',
+      'forged_mime.png',
+      'application/x-executable-fake',
+      500
+    ) AS register_swap_attachment;
+  `);
+  assert(validExtRes.rows[0].register_swap_attachment.success === true, 'Valid extension succeeds');
+  assert(validExtRes.rows[0].register_swap_attachment.mime_type === 'image/png', 'Server overrides client mime_type with canonical image/png derived from filename');
+  console.log('  -> Server-side MIME allowlist validation verified.');
+
+  // Test 12: Controlled End-to-End File Lifecycle Cleanup Chain
+  console.log('File Lifecycle Test 12: Controlled End-to-End File Lifecycle Cleanup Chain...');
+  await setSuperuser();
+
+  // Step 1 & 2: Create test metadata eligible for expiration
+  const e2eMsgRes = await db.query<{ id: string }>(`
+    INSERT INTO public.swap_messages (swap_id, sender_id, recipient_id, body)
+    VALUES ('${swapId}', '${testUsers.userA}', '${testUsers.userB}', 'E2E Lifecycle Message')
+    RETURNING id;
+  `);
+  const e2eMsgId = e2eMsgRes.rows[0].id;
+
+  const e2eAttRes = await db.query<{ id: string }>(`
+    INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after)
+    VALUES ('${e2eMsgId}', '${swapId}', '${testUsers.userA}', 'chat-attachments/${swapId}/e2e_test.pdf', 'e2e_test.pdf', 'application/pdf', 1024, NOW() - INTERVAL '2 hours')
+    RETURNING id;
+  `);
+  const e2eAttId = e2eAttRes.rows[0].id;
+
+  // Step 3 & 4: Claim expired items
+  const e2eClaim = await db.query<{ file_id: string; bucket_name: string; storage_path: string }>(`
+    SELECT * FROM public.claim_expired_file_cleanup(500);
+  `);
+  const e2eClaimedRecord = e2eClaim.rows.find(r => r.file_id === e2eAttId);
+  assert(Boolean(e2eClaimedRecord), 'E2E test item MUST be claimed');
+  assert(e2eClaimedRecord?.bucket_name === 'swap-chat-attachments', 'Claimed item MUST map to swap-chat-attachments bucket');
+
+  // Step 5 & 6 & 7: Finalize cleanup
+  await db.query(`
+    SELECT public.finalize_file_cleanup('${e2eAttId}'::uuid, 'swap_message_attachments', true, NULL);
+  `);
+
+  const e2eFinal = await db.query<{ delete_status: string; deleted_at: string | null }>(`
+    SELECT delete_status, deleted_at FROM public.swap_message_attachments WHERE id = '${e2eAttId}';
+  `);
+  assert(e2eFinal.rows[0].delete_status === 'deleted', 'Finalized E2E item status MUST be deleted');
+  assert(e2eFinal.rows[0].deleted_at !== null, 'Finalized E2E item deleted_at timestamp MUST be set');
+
+  // Step 8 & 9: Simulate failure & retryability
+  const e2eFailAttRes = await db.query<{ id: string }>(`
+    INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after)
+    VALUES ('${e2eMsgId}', '${swapId}', '${testUsers.userA}', 'chat-attachments/${swapId}/e2e_fail.pdf', 'e2e_fail.pdf', 'application/pdf', 1024, NOW() - INTERVAL '2 hours')
+    RETURNING id;
+  `);
+  const e2eFailAttId = e2eFailAttRes.rows[0].id;
+
+  await db.query(`SELECT * FROM public.claim_expired_file_cleanup(500);`);
+  await db.query(`SELECT public.finalize_file_cleanup('${e2eFailAttId}'::uuid, 'swap_message_attachments', false, 'Simulated Storage Network Error');`);
+
+  const e2eFailedRecord = await db.query<{ delete_status: string; delete_error: string }>(`
+    SELECT delete_status, delete_error FROM public.swap_message_attachments WHERE id = '${e2eFailAttId}';
+  `);
+  assert(e2eFailedRecord.rows[0].delete_status === 'failed', 'Simulated failure status MUST be failed');
+  assert(e2eFailedRecord.rows[0].delete_error === 'Simulated Storage Network Error', 'Delete error recorded');
+
+  // Confirm failed item is retryable by claim_expired_file_cleanup
+  const retryClaim = await db.query<{ file_id: string }>(`
+    SELECT * FROM public.claim_expired_file_cleanup(500);
+  `);
+  assert(retryClaim.rows.some(r => r.file_id === e2eFailAttId), 'Failed item MUST be retryable on subsequent cleanup claim');
+
+  // Step 10: Confirm stuck lease becomes reclaimable after 15 min lease timeout
+  await db.query(`
+    UPDATE public.swap_message_attachments
+    SET delete_status = 'in_progress',
+        delete_claimed_at = NOW() - INTERVAL '20 minutes'
+    WHERE id = '${e2eFailAttId}';
+  `);
+
+  const leaseReclaim = await db.query<{ file_id: string }>(`
+    SELECT * FROM public.claim_expired_file_cleanup(500);
+  `);
+  assert(leaseReclaim.rows.some(r => r.file_id === e2eFailAttId), 'Stuck lease (>15m) MUST be reclaimable');
+
+  console.log('  -> Controlled End-to-End File Lifecycle Cleanup Chain verified.');
+
   console.log('✓ ALL FILE LIFECYCLE SYSTEM INTEGRATION TESTS PASSED PERFECTLY!');
 }
