@@ -182,6 +182,7 @@ export async function runCreditSystemTests() {
     '035_file_lifecycle_system.sql',
     '036_fix_file_lifecycle_expiry_system.sql',
     '037_drop_idx_swap_submissions_swap_id.sql',
+    '038_file_lifecycle_and_chat_attachments.sql',
   ];
 
   for (const file of migrationFiles) {

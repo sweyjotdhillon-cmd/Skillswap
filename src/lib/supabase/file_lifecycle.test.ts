@@ -27,8 +27,8 @@ export async function runFileLifecycleUnitTests(
     `);
   };
 
-  // Test 1: Submission file retention & expiration
-  console.log('File Lifecycle Test 1: Submission file retention (48h valid vs expired)...');
+  // Test 1: Submission file retention & 24h expiration
+  console.log('File Lifecycle Test 1: Submission file retention (24h valid vs expired)...');
   await setSuperuser();
 
   // Create a test swap between User A and User B
@@ -49,22 +49,22 @@ export async function runFileLifecycleUnitTests(
 
   const subFileRes = await db.query<{ id: string; storage_expires_at: string; storage_delete_status: string }>(`
     INSERT INTO public.swap_submission_files (submission_id, storage_path, file_name, mime_type, file_size, storage_expires_at)
-    VALUES ('${subId}', 'submissions/${swapId}/file1.pdf', 'file1.pdf', 'application/pdf', 1024, NOW() + INTERVAL '48 hours')
+    VALUES ('${subId}', 'submissions/${swapId}/file1.pdf', 'file1.pdf', 'application/pdf', 1024, NOW() + INTERVAL '24 hours')
     RETURNING id, storage_expires_at, storage_delete_status;
   `);
   const subFile = subFileRes.rows[0];
   assert(subFile.storage_delete_status === 'active', 'Submission file initial status must be active');
   assert(Boolean(subFile.storage_expires_at), 'Submission file must have storage_expires_at populated');
 
-  console.log('  -> Submission file 48h retention verified.');
+  console.log('  -> Submission file 24h retention verified.');
 
-  // Test 2: Creator attachments (Open swap vs Accepted swap 24h timer)
-  console.log('File Lifecycle Test 2: Creator attachments (Open vs Accepted timer)...');
+  // Test 2: Creator attachments (Open swap vs Accepted swap 48h timer & accepted_at)
+  console.log('File Lifecycle Test 2: Creator attachments (Open vs Accepted 48h timer & accepted_at)...');
   await setSuperuser();
 
   const openSwapRes = await db.query<{ id: string }>(`
     INSERT INTO public.swaps (requester_id, topic, description, requirements, credit_amount, status)
-    VALUES ('${testUsers.userA}', 'Open Swap', 'Desc', 'Reqs', 30, 'open')
+    VALUES ('${testUsers.userA}', 'Open Swap Lifecycle', 'Desc', 'Reqs', 30, 'open')
     RETURNING id;
   `);
   const openSwapId = openSwapRes.rows[0].id;
@@ -76,38 +76,70 @@ export async function runFileLifecycleUnitTests(
   `);
   assert(attRes.rows[0].storage_expires_at === null, 'Open swap creator attachment must NOT have expiration');
 
-  // Accept swap via RPC and confirm storage_expires_at is set to +24 hours
+  // Accept swap via RPC and confirm accepted_at is set and storage_expires_at is set to +48 hours
   await setAuthUser(testUsers.userB);
   await db.query(`SELECT public.accept_credit_swap('${openSwapId}'::uuid);`);
 
   await setSuperuser();
+  const acceptedSwap = await db.query<{ accepted_at: string | null }>(`
+    SELECT accepted_at FROM public.swaps WHERE id = '${openSwapId}';
+  `);
+  assert(acceptedSwap.rows[0].accepted_at !== null, 'Accepting swap MUST populate accepted_at timestamp');
+
   const updatedAtt = await db.query<{ storage_expires_at: string | null }>(`
     SELECT storage_expires_at FROM public.swap_attachment_files WHERE id = '${attRes.rows[0].id}';
   `);
-  assert(updatedAtt.rows[0].storage_expires_at !== null, 'Accepting swap MUST atomically establish 24-hour expiration timer');
-  console.log('  -> Creator attachment open vs accepted 24h timer verified.');
+  assert(updatedAtt.rows[0].storage_expires_at !== null, 'Accepting swap MUST atomically establish 48-hour expiration timer');
+  console.log('  -> Creator attachment open vs accepted 48h timer & accepted_at verified.');
 
-  // Test 3: Chat attachments (<=25MB allowed, >25MB rejected, 6h manual deletion limit)
-  console.log('File Lifecycle Test 3: Chat attachments and 6h manual deletion...');
+  // Test 3: Chat attachments (<=25MB allowed, >25MB rejected, register_swap_message_attachment RPC)
+  console.log('File Lifecycle Test 3: Chat attachments and register_swap_message_attachment RPC...');
   await setSuperuser();
 
-  const msgRes = await db.query<{ id: string }>(`
+  const msgRes = await db.query<{ id: string; expires_at: string }>(`
     INSERT INTO public.swap_messages (swap_id, sender_id, recipient_id, body)
     VALUES ('${swapId}', '${testUsers.userA}', '${testUsers.userB}', 'Hello with attachment')
-    RETURNING id;
+    RETURNING id, expires_at;
   `);
   const msgId = msgRes.rows[0].id;
+  assert(Boolean(msgRes.rows[0].expires_at), 'Chat message MUST have expires_at populated (DEFAULT created_at + 6h)');
 
-  // Insert chat attachment
-  const chatAttRes = await db.query<{ id: string; delete_after: string; delete_status: string }>(`
-    INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size)
-    VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'chat-attachments/${swapId}/doc.pdf', 'doc.pdf', 'application/pdf', 5242880)
-    RETURNING id, delete_after, delete_status;
+  // Test register_swap_message_attachment RPC
+  await setAuthUser(testUsers.userA);
+  const chatAttPath = `chat-attachments/${swapId}/${msgId}/uuid123-doc.pdf`;
+  const regRpcRes = await db.query<{ register_swap_message_attachment: { success: boolean; attachment_id: string } }>(`
+    SELECT public.register_swap_message_attachment(
+      '${msgId}'::uuid,
+      '${swapId}'::uuid,
+      '${chatAttPath}',
+      'doc.pdf',
+      'application/pdf',
+      5242880
+    ) AS register_swap_message_attachment;
   `);
-  const chatAttId = chatAttRes.rows[0].id;
-  assert(chatAttRes.rows[0].delete_status === 'active', 'Chat attachment initial status must be active');
+  assert(regRpcRes.rows[0].register_swap_message_attachment.success === true, 'register_swap_message_attachment RPC succeeded');
+  const chatAttId = regRpcRes.rows[0].register_swap_message_attachment.attachment_id;
+
+  // Verify path mismatch rejection
+  let pathInvalid = false;
+  try {
+    await db.query(`
+      SELECT public.register_swap_message_attachment(
+        '${msgId}'::uuid,
+        '${swapId}'::uuid,
+        'wrong-path/${swapId}/${msgId}/doc.pdf',
+        'doc.pdf',
+        'application/pdf',
+        1024
+      );
+    `);
+  } catch (err) {
+    pathInvalid = (err as Error).message.includes('Invalid storage path');
+  }
+  assert(pathInvalid, 'Invalid storage path rejected by RPC');
 
   // Insert active and failed chat attachments that are past delete_after to test claim_expired_file_cleanup
+  await setSuperuser();
   const expiredActiveChatRes = await db.query<{ id: string }>(`
     INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after, delete_status)
     VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'chat-attachments/${swapId}/expired_active.pdf', 'expired_active.pdf', 'application/pdf', 1024, NOW() - INTERVAL '1 hour', 'active')
@@ -122,11 +154,11 @@ export async function runFileLifecycleUnitTests(
   `);
   const expiredFailedChatId = expiredFailedChatRes.rows[0].id;
 
-  const claimedChatRes = await db.query<{ file_id: string }>(`
+  const claimedChatRes = await db.query<{ file_id: string; bucket_name: string }>(`
     SELECT * FROM public.claim_expired_file_cleanup(500);
   `);
-  assert(claimedChatRes.rows.some(r => r.file_id === expiredActiveChatId), 'claim_expired_file_cleanup MUST claim expired active chat attachment');
-  assert(claimedChatRes.rows.some(r => r.file_id === expiredFailedChatId), 'claim_expired_file_cleanup MUST claim expired failed chat attachment');
+  assert(claimedChatRes.rows.some(r => r.file_id === expiredActiveChatId && r.bucket_name === 'swap-chat-attachments'), 'claim_expired_file_cleanup MUST claim expired chat attachment with bucket swap-chat-attachments');
+  assert(claimedChatRes.rows.some(r => r.file_id === expiredFailedChatId && r.bucket_name === 'swap-chat-attachments'), 'claim_expired_file_cleanup MUST claim expired failed chat attachment with bucket swap-chat-attachments');
 
   // Sender manually deletes attachment within 6h window
   await setAuthUser(testUsers.userA);
@@ -161,8 +193,8 @@ export async function runFileLifecycleUnitTests(
   assert(manualDeleteFailed, 'Manual deletion after 6 hours MUST be rejected');
   console.log('  -> Chat attachment lifecycle and 6h manual deletion rules verified.');
 
-  // Test 4: Physical cleanup claiming & finalization
-  console.log('File Lifecycle Test 4: Claiming expired files & worker finalization...');
+  // Test 4: Physical cleanup claiming, lease recovery, & worker finalization
+  console.log('File Lifecycle Test 4: Claiming expired files, 15-minute lease recovery, & worker finalization...');
   await setSuperuser();
 
   // Create an expired submission file
@@ -181,6 +213,20 @@ export async function runFileLifecycleUnitTests(
   const claimedRecord = claimedRes.rows.find((r) => r.file_id === expiredSubFileId);
   assert(Boolean(claimedRecord), 'claim_expired_file_cleanup must claim expired submission file');
 
+  // Verify 15-minute lease recovery state: simulate a stuck worker by setting storage_delete_claimed_at to 20 minutes ago
+  await db.query(`
+    UPDATE public.swap_submission_files
+    SET storage_delete_status = 'in_progress',
+        storage_delete_claimed_at = NOW() - INTERVAL '20 minutes'
+    WHERE id = '${expiredSubFileId}';
+  `);
+
+  const reclaimedRes = await db.query<{ file_id: string }>(`
+    SELECT * FROM public.claim_expired_file_cleanup(500);
+  `);
+  const reclaimedRecord = reclaimedRes.rows.find((r) => r.file_id === expiredSubFileId);
+  assert(Boolean(reclaimedRecord), 'Stuck lease (>15m) MUST be successfully reclaimed by claim_expired_file_cleanup');
+
   // Finalize successful cleanup
   await db.query(`
     SELECT public.finalize_file_cleanup('${expiredSubFileId}'::uuid, 'swap_submission_files', true, NULL);
@@ -191,7 +237,7 @@ export async function runFileLifecycleUnitTests(
   `);
   assert(finalizedFile.rows[0].storage_delete_status === 'deleted', 'finalize_file_cleanup must set status to deleted');
   assert(finalizedFile.rows[0].storage_deleted_at !== null, 'finalize_file_cleanup must set storage_deleted_at timestamp');
-  console.log('  -> Physical cleanup claiming & finalization verified.');
+  console.log('  -> Physical cleanup claiming, 15-minute lease recovery, & worker finalization verified.');
 
   // Test 5: Cleanup failure handling
   console.log('File Lifecycle Test 5: Cleanup failure handling & retry state...');
@@ -274,7 +320,7 @@ export async function runFileLifecycleUnitTests(
   // Run migration backfill logic
   await db.query(`
     UPDATE public.swap_attachment_files f
-    SET storage_expires_at = COALESCE(f.storage_expires_at, s.created_at + interval '24 hours')
+    SET storage_expires_at = COALESCE(f.storage_expires_at, COALESCE(s.accepted_at, s.created_at) + interval '48 hours')
     FROM public.swaps s
     WHERE f.swap_id = s.id AND s.status <> 'open' AND f.storage_expires_at IS NULL;
   `);
