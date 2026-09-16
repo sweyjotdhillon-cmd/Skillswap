@@ -502,7 +502,7 @@ export function SwapChatModal({
                                 style={{
                                   display: 'flex',
                                   alignItems: 'center',
-                                  justify: 'space-between',
+                                  justifyContent: 'space-between',
                                   background: 'rgba(0,0,0,0.18)',
                                   padding: '0.35rem 0.6rem',
                                   borderRadius: '8px',
