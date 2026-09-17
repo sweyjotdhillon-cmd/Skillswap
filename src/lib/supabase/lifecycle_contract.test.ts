@@ -135,6 +135,7 @@ export async function runLifecycleContractIntegrationTests() {
     '042_file_lifecycle_cron_hardening.sql',
     '043_phase_a_file_lifecycle_consolidation.sql',
     '044_phase_a_lifecycle_contract_synchronization.sql',
+    '045_lifecycle_contract_synchronization_final.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -212,7 +213,10 @@ export async function runLifecycleContractIntegrationTests() {
   assert(claimedB.rows.some((r) => r.file_id === fileB), 'Expired file claimed');
 
   // Mark deleted
-  await db.query(`SELECT public.mark_file_storage_deleted('submission', '${fileB}'::uuid);`);
+  const markDelRes = await db.query<{ mark_file_storage_deleted: boolean }>(`
+    SELECT public.mark_file_storage_deleted('submission', '${fileB}'::uuid);
+  `);
+  assert(markDelRes.rows[0].mark_file_storage_deleted === true, 'mark_file_storage_deleted returns true on successful update');
 
   const statusB = (await db.query<{ storage_delete_status: string; storage_deleted_at: string | null }>(`
     SELECT storage_delete_status, storage_deleted_at FROM public.swap_submission_files WHERE id = '${fileB}';
@@ -235,9 +239,10 @@ export async function runLifecycleContractIntegrationTests() {
   await db.query(`SELECT * FROM public.claim_expired_file_cleanup(50);`);
 
   // Mark failed
-  await db.query(`
+  const markFailRes = await db.query<{ mark_file_storage_failed: boolean }>(`
     SELECT public.mark_file_storage_failed('submission', '${fileC}'::uuid, 'Network timeout');
   `);
+  assert(markFailRes.rows[0].mark_file_storage_failed === true, 'mark_file_storage_failed returns true on successful update');
 
   const statusC = (await db.query<{ storage_delete_status: string; storage_delete_error: string | null; storage_delete_claimed_at: string | null }>(`
     SELECT storage_delete_status, storage_delete_error, storage_delete_claimed_at FROM public.swap_submission_files WHERE id = '${fileC}';
@@ -263,10 +268,10 @@ export async function runLifecycleContractIntegrationTests() {
     RETURNING id;
   `)).rows[0].id;
 
-  // Simulate worker crash leaving row in_progress with claim timestamp 20 minutes ago
+  // Simulate worker crash leaving row in pending status with claim timestamp 20 minutes ago
   await db.query(`
     UPDATE public.swap_submission_files
-    SET storage_delete_status = 'in_progress',
+    SET storage_delete_status = 'pending',
         storage_delete_claimed_at = NOW() - INTERVAL '20 minutes'
     WHERE id = '${fileD}';
   `);
@@ -353,7 +358,7 @@ export async function runLifecycleContractIntegrationTests() {
 
   const chatAttG = (await db.query<{ id: string }>(`
     INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after)
-    VALUES ('${msgG}', '${swapG}', '${userA}', 'chat-attachments/${swapG}/chatG.pdf', 'chatG.pdf', 'application/pdf', 2048, NOW() - INTERVAL '1 hour')
+    VALUES ('${msgG}', '${swapG}', '${userA}', 'swap-chat-attachments/${swapG}/${userA}/chatG.pdf', 'chatG.pdf', 'application/pdf', 2048, NOW() - INTERVAL '1 hour')
     RETURNING id;
   `)).rows[0].id;
 
@@ -460,10 +465,10 @@ export async function runLifecycleContractIntegrationTests() {
   const diffHoursMsg = (msgExpiresTime - msgTime) / (1000 * 3600);
   assert(Math.abs(diffHoursMsg - 6) < 0.1, `Chat message retention is created_at + 6 hours (got ${diffHoursMsg}h)`);
 
-  // Chat attachment bound to message lifecycle (5-arg canonical contract)
-  const chatAttPathRet = `chat-attachments/${swapRet}/${chatMsgRet.id}/attRet.pdf`;
-  await db.query(`
-    SELECT public.register_swap_message_attachment(
+  // Chat attachment bound to message lifecycle (5-arg canonical contract returning row)
+  const chatAttPathRet = `swap-chat-attachments/${swapRet}/${userA}/attRet.pdf`;
+  const regRetRow = await db.query<{ id: string; delete_after: string; storage_path: string }>(`
+    SELECT * FROM public.register_swap_message_attachment(
       '${chatMsgRet.id}'::uuid,
       '${chatAttPathRet}',
       'attRet.pdf',
@@ -471,6 +476,8 @@ export async function runLifecycleContractIntegrationTests() {
       1024
     );
   `);
+  assert(regRetRow.rows[0].id !== undefined, 'register_swap_message_attachment returned inserted row');
+  assert(regRetRow.rows[0].storage_path === chatAttPathRet, 'register_swap_message_attachment returned correct storage_path');
 
   await setSuperuser();
   const chatAttRet = (await db.query<{ delete_after: string }>(`

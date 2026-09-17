@@ -13,6 +13,15 @@ const SOURCE_TO_BUCKET: Record<string, string> = {
   chat_attachment: 'swap-chat-attachments',
 };
 
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
 Deno.serve(async (req: Request) => {
   const { corsHeaders, errorResponse } = handleCors(req);
   if (errorResponse) return errorResponse;
@@ -28,11 +37,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Fail-closed authentication check
-    const authHeader = req.headers.get('Authorization') || req.headers.get('authorization');
+    // Fail-closed authentication check with constant-time comparison
+    const authHeader = req.headers.get('Authorization') || req.headers.get('authorization') || '';
     const expectedToken = `Bearer ${supabaseServiceKey}`;
 
-    if (!authHeader || authHeader !== expectedToken) {
+    if (!authHeader || !constantTimeEqual(authHeader, expectedToken)) {
       return new Response(
         JSON.stringify({ error: 'UNAUTHORIZED', message: 'Missing or invalid Authorization header.' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -65,7 +74,7 @@ Deno.serve(async (req: Request) => {
     if (claimErr) {
       console.error('[cleanup-storage-files] claim_expired_file_cleanup RPC failed:', claimErr.message);
       return new Response(
-        JSON.stringify({ error: 'CLAIM_FAILED', message: claimErr.message }),
+        JSON.stringify({ error: 'CLAIM_FAILED', message: 'Claim operation failed.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -111,22 +120,62 @@ Deno.serve(async (req: Request) => {
         (removeErr as { statusCode?: string }).statusCode === '404'
       );
 
-      if (removeErr && !isNotFound) {
-        console.error(`[cleanup-storage-files] Storage removal failed for ${source}/${file_id} (${bucketName}/${storage_path}):`, removeErr.message);
-        await supabase.rpc('mark_file_storage_failed', {
-          p_source: source,
-          p_file_id: file_id,
-          p_error: removeErr.message || 'Storage API removal error',
-        });
-        failed++;
-        errors.push({ source, file_id, error: removeErr.message || 'Storage API removal error' });
+      let isConfirmedAbsent = false;
+
+      if (!removeErr) {
+        // Confirm remove returned deleted object metadata or empty array for already deleted object
+        isConfirmedAbsent = true;
+      } else if (isNotFound) {
+        isConfirmedAbsent = true;
       } else {
-        // Finalize success via mark_file_storage_deleted (either deleted or object was already absent)
-        await supabase.rpc('mark_file_storage_deleted', {
+        // Object removal returned unexpected error - check whether object is physically absent
+        try {
+          const pathParts = storage_path.split('/');
+          const fileName = pathParts.pop() || '';
+          const folderPath = pathParts.join('/');
+          const { data: listData } = await supabase.storage
+            .from(bucketName)
+            .list(folderPath, { search: fileName });
+
+          if (listData && !listData.some((f) => f.name === fileName)) {
+            isConfirmedAbsent = true;
+          }
+        } catch {
+          isConfirmedAbsent = false;
+        }
+      }
+
+      if (!isConfirmedAbsent) {
+        console.error(`[cleanup-storage-files] Storage removal failed for ${source}/${file_id} (${bucketName}/${storage_path}):`, removeErr?.message || 'Removal unconfirmed');
+        const { error: markFailedErr } = await supabase.rpc('mark_file_storage_failed', {
+          p_source: source,
+          p_file_id: file_id,
+          p_error: removeErr?.message || 'Physical storage removal unconfirmed',
+        });
+        if (markFailedErr) {
+          console.error(`[cleanup-storage-files] mark_file_storage_failed RPC failed for ${source}/${file_id}:`, markFailedErr.message);
+        }
+        failed++;
+        errors.push({ source, file_id, error: 'Physical storage removal failed' });
+      } else {
+        // Finalize success via mark_file_storage_deleted after physical absence confirmed
+        const { error: markDeletedErr } = await supabase.rpc('mark_file_storage_deleted', {
           p_source: source,
           p_file_id: file_id,
         });
-        succeeded++;
+
+        if (markDeletedErr) {
+          console.error(`[cleanup-storage-files] mark_file_storage_deleted RPC error for ${source}/${file_id}:`, markDeletedErr.message);
+          await supabase.rpc('mark_file_storage_failed', {
+            p_source: source,
+            p_file_id: file_id,
+            p_error: markDeletedErr.message,
+          });
+          failed++;
+          errors.push({ source, file_id, error: 'Database finalization failed' });
+        } else {
+          succeeded++;
+        }
       }
     }
 
@@ -143,7 +192,7 @@ Deno.serve(async (req: Request) => {
   } catch (err) {
     console.error('[cleanup-storage-files] Unexpected exception:', err instanceof Error ? err.message : 'Internal worker error');
     return new Response(
-      JSON.stringify({ error: 'INTERNAL_ERROR', message: err instanceof Error ? err.message : 'Internal worker error' }),
+      JSON.stringify({ error: 'INTERNAL_ERROR', message: 'Internal worker error.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
