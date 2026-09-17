@@ -943,7 +943,7 @@ export async function sendSwapMessageWithAttachments(
 
     const storedFileName = sanitizeFileName(file.name);
     const normalizedMime = getNormalizedMimeType(storedFileName, file.type);
-    const storagePath = `chat-attachments/${swapId}/${messageId}/${generateUUID()}-${storedFileName}`;
+    const storagePath = `swap-chat-attachments/${swapId}/${user.id}/${generateUUID()}-${storedFileName}`;
 
     const { error: uploadErr } = await supabase.storage
       .from('swap-chat-attachments')

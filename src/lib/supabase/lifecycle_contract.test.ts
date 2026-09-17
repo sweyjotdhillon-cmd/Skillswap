@@ -359,7 +359,7 @@ export async function runLifecycleContractIntegrationTests() {
 
   const chatAttG = (await db.query<{ id: string }>(`
     INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after)
-    VALUES ('${msgG}', '${swapG}', '${userA}', 'swap-chat-attachments/${swapG}/${userA}/chatG.pdf', 'chatG.pdf', 'application/pdf', 2048, NOW() - INTERVAL '1 hour')
+    VALUES ('${msgG}', '${swapG}', '${userA}', 'swap-chat-attachments/${swapG}/${userA}/10101010-1010-1010-1010-101010101010-chatG.pdf', 'chatG.pdf', 'application/pdf', 2048, NOW() - INTERVAL '1 hour')
     RETURNING id;
   `)).rows[0].id;
 
