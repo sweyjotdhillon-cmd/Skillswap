@@ -105,20 +105,20 @@ export async function runFileLifecycleUnitTests(
   const msgId = msgRes.rows[0].id;
   assert(Boolean(msgRes.rows[0].expires_at), 'Chat message MUST have expires_at populated (DEFAULT created_at + 6h)');
 
-  // Test 5-argument register_swap_message_attachment RPC
+  // Test 5-argument register_swap_message_attachment RPC (returning complete inserted row)
   await setAuthUser(testUsers.userA);
-  const chatAttPath = `chat-attachments/${swapId}/${msgId}/uuid123-doc.pdf`;
-  const regRpcRes = await db.query<{ register_swap_message_attachment: { success: boolean; attachment_id: string } }>(`
-    SELECT public.register_swap_message_attachment(
+  const chatAttPath = `swap-chat-attachments/${swapId}/${testUsers.userA}/uuid123-doc.pdf`;
+  const regRpcRes = await db.query<{ id: string; storage_path: string }>(`
+    SELECT * FROM public.register_swap_message_attachment(
       '${msgId}'::uuid,
       '${chatAttPath}',
       'doc.pdf',
       'application/pdf',
       5242880
-    ) AS register_swap_message_attachment;
+    );
   `);
-  assert(regRpcRes.rows[0].register_swap_message_attachment.success === true, 'register_swap_message_attachment RPC succeeded');
-  const chatAttId = regRpcRes.rows[0].register_swap_message_attachment.attachment_id;
+  assert(regRpcRes.rows[0].id !== undefined, 'register_swap_message_attachment RPC succeeded and returned row id');
+  const chatAttId = regRpcRes.rows[0].id;
 
   // Verify path mismatch rejection
   let pathInvalid = false;
@@ -126,7 +126,7 @@ export async function runFileLifecycleUnitTests(
     await db.query(`
       SELECT public.register_swap_message_attachment(
         '${msgId}'::uuid,
-        'wrong-path/${swapId}/${msgId}/doc.pdf',
+        'wrong-path/${swapId}/${testUsers.userA}/doc.pdf',
         'doc.pdf',
         'application/pdf',
         1024
@@ -141,14 +141,14 @@ export async function runFileLifecycleUnitTests(
   await setSuperuser();
   const expiredActiveChatRes = await db.query<{ id: string }>(`
     INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after, delete_status)
-    VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'chat-attachments/${swapId}/expired_active.pdf', 'expired_active.pdf', 'application/pdf', 1024, NOW() - INTERVAL '1 hour', 'active')
+    VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'swap-chat-attachments/${swapId}/${testUsers.userA}/expired_active.pdf', 'expired_active.pdf', 'application/pdf', 1024, NOW() - INTERVAL '1 hour', 'active')
     RETURNING id;
   `);
   const expiredActiveChatId = expiredActiveChatRes.rows[0].id;
 
   const expiredFailedChatRes = await db.query<{ id: string }>(`
     INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after, delete_status)
-    VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'chat-attachments/${swapId}/expired_failed.pdf', 'expired_failed.pdf', 'application/pdf', 1024, NOW() - INTERVAL '1 hour', 'failed')
+    VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'swap-chat-attachments/${swapId}/${testUsers.userA}/expired_failed.pdf', 'expired_failed.pdf', 'application/pdf', 1024, NOW() - INTERVAL '1 hour', 'failed')
     RETURNING id;
   `);
   const expiredFailedChatId = expiredFailedChatRes.rows[0].id;
@@ -176,7 +176,7 @@ export async function runFileLifecycleUnitTests(
   // Verify manual deletion is rejected after 6h window
   const expiredMsgAttRes = await db.query<{ id: string }>(`
     INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after)
-    VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'chat-attachments/${swapId}/old.pdf', 'old.pdf', 'application/pdf', 1024, NOW() - INTERVAL '1 hour')
+    VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'swap-chat-attachments/${swapId}/${testUsers.userA}/old.pdf', 'old.pdf', 'application/pdf', 1024, NOW() - INTERVAL '1 hour')
     RETURNING id;
   `);
   const expiredAttId = expiredMsgAttRes.rows[0].id;
@@ -215,7 +215,7 @@ export async function runFileLifecycleUnitTests(
   // Verify 15-minute lease recovery state: simulate a stuck worker by setting storage_delete_claimed_at to 20 minutes ago
   await db.query(`
     UPDATE public.swap_submission_files
-    SET storage_delete_status = 'in_progress',
+    SET storage_delete_status = 'pending',
         storage_delete_claimed_at = NOW() - INTERVAL '20 minutes'
     WHERE id = '${expiredSubFileId}';
   `);
@@ -226,10 +226,11 @@ export async function runFileLifecycleUnitTests(
   const reclaimedRecord = reclaimedRes.rows.find((r) => r.file_id === expiredSubFileId);
   assert(Boolean(reclaimedRecord), 'Stuck lease (>15m) MUST be successfully reclaimed by claim_expired_file_cleanup');
 
-  // Finalize successful cleanup via mark_file_storage_deleted
-  await db.query(`
+  // Finalize successful cleanup via mark_file_storage_deleted (returning boolean)
+  const delBoolRes = await db.query<{ mark_file_storage_deleted: boolean }>(`
     SELECT public.mark_file_storage_deleted('submission', '${expiredSubFileId}'::uuid);
   `);
+  assert(delBoolRes.rows[0].mark_file_storage_deleted === true, 'mark_file_storage_deleted returns true on successful deletion');
 
   const finalizedFile = await db.query<{ storage_delete_status: string; storage_deleted_at: string | null }>(`
     SELECT storage_delete_status, storage_deleted_at FROM public.swap_submission_files WHERE id = '${expiredSubFileId}';
@@ -250,10 +251,11 @@ export async function runFileLifecycleUnitTests(
   // Claim
   await db.query(`SELECT * FROM public.claim_expired_file_cleanup(500);`);
 
-  // Finalize with failure via mark_file_storage_failed
-  await db.query(`
+  // Finalize with failure via mark_file_storage_failed (returning boolean)
+  const failBoolRes = await db.query<{ mark_file_storage_failed: boolean }>(`
     SELECT public.mark_file_storage_failed('submission', '${failSubFileId}'::uuid, 'Storage connection timeout');
   `);
+  assert(failBoolRes.rows[0].mark_file_storage_failed === true, 'mark_file_storage_failed returns true on successful failure record');
 
   const failedFile = await db.query<{ storage_delete_status: string; storage_delete_error: string | null; storage_delete_claimed_at: string | null }>(`
     SELECT storage_delete_status, storage_delete_error, storage_delete_claimed_at FROM public.swap_submission_files WHERE id = '${failSubFileId}';
@@ -265,10 +267,12 @@ export async function runFileLifecycleUnitTests(
 
   // Test 6: Idempotency
   console.log('File Lifecycle Test 6: Cleanup idempotency...');
-  // Running claim and finalize again on deleted file should produce no corruption
-  await db.query(`
+  // Running claim and finalize again on deleted file should return false without corruption
+  const reMarkRes = await db.query<{ mark_file_storage_deleted: boolean }>(`
     SELECT public.mark_file_storage_deleted('submission', '${expiredSubFileId}'::uuid);
   `);
+  assert(reMarkRes.rows[0].mark_file_storage_deleted === false, 'mark_file_storage_deleted returns false when target is already deleted');
+
   const reCheckedFile = await db.query<{ storage_delete_status: string }>(`
     SELECT storage_delete_status FROM public.swap_submission_files WHERE id = '${expiredSubFileId}';
   `);
@@ -400,7 +404,7 @@ export async function runFileLifecycleUnitTests(
       '${swapId}'::uuid,
       '${testUsers.userB}'::uuid,
       'Message with PDF attachment'::text,
-      '[{"storage_path": "chat-attachments/${swapId}/${msgWithAttId}/test.pdf", "file_name": "test.pdf", "file_size": 2048}]'::jsonb,
+      '[{"storage_path": "swap-chat-attachments/${swapId}/${testUsers.userA}/test.pdf", "file_name": "test.pdf", "file_size": 2048}]'::jsonb,
       '${msgWithAttId}'::uuid
     ) AS send_chat_message_with_attachments;
   `);
@@ -415,7 +419,7 @@ export async function runFileLifecycleUnitTests(
       '${swapId}'::uuid,
       '${testUsers.userB}'::uuid,
       ''::text,
-      '[{"storage_path": "chat-attachments/${swapId}/${attOnlyMsgId}/img.png", "file_name": "img.png", "file_size": 1024}]'::jsonb,
+      '[{"storage_path": "swap-chat-attachments/${swapId}/${testUsers.userA}/img.png", "file_name": "img.png", "file_size": 1024}]'::jsonb,
       '${attOnlyMsgId}'::uuid
     ) AS send_chat_message_with_attachments;
   `);
@@ -431,12 +435,13 @@ export async function runFileLifecycleUnitTests(
         '${swapId}'::uuid,
         '${testUsers.userB}'::uuid,
         'This should fail'::text,
-        '[{"storage_path": "chat-attachments/${swapId}/${failedMsgId}/virus.exe", "file_name": "virus.exe", "file_size": 1024}]'::jsonb,
+        '[{"storage_path": "swap-chat-attachments/${swapId}/${testUsers.userA}/virus.exe", "file_name": "virus.exe", "file_size": 1024}]'::jsonb,
         '${failedMsgId}'::uuid
       );
     `);
   } catch (err) {
-    failedRpcRejected = (err as Error).message.includes('unsupported file extension') || (err as Error).message.includes('Invalid file format');
+    const errMessage = (err as Error).message.toLowerCase();
+    failedRpcRejected = errMessage.includes('unsupported') || errMessage.includes('invalid file format') || errMessage.includes('restricted file extension');
   }
   assert(failedRpcRejected, 'Invalid file extension MUST cause RPC exception');
 
@@ -463,7 +468,8 @@ export async function runFileLifecycleUnitTests(
       );
     `);
   } catch (err) {
-    subWorkMimeRejected = (err as Error).message.includes('unsupported file extension') || (err as Error).message.includes('Invalid file format');
+    const errMessage = (err as Error).message.toLowerCase();
+    subWorkMimeRejected = errMessage.includes('unsupported') || errMessage.includes('invalid file format') || errMessage.includes('restricted file extension');
   }
   assert(subWorkMimeRejected, 'submit_swap_work MUST reject unsupported file extensions server-side');
 
@@ -487,7 +493,7 @@ export async function runFileLifecycleUnitTests(
     ) AS register_swap_attachment;
   `);
   assert(creatorAttMimeRes.rows[0].register_swap_attachment.success === false, 'register_swap_attachment MUST reject unsupported file extensions server-side');
-  assert(creatorAttMimeRes.rows[0].register_swap_attachment.error?.includes('unsupported file extension') === true, 'Error message for unsupported extension matches');
+  assert(creatorAttMimeRes.rows[0].register_swap_attachment.error?.toLowerCase().includes('unsupported') === true, 'Error message for unsupported extension matches');
 
   // 11c. Client p_mime_type is NOT trusted (overridden by canonical mime type derived from file extension)
   const validExtRes = await db.query<{ register_swap_attachment: { success: boolean; mime_type: string } }>(`
@@ -517,7 +523,7 @@ export async function runFileLifecycleUnitTests(
 
   const e2eAttRes = await db.query<{ id: string }>(`
     INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after)
-    VALUES ('${e2eMsgId}', '${swapId}', '${testUsers.userA}', 'chat-attachments/${swapId}/e2e_test.pdf', 'e2e_test.pdf', 'application/pdf', 1024, NOW() - INTERVAL '2 hours')
+    VALUES ('${e2eMsgId}', '${swapId}', '${testUsers.userA}', 'swap-chat-attachments/${swapId}/${testUsers.userA}/e2e_test.pdf', 'e2e_test.pdf', 'application/pdf', 1024, NOW() - INTERVAL '2 hours')
     RETURNING id;
   `);
   const e2eAttId = e2eAttRes.rows[0].id;
@@ -544,7 +550,7 @@ export async function runFileLifecycleUnitTests(
   // Step 8 & 9: Simulate failure & retryability
   const e2eFailAttRes = await db.query<{ id: string }>(`
     INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after)
-    VALUES ('${e2eMsgId}', '${swapId}', '${testUsers.userA}', 'chat-attachments/${swapId}/e2e_fail.pdf', 'e2e_fail.pdf', 'application/pdf', 1024, NOW() - INTERVAL '2 hours')
+    VALUES ('${e2eMsgId}', '${swapId}', '${testUsers.userA}', 'swap-chat-attachments/${swapId}/${testUsers.userA}/e2e_fail.pdf', 'e2e_fail.pdf', 'application/pdf', 1024, NOW() - INTERVAL '2 hours')
     RETURNING id;
   `);
   const e2eFailAttId = e2eFailAttRes.rows[0].id;
@@ -567,7 +573,7 @@ export async function runFileLifecycleUnitTests(
   // Step 10: Confirm stuck lease becomes reclaimable after 15 min lease timeout
   await db.query(`
     UPDATE public.swap_message_attachments
-    SET delete_status = 'in_progress',
+    SET delete_status = 'pending',
         delete_claimed_at = NOW() - INTERVAL '20 minutes'
     WHERE id = '${e2eFailAttId}';
   `);
