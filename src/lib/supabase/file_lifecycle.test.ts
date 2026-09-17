@@ -14,9 +14,10 @@ export async function runFileLifecycleUnitTests(
 
   const setAuthUser = async (userId: string) => {
     await db.exec(`
-      SET ROLE authenticated;
+      RESET ROLE;
       SELECT set_config('request.jwt.claim.sub', '${userId}', false);
       SELECT set_config('request.jwt.claim.role', 'authenticated', false);
+      SET ROLE authenticated;
     `);
   };
 
@@ -104,13 +105,12 @@ export async function runFileLifecycleUnitTests(
   const msgId = msgRes.rows[0].id;
   assert(Boolean(msgRes.rows[0].expires_at), 'Chat message MUST have expires_at populated (DEFAULT created_at + 6h)');
 
-  // Test register_swap_message_attachment RPC
+  // Test 5-argument register_swap_message_attachment RPC
   await setAuthUser(testUsers.userA);
   const chatAttPath = `chat-attachments/${swapId}/${msgId}/uuid123-doc.pdf`;
   const regRpcRes = await db.query<{ register_swap_message_attachment: { success: boolean; attachment_id: string } }>(`
     SELECT public.register_swap_message_attachment(
       '${msgId}'::uuid,
-      '${swapId}'::uuid,
       '${chatAttPath}',
       'doc.pdf',
       'application/pdf',
@@ -126,7 +126,6 @@ export async function runFileLifecycleUnitTests(
     await db.query(`
       SELECT public.register_swap_message_attachment(
         '${msgId}'::uuid,
-        '${swapId}'::uuid,
         'wrong-path/${swapId}/${msgId}/doc.pdf',
         'doc.pdf',
         'application/pdf',
@@ -138,7 +137,7 @@ export async function runFileLifecycleUnitTests(
   }
   assert(pathInvalid, 'Invalid storage path rejected by RPC');
 
-  // Insert active and failed chat attachments that are past delete_after to test claim_expired_file_cleanup
+  // Insert expired chat attachment records for claiming check
   await setSuperuser();
   const expiredActiveChatRes = await db.query<{ id: string }>(`
     INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after, delete_status)
@@ -154,12 +153,11 @@ export async function runFileLifecycleUnitTests(
   `);
   const expiredFailedChatId = expiredFailedChatRes.rows[0].id;
 
-  // Test both RPC signatures: claim_expired_file_cleanup(500) and overloaded claim_expired_file_cleanup(p_limit := 500)
-  const claimedChatRes = await db.query<{ file_id: string; bucket_name: string }>(`
+  const claimedChatRes = await db.query<{ file_id: string; source: string }>(`
     SELECT * FROM public.claim_expired_file_cleanup(500);
   `);
-  assert(claimedChatRes.rows.some(r => r.file_id === expiredActiveChatId && r.bucket_name === 'swap-chat-attachments'), 'claim_expired_file_cleanup MUST claim expired chat attachment with bucket swap-chat-attachments');
-  assert(claimedChatRes.rows.some(r => r.file_id === expiredFailedChatId && r.bucket_name === 'swap-chat-attachments'), 'claim_expired_file_cleanup MUST claim expired failed chat attachment with bucket swap-chat-attachments');
+  assert(claimedChatRes.rows.some(r => r.file_id === expiredActiveChatId && r.source === 'chat_attachment'), 'claim_expired_file_cleanup MUST claim expired chat attachment with source chat_attachment');
+  assert(claimedChatRes.rows.some(r => r.file_id === expiredFailedChatId && r.source === 'chat_attachment'), 'claim_expired_file_cleanup MUST claim expired failed chat attachment with source chat_attachment');
 
   // Sender manually deletes attachment within 6h window
   await setAuthUser(testUsers.userA);
@@ -207,7 +205,7 @@ export async function runFileLifecycleUnitTests(
   const expiredSubFileId = expiredSubFileRes.rows[0].id;
 
   // Claim expired files
-  const claimedRes = await db.query<{ file_id: string; table_name: string; bucket_name: string; storage_path: string }>(`
+  const claimedRes = await db.query<{ file_id: string; source: string; storage_path: string }>(`
     SELECT * FROM public.claim_expired_file_cleanup(500);
   `);
   assert(claimedRes.rows.length > 0, 'claim_expired_file_cleanup must return expired files');
@@ -230,7 +228,7 @@ export async function runFileLifecycleUnitTests(
 
   // Finalize successful cleanup via mark_file_storage_deleted
   await db.query(`
-    SELECT public.mark_file_storage_deleted('${expiredSubFileId}'::uuid, 'swap_submission_files');
+    SELECT public.mark_file_storage_deleted('submission', '${expiredSubFileId}'::uuid);
   `);
 
   const finalizedFile = await db.query<{ storage_delete_status: string; storage_deleted_at: string | null }>(`
@@ -254,7 +252,7 @@ export async function runFileLifecycleUnitTests(
 
   // Finalize with failure via mark_file_storage_failed
   await db.query(`
-    SELECT public.mark_file_storage_failed('${failSubFileId}'::uuid, 'swap_submission_files', 'Storage connection timeout');
+    SELECT public.mark_file_storage_failed('submission', '${failSubFileId}'::uuid, 'Storage connection timeout');
   `);
 
   const failedFile = await db.query<{ storage_delete_status: string; storage_delete_error: string | null; storage_delete_claimed_at: string | null }>(`
@@ -269,7 +267,7 @@ export async function runFileLifecycleUnitTests(
   console.log('File Lifecycle Test 6: Cleanup idempotency...');
   // Running claim and finalize again on deleted file should produce no corruption
   await db.query(`
-    SELECT public.mark_file_storage_deleted('${expiredSubFileId}'::uuid, 'swap_submission_files');
+    SELECT public.mark_file_storage_deleted('submission', '${expiredSubFileId}'::uuid);
   `);
   const reCheckedFile = await db.query<{ storage_delete_status: string }>(`
     SELECT storage_delete_status FROM public.swap_submission_files WHERE id = '${expiredSubFileId}';
@@ -339,7 +337,7 @@ export async function runFileLifecycleUnitTests(
   assert(isPptxClaimed, 'Legacy MAchines.pptx attachment MUST be claimed as expired file');
 
   await db.query(`
-    SELECT public.mark_file_storage_deleted('dcb801a9-84a4-4410-81a1-73850cb8f5c0'::uuid, 'swap_attachment_files');
+    SELECT public.mark_file_storage_deleted('creator_attachment', 'dcb801a9-84a4-4410-81a1-73850cb8f5c0'::uuid);
   `);
 
   const pptxFinal = await db.query<{ storage_delete_status: string; storage_deleted_at: string | null }>(`
@@ -461,7 +459,7 @@ export async function runFileLifecycleUnitTests(
       SELECT public.submit_swap_work(
         '${swapId}'::uuid,
         'Notes',
-        '[{"storage_path": "submissions/${swapId}/${testUsers.userB}/script.sh_invalid", "file_name": "script.sh_invalid", "mime_type": "text/plain", "file_size": 100}]'::jsonb
+        '[{"storage_path": "submissions/${swapId}/${testUsers.userB}/script.exe", "file_name": "script.exe", "mime_type": "text/plain", "file_size": 100}]'::jsonb
       );
     `);
   } catch (err) {
@@ -525,16 +523,16 @@ export async function runFileLifecycleUnitTests(
   const e2eAttId = e2eAttRes.rows[0].id;
 
   // Step 3 & 4: Claim expired items
-  const e2eClaim = await db.query<{ file_id: string; bucket_name: string; storage_path: string }>(`
+  const e2eClaim = await db.query<{ file_id: string; source: string; storage_path: string }>(`
     SELECT * FROM public.claim_expired_file_cleanup(500);
   `);
   const e2eClaimedRecord = e2eClaim.rows.find(r => r.file_id === e2eAttId);
   assert(Boolean(e2eClaimedRecord), 'E2E test item MUST be claimed');
-  assert(e2eClaimedRecord?.bucket_name === 'swap-chat-attachments', 'Claimed item MUST map to swap-chat-attachments bucket');
+  assert(e2eClaimedRecord?.source === 'chat_attachment', 'Claimed item MUST map to swap-chat-attachments bucket');
 
   // Step 5 & 6 & 7: Finalize cleanup via mark_file_storage_deleted
   await db.query(`
-    SELECT public.mark_file_storage_deleted('${e2eAttId}'::uuid, 'swap_message_attachments');
+    SELECT public.mark_file_storage_deleted('chat_attachment', '${e2eAttId}'::uuid);
   `);
 
   const e2eFinal = await db.query<{ delete_status: string; deleted_at: string | null }>(`
@@ -552,7 +550,7 @@ export async function runFileLifecycleUnitTests(
   const e2eFailAttId = e2eFailAttRes.rows[0].id;
 
   await db.query(`SELECT * FROM public.claim_expired_file_cleanup(500);`);
-  await db.query(`SELECT public.mark_file_storage_failed('${e2eFailAttId}'::uuid, 'swap_message_attachments', 'Simulated Storage Network Error');`);
+  await db.query(`SELECT public.mark_file_storage_failed('chat_attachment', '${e2eFailAttId}'::uuid, 'Simulated Storage Network Error');`);
 
   const e2eFailedRecord = await db.query<{ delete_status: string; delete_error: string }>(`
     SELECT delete_status, delete_error FROM public.swap_message_attachments WHERE id = '${e2eFailAttId}';
@@ -607,7 +605,7 @@ export async function runFileLifecycleUnitTests(
   assert(isNotFound === true, 'Worker logic MUST identify 404 / Object not found as already removed');
 
   await db.query(`
-    SELECT public.mark_file_storage_deleted('${missingObjSubId}'::uuid, 'swap_submission_files');
+    SELECT public.mark_file_storage_deleted('submission', '${missingObjSubId}'::uuid);
   `);
 
   const missingObjFinal = await db.query<{ storage_delete_status: string; storage_deleted_at: string | null }>(`

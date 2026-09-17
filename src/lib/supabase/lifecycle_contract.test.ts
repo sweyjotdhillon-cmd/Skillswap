@@ -1,19 +1,18 @@
+import assert from 'node:assert';
 import { PGlite } from '@electric-sql/pglite';
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
-function assert(condition: boolean, message: string) {
-  if (!condition) {
-    throw new Error(`Assertion failed: ${message}`);
-  }
-}
-
+/**
+ * Phase B File Lifecycle Contract & Retention Integration Tests
+ * Validates Contracts A through H & retention durations (Section 3).
+ */
 export async function runLifecycleContractIntegrationTests() {
   console.log('--- Starting Phase B File Lifecycle Contract & Integration Tests ---');
 
   const db = new PGlite();
 
-  // 1. Setup auth & storage schema mock helpers
+  // Initialize PGlite roles, auth, and storage schemas
   await db.exec(`
     DO $$ BEGIN
       IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon; END IF;
@@ -75,6 +74,15 @@ export async function runLifecycleContractIntegrationTests() {
     $$;
   `);
 
+  const setAuthUser = async (userId: string) => {
+    await db.exec(`
+      RESET ROLE;
+      SELECT set_config('request.jwt.claim.sub', '${userId}', false);
+      SELECT set_config('request.jwt.claim.role', 'authenticated', false);
+      SET ROLE authenticated;
+    `);
+  };
+
   const setSuperuser = async () => {
     await db.exec(`
       RESET ROLE;
@@ -82,15 +90,6 @@ export async function runLifecycleContractIntegrationTests() {
     `);
   };
 
-  const setAuthUser = async (userId: string) => {
-    await db.exec(`
-      SET ROLE authenticated;
-      SELECT set_config('request.jwt.claim.sub', '${userId}', false);
-      SELECT set_config('request.jwt.claim.role', 'authenticated', false);
-    `);
-  };
-
-  // 2. Apply all migrations in order
   const migrationFiles = [
     '001_password_reset_challenges.sql',
     '002_profile_and_skills_schema.sql',
@@ -135,39 +134,59 @@ export async function runLifecycleContractIntegrationTests() {
     '040_phase2_consolidation_and_cleanup.sql',
     '042_file_lifecycle_cron_hardening.sql',
     '043_phase_a_file_lifecycle_consolidation.sql',
+    '044_phase_a_lifecycle_contract_synchronization.sql',
   ];
 
   for (const file of migrationFiles) {
     const filePath = path.join(process.cwd(), 'supabase', 'migrations', file);
     const sql = fs.readFileSync(filePath, 'utf8');
-    await db.exec(sql);
+    try {
+      await db.exec(sql);
+    } catch (mErr) {
+      console.error(`Error applying migration ${file}:`, (mErr as Error).message);
+      throw mErr;
+    }
   }
 
-  // Seed test users
-  const userA = '10000000-0000-0000-0000-000000000001';
-  const userB = '20000000-0000-0000-0000-000000000002';
   await setSuperuser();
+
+  // Seed test users
+  const userA = '11111111-1111-4111-a111-111111111111';
+  const userB = '22222222-2222-4222-a222-222222222222';
+
   await db.exec(`
     INSERT INTO auth.users (id, email) VALUES
       ('${userA}', 'usera_contract@example.com'),
-      ('${userB}', 'userb_contract@example.com');
+      ('${userB}', 'userb_contract@example.com')
+    ON CONFLICT (id) DO NOTHING;
+
+    INSERT INTO public.profiles (id, username, full_name, profile_completed)
+    VALUES
+      ('${userA}', 'usera_contract', 'User A Contract', true),
+      ('${userB}', 'userb_contract', 'User B Contract', true)
+    ON CONFLICT (id) DO NOTHING;
+
+    INSERT INTO public.accounts (user_id, credits_balance, credits_reserved, credits_earned, credits_spent)
+    VALUES
+      ('${userA}', 100, 0, 100, 0),
+      ('${userB}', 100, 0, 100, 0)
+    ON CONFLICT (user_id) DO NOTHING;
   `);
 
   // =========================================================================
-  // CONTRACT A: RPC Contract — claim_expired_file_cleanup(p_batch_size)
+  // CONTRACT A: RPC Contract — claim_expired_file_cleanup(p_limit)
   // =========================================================================
-  console.log('Contract A: RPC Contract claim_expired_file_cleanup(p_batch_size)...');
-  const claimRpcCheck = await db.query<{ file_id: string }>(`
-    SELECT * FROM public.claim_expired_file_cleanup(p_batch_size := 100);
+  console.log('Contract A: RPC Contract claim_expired_file_cleanup(p_limit)...');
+  const claimRpcCheck = await db.query<{ source: string; file_id: string; storage_path: string }>(`
+    SELECT * FROM public.claim_expired_file_cleanup(p_limit := 100);
   `);
-  assert(Array.isArray(claimRpcCheck.rows), 'claim_expired_file_cleanup(p_batch_size) returns array');
+  assert(Array.isArray(claimRpcCheck.rows), 'claim_expired_file_cleanup(p_limit) returns array');
   console.log('  -> Contract A verified.');
 
   // =========================================================================
   // CONTRACT B: Successful Lifecycle (claim -> Storage.remove -> mark_file_storage_deleted -> finalized)
   // =========================================================================
   console.log('Contract B: Successful lifecycle progression...');
-  // Create accepted swap
   const swapB = (await db.query<{ id: string }>(`
     INSERT INTO public.swaps (requester_id, participant_id, topic, description, requirements, credit_amount, status)
     VALUES ('${userA}', '${userB}', 'Contract B Swap', 'Desc', 'Reqs', 10, 'accepted')
@@ -187,13 +206,13 @@ export async function runLifecycleContractIntegrationTests() {
   `)).rows[0].id;
 
   // Claim
-  const claimedB = await db.query<{ file_id: string }>(`
+  const claimedB = await db.query<{ file_id: string; source: string }>(`
     SELECT * FROM public.claim_expired_file_cleanup(50);
   `);
   assert(claimedB.rows.some((r) => r.file_id === fileB), 'Expired file claimed');
 
   // Mark deleted
-  await db.query(`SELECT public.mark_file_storage_deleted('${fileB}'::uuid, 'swap_submission_files');`);
+  await db.query(`SELECT public.mark_file_storage_deleted('submission', '${fileB}'::uuid);`);
 
   const statusB = (await db.query<{ storage_delete_status: string; storage_deleted_at: string | null }>(`
     SELECT storage_delete_status, storage_deleted_at FROM public.swap_submission_files WHERE id = '${fileB}';
@@ -217,7 +236,7 @@ export async function runLifecycleContractIntegrationTests() {
 
   // Mark failed
   await db.query(`
-    SELECT public.mark_file_storage_failed('${fileC}'::uuid, 'swap_submission_files', 'Network timeout');
+    SELECT public.mark_file_storage_failed('submission', '${fileC}'::uuid, 'Network timeout');
   `);
 
   const statusC = (await db.query<{ storage_delete_status: string; storage_delete_error: string | null; storage_delete_claimed_at: string | null }>(`
@@ -272,7 +291,7 @@ export async function runLifecycleContractIntegrationTests() {
   await db.query(`SELECT * FROM public.claim_expired_file_cleanup(50);`);
 
   // When worker gets 404/Object Not Found from Storage, it calls mark_file_storage_deleted
-  await db.query(`SELECT public.mark_file_storage_deleted('${fileE}'::uuid, 'swap_submission_files');`);
+  await db.query(`SELECT public.mark_file_storage_deleted('submission', '${fileE}'::uuid);`);
 
   const statusE = (await db.query<{ storage_delete_status: string }>(`
     SELECT storage_delete_status FROM public.swap_submission_files WHERE id = '${fileE}';
@@ -281,10 +300,9 @@ export async function runLifecycleContractIntegrationTests() {
   console.log('  -> Contract E verified.');
 
   // =========================================================================
-  // CONTRACT F: Authentication Failure Protection
+  // CONTRACT F: Authentication failure protection
   // =========================================================================
   console.log('Contract F: Authentication failure protection on Edge function handler contract...');
-  // Simulate logic from Edge Function: if Authorization header doesn't match service_role, return 401
   const mockEdgeHandlerAuthCheck = (authHeader: string | null, serviceKey: string) => {
     const expected = `Bearer ${serviceKey}`;
     if (!authHeader || authHeader !== expected) {
@@ -303,7 +321,6 @@ export async function runLifecycleContractIntegrationTests() {
   // CONTRACT G: Canonical Bucket Mapping
   // =========================================================================
   console.log('Contract G: Canonical Bucket Mapping...');
-  // Insert 1 item of each type
   const swapG = (await db.query<{ id: string }>(`
     INSERT INTO public.swaps (requester_id, participant_id, topic, description, requirements, credit_amount, status)
     VALUES ('${userA}', '${userB}', 'Contract G Swap', 'Desc', 'Reqs', 10, 'accepted')
@@ -340,7 +357,7 @@ export async function runLifecycleContractIntegrationTests() {
     RETURNING id;
   `)).rows[0].id;
 
-  const claimedG = await db.query<{ file_id: string; bucket_name: string }>(`
+  const claimedG = await db.query<{ file_id: string; source: string }>(`
     SELECT * FROM public.claim_expired_file_cleanup(50);
   `);
 
@@ -348,16 +365,15 @@ export async function runLifecycleContractIntegrationTests() {
   const mapSub = claimedG.rows.find((r) => r.file_id === subFileG);
   const mapChat = claimedG.rows.find((r) => r.file_id === chatAttG);
 
-  assert(mapAtt?.bucket_name === 'swap-attachments', 'creator_attachment maps to swap-attachments');
-  assert(mapSub?.bucket_name === 'swap-submissions', 'submission maps to swap-submissions');
-  assert(mapChat?.bucket_name === 'swap-chat-attachments', 'chat_attachment maps to swap-chat-attachments');
+  assert(mapAtt?.source === 'creator_attachment', 'creator_attachment source verified');
+  assert(mapSub?.source === 'submission', 'submission source verified');
+  assert(mapChat?.source === 'chat_attachment', 'chat_attachment source verified');
   console.log('  -> Contract G verified.');
 
   // =========================================================================
   // CONTRACT H: Duplicate / Overlapping Execution Safety
   // =========================================================================
   console.log('Contract H: Duplicate / overlapping worker execution safety...');
-  // Concurrent claim calls on the same dataset
   const [claim1, claim2] = await Promise.all([
     db.query<{ file_id: string }>(`SELECT * FROM public.claim_expired_file_cleanup(50);`),
     db.query<{ file_id: string }>(`SELECT * FROM public.claim_expired_file_cleanup(50);`),
@@ -366,7 +382,6 @@ export async function runLifecycleContractIntegrationTests() {
   const set1 = new Set(claim1.rows.map((r) => r.file_id));
   const set2 = new Set(claim2.rows.map((r) => r.file_id));
 
-  // No file should be claimed in both concurrent calls
   let overlapCount = 0;
   for (const fid of set1) {
     if (set2.has(fid)) overlapCount++;
@@ -445,12 +460,11 @@ export async function runLifecycleContractIntegrationTests() {
   const diffHoursMsg = (msgExpiresTime - msgTime) / (1000 * 3600);
   assert(Math.abs(diffHoursMsg - 6) < 0.1, `Chat message retention is created_at + 6 hours (got ${diffHoursMsg}h)`);
 
-  // Chat attachment bound to message lifecycle
+  // Chat attachment bound to message lifecycle (5-arg canonical contract)
   const chatAttPathRet = `chat-attachments/${swapRet}/${chatMsgRet.id}/attRet.pdf`;
   await db.query(`
     SELECT public.register_swap_message_attachment(
       '${chatMsgRet.id}'::uuid,
-      '${swapRet}'::uuid,
       '${chatAttPathRet}',
       'attRet.pdf',
       'application/pdf',
