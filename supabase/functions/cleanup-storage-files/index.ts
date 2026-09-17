@@ -2,11 +2,16 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.4';
 import { handleCors } from '../_shared/cors.ts';
 
 interface ClaimedItem {
+  source: string;
   file_id: string;
-  table_name: string;
-  bucket_name: string;
   storage_path: string;
 }
+
+const SOURCE_TO_BUCKET: Record<string, string> = {
+  submission: 'swap-submissions',
+  creator_attachment: 'swap-attachments',
+  chat_attachment: 'swap-chat-attachments',
+};
 
 Deno.serve(async (req: Request) => {
   const { corsHeaders, errorResponse } = handleCors(req);
@@ -38,14 +43,14 @@ Deno.serve(async (req: Request) => {
       auth: { persistSession: false },
     });
 
-    let batchSize = 500;
+    let limit = 100;
     if (req.method === 'POST') {
       try {
         const body = await req.json();
-        if (typeof body?.batch_size === 'number' && body.batch_size > 0) {
-          batchSize = body.batch_size;
-        } else if (typeof body?.limit === 'number' && body.limit > 0) {
-          batchSize = body.limit;
+        if (typeof body?.limit === 'number' && body.limit > 0) {
+          limit = body.limit;
+        } else if (typeof body?.batch_size === 'number' && body.batch_size > 0) {
+          limit = body.batch_size;
         }
       } catch {
         // Ignore JSON parse errors for empty POST body
@@ -54,11 +59,11 @@ Deno.serve(async (req: Request) => {
 
     // 1. Claim expired items using canonical RPC claim_expired_file_cleanup
     const { data: claimedData, error: claimErr } = await supabase.rpc('claim_expired_file_cleanup', {
-      p_batch_size: batchSize,
+      p_limit: limit,
     });
 
     if (claimErr) {
-      console.error('[cleanup-storage-files] claim_expired_file_cleanup RPC failed:', claimErr);
+      console.error('[cleanup-storage-files] claim_expired_file_cleanup RPC failed:', claimErr.message);
       return new Response(
         JSON.stringify({ error: 'CLAIM_FAILED', message: claimErr.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -75,28 +80,26 @@ Deno.serve(async (req: Request) => {
 
     let succeeded = 0;
     let failed = 0;
-    const errors: Array<{ file_id: string; error: string }> = [];
-
-    // Valid canonical buckets map
-    const VALID_BUCKETS = new Set(['swap-attachments', 'swap-submissions', 'swap-chat-attachments']);
+    const errors: Array<{ source: string; file_id: string; error: string }> = [];
 
     // 2. Process physical Storage deletion for each claimed item
     for (const item of items) {
-      const { file_id, table_name, bucket_name, storage_path } = item;
+      const { source, file_id, storage_path } = item;
+      const bucketName = SOURCE_TO_BUCKET[source];
 
-      if (!bucket_name || !storage_path || !VALID_BUCKETS.has(bucket_name)) {
+      if (!bucketName || !storage_path) {
         await supabase.rpc('mark_file_storage_failed', {
+          p_source: source || 'unknown',
           p_file_id: file_id,
-          p_table_name: table_name,
-          p_error: `Invalid or untrusted bucket/path: ${bucket_name}/${storage_path}`,
+          p_error: `Invalid or unmapped source/path: source=${source}, path=${storage_path}`,
         });
         failed++;
-        errors.push({ file_id, error: 'Invalid bucket or storage path' });
+        errors.push({ source, file_id, error: 'Invalid bucket or storage path' });
         continue;
       }
 
       const { error: removeErr } = await supabase.storage
-        .from(bucket_name)
+        .from(bucketName)
         .remove([storage_path]);
 
       const errLower = removeErr?.message?.toLowerCase() || '';
@@ -109,19 +112,19 @@ Deno.serve(async (req: Request) => {
       );
 
       if (removeErr && !isNotFound) {
-        console.error(`[cleanup-storage-files] Storage removal failed for ${bucket_name}/${storage_path}:`, removeErr);
+        console.error(`[cleanup-storage-files] Storage removal failed for ${source}/${file_id} (${bucketName}/${storage_path}):`, removeErr.message);
         await supabase.rpc('mark_file_storage_failed', {
+          p_source: source,
           p_file_id: file_id,
-          p_table_name: table_name,
           p_error: removeErr.message || 'Storage API removal error',
         });
         failed++;
-        errors.push({ file_id, error: removeErr.message || 'Storage API removal error' });
+        errors.push({ source, file_id, error: removeErr.message || 'Storage API removal error' });
       } else {
         // Finalize success via mark_file_storage_deleted (either deleted or object was already absent)
         await supabase.rpc('mark_file_storage_deleted', {
+          p_source: source,
           p_file_id: file_id,
-          p_table_name: table_name,
         });
         succeeded++;
       }
@@ -138,7 +141,7 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {
-    console.error('[cleanup-storage-files] Unexpected exception:', err);
+    console.error('[cleanup-storage-files] Unexpected exception:', err instanceof Error ? err.message : 'Internal worker error');
     return new Response(
       JSON.stringify({ error: 'INTERNAL_ERROR', message: err instanceof Error ? err.message : 'Internal worker error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
