@@ -296,11 +296,10 @@ export async function runFileLifecycleUnitTests(
   await setSuperuser();
 
   // Create legacy completed swap and MAchines.pptx record
-  const legacySwapRes = await db.query<{ id: string }>(`
+  await db.query(`
     INSERT INTO public.swaps (id, requester_id, participant_id, topic, description, requirements, credit_amount, status, created_at)
     VALUES ('7124c8f9-2348-42aa-958c-4625fce2e4c6', '${testUsers.userA}', '${testUsers.userB}', 'Legacy Swap', 'Desc', 'Reqs', 10, 'completed', NOW() - INTERVAL '30 days')
-    ON CONFLICT (id) DO UPDATE SET status = 'completed'
-    RETURNING id;
+    ON CONFLICT (id) DO UPDATE SET status = 'completed';
   `);
 
   await db.query(`

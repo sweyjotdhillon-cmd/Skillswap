@@ -1,4 +1,5 @@
 import { getSupabaseBrowserClient } from './client';
+import { logger } from '../logger';
 
 export interface Profile {
   id: string;
@@ -78,7 +79,7 @@ export function formatFriendlyErrorMessage(error: unknown): string {
   if (!error) return 'We couldn’t complete that action right now. Please try again.';
 
   // Preserve technical error details internally in developer logs
-  console.error('[Database/RPC Technical Error Details]:', error);
+  logger.error('[Database/RPC Technical Error Details]:', error);
 
   const errObj = error as { message?: string; details?: string };
   const rawMsg = typeof error === 'string' ? error : errObj.message || errObj.details || '';
@@ -494,13 +495,13 @@ export async function getSkillsCatalog(): Promise<Skill[]> {
       .order('name', { ascending: true });
 
     if (error) {
-      console.error('Failed to fetch skills catalog:', error);
+      logger.error('Failed to fetch skills catalog:', error);
       throw new Error(formatFriendlyErrorMessage(error));
     }
 
     return (data || []) as Skill[];
   } catch (err: unknown) {
-    console.error('Failed to fetch skills catalog exception:', err);
+    logger.error('Failed to fetch skills catalog exception:', err);
     throw new Error(formatFriendlyErrorMessage(err), { cause: err });
   }
 }
