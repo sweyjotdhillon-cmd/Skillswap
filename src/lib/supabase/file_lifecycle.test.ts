@@ -154,6 +154,7 @@ export async function runFileLifecycleUnitTests(
   `);
   const expiredFailedChatId = expiredFailedChatRes.rows[0].id;
 
+  // Test both RPC signatures: claim_expired_file_cleanup(500) and overloaded claim_expired_file_cleanup(p_limit := 500)
   const claimedChatRes = await db.query<{ file_id: string; bucket_name: string }>(`
     SELECT * FROM public.claim_expired_file_cleanup(500);
   `);
@@ -193,8 +194,8 @@ export async function runFileLifecycleUnitTests(
   assert(manualDeleteFailed, 'Manual deletion after 6 hours MUST be rejected');
   console.log('  -> Chat attachment lifecycle and 6h manual deletion rules verified.');
 
-  // Test 4: Physical cleanup claiming, lease recovery, & worker finalization
-  console.log('File Lifecycle Test 4: Claiming expired files, 15-minute lease recovery, & worker finalization...');
+  // Test 4: Physical cleanup claiming, lease recovery, & mark_file_storage_deleted / mark_file_storage_failed
+  console.log('File Lifecycle Test 4: Claiming expired files, 15-minute lease recovery, & mark_file_storage_deleted / mark_file_storage_failed...');
   await setSuperuser();
 
   // Create an expired submission file
@@ -227,20 +228,20 @@ export async function runFileLifecycleUnitTests(
   const reclaimedRecord = reclaimedRes.rows.find((r) => r.file_id === expiredSubFileId);
   assert(Boolean(reclaimedRecord), 'Stuck lease (>15m) MUST be successfully reclaimed by claim_expired_file_cleanup');
 
-  // Finalize successful cleanup
+  // Finalize successful cleanup via mark_file_storage_deleted
   await db.query(`
-    SELECT public.finalize_file_cleanup('${expiredSubFileId}'::uuid, 'swap_submission_files', true, NULL);
+    SELECT public.mark_file_storage_deleted('${expiredSubFileId}'::uuid, 'swap_submission_files');
   `);
 
   const finalizedFile = await db.query<{ storage_delete_status: string; storage_deleted_at: string | null }>(`
     SELECT storage_delete_status, storage_deleted_at FROM public.swap_submission_files WHERE id = '${expiredSubFileId}';
   `);
-  assert(finalizedFile.rows[0].storage_delete_status === 'deleted', 'finalize_file_cleanup must set status to deleted');
-  assert(finalizedFile.rows[0].storage_deleted_at !== null, 'finalize_file_cleanup must set storage_deleted_at timestamp');
-  console.log('  -> Physical cleanup claiming, 15-minute lease recovery, & worker finalization verified.');
+  assert(finalizedFile.rows[0].storage_delete_status === 'deleted', 'mark_file_storage_deleted must set status to deleted');
+  assert(finalizedFile.rows[0].storage_deleted_at !== null, 'mark_file_storage_deleted must set storage_deleted_at timestamp');
+  console.log('  -> Physical cleanup claiming, 15-minute lease recovery, & mark_file_storage_deleted verified.');
 
-  // Test 5: Cleanup failure handling
-  console.log('File Lifecycle Test 5: Cleanup failure handling & retry state...');
+  // Test 5: Cleanup failure handling via mark_file_storage_failed
+  console.log('File Lifecycle Test 5: Cleanup failure handling via mark_file_storage_failed & retry state...');
   const failSubFileRes = await db.query<{ id: string }>(`
     INSERT INTO public.swap_submission_files (submission_id, storage_path, file_name, mime_type, file_size, storage_expires_at)
     VALUES ('${subId}', 'submissions/${swapId}/failed_sub.zip', 'failed_sub.zip', 'application/zip', 4096, NOW() - INTERVAL '1 hour')
@@ -251,23 +252,24 @@ export async function runFileLifecycleUnitTests(
   // Claim
   await db.query(`SELECT * FROM public.claim_expired_file_cleanup(500);`);
 
-  // Finalize with failure
+  // Finalize with failure via mark_file_storage_failed
   await db.query(`
-    SELECT public.finalize_file_cleanup('${failSubFileId}'::uuid, 'swap_submission_files', false, 'Storage connection timeout');
+    SELECT public.mark_file_storage_failed('${failSubFileId}'::uuid, 'swap_submission_files', 'Storage connection timeout');
   `);
 
-  const failedFile = await db.query<{ storage_delete_status: string; storage_delete_error: string | null }>(`
-    SELECT storage_delete_status, storage_delete_error FROM public.swap_submission_files WHERE id = '${failSubFileId}';
+  const failedFile = await db.query<{ storage_delete_status: string; storage_delete_error: string | null; storage_delete_claimed_at: string | null }>(`
+    SELECT storage_delete_status, storage_delete_error, storage_delete_claimed_at FROM public.swap_submission_files WHERE id = '${failSubFileId}';
   `);
   assert(failedFile.rows[0].storage_delete_status === 'failed', 'Failed storage deletion must record status as failed');
   assert(failedFile.rows[0].storage_delete_error === 'Storage connection timeout', 'Error message must be saved in storage_delete_error');
-  console.log('  -> Cleanup failure handling & retry state verified.');
+  assert(failedFile.rows[0].storage_delete_claimed_at === null, 'mark_file_storage_failed MUST reset claim timestamp to make item immediately retryable');
+  console.log('  -> Cleanup failure handling via mark_file_storage_failed & retry state verified.');
 
   // Test 6: Idempotency
   console.log('File Lifecycle Test 6: Cleanup idempotency...');
   // Running claim and finalize again on deleted file should produce no corruption
   await db.query(`
-    SELECT public.finalize_file_cleanup('${expiredSubFileId}'::uuid, 'swap_submission_files', true, NULL);
+    SELECT public.mark_file_storage_deleted('${expiredSubFileId}'::uuid, 'swap_submission_files');
   `);
   const reCheckedFile = await db.query<{ storage_delete_status: string }>(`
     SELECT storage_delete_status FROM public.swap_submission_files WHERE id = '${expiredSubFileId}';
@@ -338,7 +340,7 @@ export async function runFileLifecycleUnitTests(
   assert(isPptxClaimed, 'Legacy MAchines.pptx attachment MUST be claimed as expired file');
 
   await db.query(`
-    SELECT public.finalize_file_cleanup('dcb801a9-84a4-4410-81a1-73850cb8f5c0'::uuid, 'swap_attachment_files', true, NULL);
+    SELECT public.mark_file_storage_deleted('dcb801a9-84a4-4410-81a1-73850cb8f5c0'::uuid, 'swap_attachment_files');
   `);
 
   const pptxFinal = await db.query<{ storage_delete_status: string; storage_deleted_at: string | null }>(`
@@ -531,9 +533,9 @@ export async function runFileLifecycleUnitTests(
   assert(Boolean(e2eClaimedRecord), 'E2E test item MUST be claimed');
   assert(e2eClaimedRecord?.bucket_name === 'swap-chat-attachments', 'Claimed item MUST map to swap-chat-attachments bucket');
 
-  // Step 5 & 6 & 7: Finalize cleanup
+  // Step 5 & 6 & 7: Finalize cleanup via mark_file_storage_deleted
   await db.query(`
-    SELECT public.finalize_file_cleanup('${e2eAttId}'::uuid, 'swap_message_attachments', true, NULL);
+    SELECT public.mark_file_storage_deleted('${e2eAttId}'::uuid, 'swap_message_attachments');
   `);
 
   const e2eFinal = await db.query<{ delete_status: string; deleted_at: string | null }>(`
@@ -551,7 +553,7 @@ export async function runFileLifecycleUnitTests(
   const e2eFailAttId = e2eFailAttRes.rows[0].id;
 
   await db.query(`SELECT * FROM public.claim_expired_file_cleanup(500);`);
-  await db.query(`SELECT public.finalize_file_cleanup('${e2eFailAttId}'::uuid, 'swap_message_attachments', false, 'Simulated Storage Network Error');`);
+  await db.query(`SELECT public.mark_file_storage_failed('${e2eFailAttId}'::uuid, 'swap_message_attachments', 'Simulated Storage Network Error');`);
 
   const e2eFailedRecord = await db.query<{ delete_status: string; delete_error: string }>(`
     SELECT delete_status, delete_error FROM public.swap_message_attachments WHERE id = '${e2eFailAttId}';
@@ -599,14 +601,14 @@ export async function runFileLifecycleUnitTests(
   assert(missingObjClaim.rows.some(r => r.file_id === missingObjSubId), 'Missing/404 storage object item MUST be claimed');
 
   // Simulate worker encountering a 404 "Object not found" response from Storage API:
-  // Since the object is already gone from Storage, worker calls finalize_file_cleanup(p_success = true)
+  // Since the object is already gone from Storage, worker calls mark_file_storage_deleted
   const removeErr404 = { message: 'Object not found', status: 404 };
   const errLower = removeErr404.message.toLowerCase();
   const isNotFound = errLower.includes('not found') || removeErr404.status === 404;
   assert(isNotFound === true, 'Worker logic MUST identify 404 / Object not found as already removed');
 
   await db.query(`
-    SELECT public.finalize_file_cleanup('${missingObjSubId}'::uuid, 'swap_submission_files', true, NULL);
+    SELECT public.mark_file_storage_deleted('${missingObjSubId}'::uuid, 'swap_submission_files');
   `);
 
   const missingObjFinal = await db.query<{ storage_delete_status: string; storage_deleted_at: string | null }>(`
