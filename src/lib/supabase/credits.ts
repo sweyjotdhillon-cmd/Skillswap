@@ -3,6 +3,7 @@ import { formatFriendlyErrorMessage } from './profile';
 import { generateUUID } from '../uuid';
 import { getTagSlug } from '../../constants/tags';
 import type { SwapMessage, SwapSubmission, SwapSubmissionFile } from '../../types/swap';
+import { logger } from '../logger';
 
 export interface Account {
   user_id: string;
@@ -164,7 +165,7 @@ export async function createCreditSwap(input: CreateCreditSwapInput): Promise<{ 
     p_idempotency_key: idempotencyKey,
   });
   if (error || !data) {
-    console.error('[createCreditSwap] RPC create_credit_swap failed:', {
+    logger.error('[createCreditSwap] RPC create_credit_swap failed:', {
       error,
       input: {
         topic: input.topic,
@@ -369,7 +370,7 @@ export function formatAcceptSwapErrorMessage(
   if (!error) return 'We couldn’t accept this swap right now. Please try again.';
 
   // Preserve technical details in developer logs
-  console.error('[Accept Swap Technical Error Details]:', error);
+  logger.error('[Accept Swap Technical Error Details]:', error);
 
   const errObj = error as { message?: string; details?: string };
   const rawMsg = typeof error === 'string' ? error : errObj.message || errObj.details || '';
@@ -412,7 +413,7 @@ export function formatSubmissionErrorMessage(error: unknown, fileName?: string):
   }
 
   // Preserve technical details in developer logs
-  console.error('[Submission Technical Error Details]:', error);
+  logger.error('[Submission Technical Error Details]:', error);
 
   const errObj = error as { message?: string; details?: string; status?: number; statusCode?: number; error?: string; name?: string };
   const rawMsg = typeof error === 'string' ? error : errObj.message || errObj.details || errObj.error || '';
@@ -438,22 +439,22 @@ export function formatSubmissionErrorMessage(error: unknown, fileName?: string):
 
 /** Uploads attached files to Supabase Storage and executes the atomic submit_swap_work RPC with rollback cleanup on failure. */
 export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promise<{ success: boolean; submissionId?: string; error?: string }> {
-  console.log('[SUBMISSION] submit started', { swapId: input.swapId, fileCount: input.files?.length || 0 });
+  logger.info('[SUBMISSION] submit started', { swapId: input.swapId, fileCount: input.files?.length || 0 });
 
   const supabase = getSupabaseBrowserClient();
   if (!supabase) {
-    console.error('[SUBMISSION] failure: Supabase client unavailable');
+    logger.error('[SUBMISSION] failure: Supabase client unavailable');
     return { success: false, error: 'Supabase client is unavailable.' };
   }
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    console.error('[SUBMISSION] failure: user not logged in');
+    logger.error('[SUBMISSION] failure: user not logged in');
     return { success: false, error: 'You must be logged in to submit work.' };
   }
 
   if (!input.swapId) {
-    console.error('[SUBMISSION] failure: missing swap ID');
+    logger.error('[SUBMISSION] failure: missing swap ID');
     return { success: false, error: 'Swap ID is required.' };
   }
 
@@ -461,16 +462,16 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
   const fileCount = input.files ? input.files.length : 0;
 
   if (cleanNotes.length === 0 && fileCount === 0) {
-    console.warn('[SUBMISSION] validation failed: empty notes and no files');
+    logger.warn('[SUBMISSION] validation failed: empty notes and no files');
     return { success: false, error: 'Submission must contain notes or at least one attachment.' };
   }
 
   if (input.files && input.files.length > 5) {
-    console.warn('[SUBMISSION] validation failed: exceeded max 5 files', { fileCount: input.files.length });
+    logger.warn('[SUBMISSION] validation failed: exceeded max 5 files', { fileCount: input.files.length });
     return { success: false, error: 'Maximum 5 files allowed per submission.' };
   }
 
-  console.log('[SUBMISSION] validation passed', { cleanNotesLength: cleanNotes.length, fileCount });
+  logger.info('[SUBMISSION] validation passed', { cleanNotesLength: cleanNotes.length, fileCount });
 
   const uploadedPaths: string[] = [];
   const uploadedFileMetadata: Array<{ storage_path: string; file_name: string; mime_type: string; file_size: number }> = [];
@@ -1066,7 +1067,7 @@ export async function deleteChatAttachmentManual(attachmentId: string): Promise<
   if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
 
   try {
-    const { data, error } = await supabase.rpc('delete_chat_attachment_manual', {
+    const { error } = await supabase.rpc('delete_chat_attachment_manual', {
       p_attachment_id: attachmentId,
     });
 

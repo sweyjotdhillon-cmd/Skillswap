@@ -13,7 +13,7 @@ import {
   deleteChatAttachmentManual,
   type SwapAttachment,
 } from '../../lib/supabase/credits';
-import type { Swap, SwapMessage, SwapSubmission, SwapMessageAttachment } from '../../types/swap';
+import type { Swap, SwapMessage, SwapSubmission } from '../../types/swap';
 import { getTagLabel } from '../../constants/tags';
 import { TransactionProgress } from '../transaction/TransactionProgress';
 import { PendingTransactionVault } from '../transaction/PendingTransactionVault';

@@ -60,7 +60,7 @@ export function runProfileIdentityTests() {
   );
   assert(
     formatFriendlyErrorMessage({ message: 'PGRST116 JSON object requested, multiple (or no) rows returned' }) ===
-      'Something went wrong while processing your request. Please try again.',
+      'We couldn’t complete that action right now. Please try again.',
     'Sanitizes technical PostgREST PGRST error'
   );
 
