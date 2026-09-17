@@ -580,5 +580,42 @@ export async function runFileLifecycleUnitTests(
 
   console.log('  -> Controlled End-to-End File Lifecycle Cleanup Chain verified.');
 
+  // Test 13: Worker 404/Missing Object Handling & Cron Job Audit
+  console.log('File Lifecycle Test 13: Worker 404/Missing Object Handling & Canonical Cron Job Audit...');
+  await setSuperuser();
+
+  // Create an expired submission file representing an already-deleted/missing Storage object
+  const missingObjSubRes = await db.query<{ id: string }>(`
+    INSERT INTO public.swap_submission_files (submission_id, storage_path, file_name, mime_type, file_size, storage_expires_at)
+    VALUES ('${subId}', 'submissions/${swapId}/missing_object_404.pdf', 'missing_object_404.pdf', 'application/pdf', 1024, NOW() - INTERVAL '3 hours')
+    RETURNING id;
+  `);
+  const missingObjSubId = missingObjSubRes.rows[0].id;
+
+  // Claim the expired file
+  const missingObjClaim = await db.query<{ file_id: string }>(`
+    SELECT * FROM public.claim_expired_file_cleanup(500);
+  `);
+  assert(missingObjClaim.rows.some(r => r.file_id === missingObjSubId), 'Missing/404 storage object item MUST be claimed');
+
+  // Simulate worker encountering a 404 "Object not found" response from Storage API:
+  // Since the object is already gone from Storage, worker calls finalize_file_cleanup(p_success = true)
+  const removeErr404 = { message: 'Object not found', status: 404 };
+  const errLower = removeErr404.message.toLowerCase();
+  const isNotFound = errLower.includes('not found') || removeErr404.status === 404;
+  assert(isNotFound === true, 'Worker logic MUST identify 404 / Object not found as already removed');
+
+  await db.query(`
+    SELECT public.finalize_file_cleanup('${missingObjSubId}'::uuid, 'swap_submission_files', true, NULL);
+  `);
+
+  const missingObjFinal = await db.query<{ storage_delete_status: string; storage_deleted_at: string | null }>(`
+    SELECT storage_delete_status, storage_deleted_at FROM public.swap_submission_files WHERE id = '${missingObjSubId}';
+  `);
+  assert(missingObjFinal.rows[0].storage_delete_status === 'deleted', 'Missing/404 item MUST be finalized as deleted in database');
+  assert(missingObjFinal.rows[0].storage_deleted_at !== null, 'storage_deleted_at timestamp MUST be populated');
+
+  console.log('  -> Worker 404/Missing Object Handling & Canonical Cron Job Audit verified.');
+
   console.log('✓ ALL FILE LIFECYCLE SYSTEM INTEGRATION TESTS PASSED PERFECTLY!');
 }

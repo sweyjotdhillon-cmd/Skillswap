@@ -84,7 +84,16 @@ Deno.serve(async (req: Request) => {
         .from(bucket_name)
         .remove([storage_path]);
 
-      if (removeErr) {
+      const errLower = removeErr?.message?.toLowerCase() || '';
+      const isNotFound = removeErr && (
+        errLower.includes('not found') ||
+        errLower.includes('404') ||
+        errLower.includes('does not exist') ||
+        (removeErr as { status?: number }).status === 404 ||
+        (removeErr as { statusCode?: string }).statusCode === '404'
+      );
+
+      if (removeErr && !isNotFound) {
         console.error(`[file-lifecycle-worker] Physical storage removal failed for ${bucket_name}/${storage_path}:`, removeErr);
         await supabase.rpc('finalize_file_cleanup', {
           p_file_id: file_id,
@@ -95,7 +104,7 @@ Deno.serve(async (req: Request) => {
         failed++;
         errors.push({ file_id, error: removeErr.message || 'Storage API removal error' });
       } else {
-        // Finalize success
+        // Finalize success (either successfully deleted or object was already missing/deleted)
         await supabase.rpc('finalize_file_cleanup', {
           p_file_id: file_id,
           p_table_name: table_name,
