@@ -185,6 +185,7 @@ export async function runCreditSystemTests() {
     '038_file_lifecycle_and_chat_attachments.sql',
     '039_phase1b_correction_pass.sql',
     '040_phase2_consolidation_and_cleanup.sql',
+    '042_file_lifecycle_cron_hardening.sql',
   ];
 
   for (const file of migrationFiles) {
