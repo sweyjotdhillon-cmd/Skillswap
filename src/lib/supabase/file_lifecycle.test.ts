@@ -107,7 +107,7 @@ export async function runFileLifecycleUnitTests(
 
   // Test 5-argument register_swap_message_attachment RPC (returning complete inserted row)
   await setAuthUser(testUsers.userA);
-  const chatAttPath = `swap-chat-attachments/${swapId}/${testUsers.userA}/uuid123-doc.pdf`;
+  const chatAttPath = `swap-chat-attachments/${swapId}/${testUsers.userA}/12345678-1234-1234-1234-123456789012-doc.pdf`;
   const regRpcRes = await db.query<{ id: string; storage_path: string }>(`
     SELECT * FROM public.register_swap_message_attachment(
       '${msgId}'::uuid,
@@ -126,7 +126,7 @@ export async function runFileLifecycleUnitTests(
     await db.query(`
       SELECT public.register_swap_message_attachment(
         '${msgId}'::uuid,
-        'wrong-path/${swapId}/${testUsers.userA}/doc.pdf',
+        'wrong-path/${swapId}/${testUsers.userA}/12345678-1234-1234-1234-123456789012-doc.pdf',
         'doc.pdf',
         'application/pdf',
         1024
@@ -277,7 +277,16 @@ export async function runFileLifecycleUnitTests(
     SELECT storage_delete_status FROM public.swap_submission_files WHERE id = '${expiredSubFileId}';
   `);
   assert(reCheckedFile.rows[0].storage_delete_status === 'deleted', 'Idempotent finalization must preserve deleted status without corruption');
-  console.log('  -> Cleanup idempotency verified.');
+
+  // Verify invalid source throws exception
+  let invalidSourceCaught = false;
+  try {
+    await db.query(`SELECT public.mark_file_storage_deleted('invalid_source', '${expiredSubFileId}'::uuid);`);
+  } catch (err) {
+    invalidSourceCaught = (err as Error).message.includes('Invalid source');
+  }
+  assert(invalidSourceCaught, 'mark_file_storage_deleted MUST throw exception on invalid source name');
+  console.log('  -> Cleanup idempotency & invalid source exception verified.');
 
   // Test 7: Authorization (Unrelated user blocked from chat deletion)
   console.log('File Lifecycle Test 7: Authorization checks...');
@@ -404,7 +413,7 @@ export async function runFileLifecycleUnitTests(
       '${swapId}'::uuid,
       '${testUsers.userB}'::uuid,
       'Message with PDF attachment'::text,
-      '[{"storage_path": "swap-chat-attachments/${swapId}/${testUsers.userA}/test.pdf", "file_name": "test.pdf", "file_size": 2048}]'::jsonb,
+      '[{"storage_path": "chat-attachments/${swapId}/${msgWithAttId}/test.pdf", "file_name": "test.pdf", "file_size": 2048}]'::jsonb,
       '${msgWithAttId}'::uuid
     ) AS send_chat_message_with_attachments;
   `);
@@ -419,7 +428,7 @@ export async function runFileLifecycleUnitTests(
       '${swapId}'::uuid,
       '${testUsers.userB}'::uuid,
       ''::text,
-      '[{"storage_path": "swap-chat-attachments/${swapId}/${testUsers.userA}/img.png", "file_name": "img.png", "file_size": 1024}]'::jsonb,
+      '[{"storage_path": "chat-attachments/${swapId}/${attOnlyMsgId}/img.png", "file_name": "img.png", "file_size": 1024}]'::jsonb,
       '${attOnlyMsgId}'::uuid
     ) AS send_chat_message_with_attachments;
   `);
@@ -435,7 +444,7 @@ export async function runFileLifecycleUnitTests(
         '${swapId}'::uuid,
         '${testUsers.userB}'::uuid,
         'This should fail'::text,
-        '[{"storage_path": "swap-chat-attachments/${swapId}/${testUsers.userA}/virus.exe", "file_name": "virus.exe", "file_size": 1024}]'::jsonb,
+        '[{"storage_path": "chat-attachments/${swapId}/${failedMsgId}/virus.exe", "file_name": "virus.exe", "file_size": 1024}]'::jsonb,
         '${failedMsgId}'::uuid
       );
     `);

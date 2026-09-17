@@ -100,7 +100,7 @@ Deno.serve(async (req: Request) => {
         await supabase.rpc('mark_file_storage_failed', {
           p_source: source || 'unknown',
           p_file_id: file_id,
-          p_error: `Invalid or unmapped source/path: source=${source}, path=${storage_path}`,
+          p_error: `Invalid or unmapped source: ${source}`,
         });
         failed++;
         errors.push({ source, file_id, error: 'Invalid bucket or storage path' });
@@ -146,14 +146,14 @@ Deno.serve(async (req: Request) => {
       }
 
       if (!isConfirmedAbsent) {
-        console.error(`[cleanup-storage-files] Storage removal failed for ${source}/${file_id} (${bucketName}/${storage_path}):`, removeErr?.message || 'Removal unconfirmed');
+        console.error(`[cleanup-storage-files] Storage removal failed for source=${source} file_id=${file_id}:`, removeErr?.message || 'Removal unconfirmed');
         const { error: markFailedErr } = await supabase.rpc('mark_file_storage_failed', {
           p_source: source,
           p_file_id: file_id,
           p_error: removeErr?.message || 'Physical storage removal unconfirmed',
         });
         if (markFailedErr) {
-          console.error(`[cleanup-storage-files] mark_file_storage_failed RPC failed for ${source}/${file_id}:`, markFailedErr.message);
+          console.error(`[cleanup-storage-files] mark_file_storage_failed RPC failed for source=${source} file_id=${file_id}:`, markFailedErr.message);
         }
         failed++;
         errors.push({ source, file_id, error: 'Physical storage removal failed' });
@@ -165,7 +165,7 @@ Deno.serve(async (req: Request) => {
         });
 
         if (markDeletedErr) {
-          console.error(`[cleanup-storage-files] mark_file_storage_deleted RPC error for ${source}/${file_id}:`, markDeletedErr.message);
+          console.error(`[cleanup-storage-files] mark_file_storage_deleted RPC error for source=${source} file_id=${file_id}:`, markDeletedErr.message);
           await supabase.rpc('mark_file_storage_failed', {
             p_source: source,
             p_file_id: file_id,

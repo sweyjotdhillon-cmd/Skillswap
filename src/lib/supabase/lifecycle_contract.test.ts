@@ -132,6 +132,7 @@ export async function runLifecycleContractIntegrationTests() {
     '038_file_lifecycle_and_chat_attachments.sql',
     '039_phase1b_correction_pass.sql',
     '040_phase2_consolidation_and_cleanup.sql',
+    '041_file_lifecycle_cron_and_hardening.sql',
     '042_file_lifecycle_cron_hardening.sql',
     '043_phase_a_file_lifecycle_consolidation.sql',
     '044_phase_a_lifecycle_contract_synchronization.sql',
@@ -466,7 +467,7 @@ export async function runLifecycleContractIntegrationTests() {
   assert(Math.abs(diffHoursMsg - 6) < 0.1, `Chat message retention is created_at + 6 hours (got ${diffHoursMsg}h)`);
 
   // Chat attachment bound to message lifecycle (5-arg canonical contract returning row)
-  const chatAttPathRet = `swap-chat-attachments/${swapRet}/${userA}/attRet.pdf`;
+  const chatAttPathRet = `swap-chat-attachments/${swapRet}/${userA}/11111111-2222-3333-4444-555555555555-attRet.pdf`;
   const regRetRow = await db.query<{ id: string; delete_after: string; storage_path: string }>(`
     SELECT * FROM public.register_swap_message_attachment(
       '${chatMsgRet.id}'::uuid,
