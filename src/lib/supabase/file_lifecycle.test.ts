@@ -141,14 +141,14 @@ export async function runFileLifecycleUnitTests(
   await setSuperuser();
   const expiredActiveChatRes = await db.query<{ id: string }>(`
     INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after, delete_status)
-    VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'swap-chat-attachments/${swapId}/${testUsers.userA}/expired_active.pdf', 'expired_active.pdf', 'application/pdf', 1024, NOW() - INTERVAL '1 hour', 'active')
+    VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'swap-chat-attachments/${swapId}/${testUsers.userA}/22222222-2222-2222-2222-222222222222-expired_active.pdf', 'expired_active.pdf', 'application/pdf', 1024, NOW() - INTERVAL '1 hour', 'active')
     RETURNING id;
   `);
   const expiredActiveChatId = expiredActiveChatRes.rows[0].id;
 
   const expiredFailedChatRes = await db.query<{ id: string }>(`
     INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after, delete_status)
-    VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'swap-chat-attachments/${swapId}/${testUsers.userA}/expired_failed.pdf', 'expired_failed.pdf', 'application/pdf', 1024, NOW() - INTERVAL '1 hour', 'failed')
+    VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'swap-chat-attachments/${swapId}/${testUsers.userA}/33333333-3333-3333-3333-333333333333-expired_failed.pdf', 'expired_failed.pdf', 'application/pdf', 1024, NOW() - INTERVAL '1 hour', 'failed')
     RETURNING id;
   `);
   const expiredFailedChatId = expiredFailedChatRes.rows[0].id;
@@ -176,7 +176,7 @@ export async function runFileLifecycleUnitTests(
   // Verify manual deletion is rejected after 6h window
   const expiredMsgAttRes = await db.query<{ id: string }>(`
     INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after)
-    VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'swap-chat-attachments/${swapId}/${testUsers.userA}/old.pdf', 'old.pdf', 'application/pdf', 1024, NOW() - INTERVAL '1 hour')
+    VALUES ('${msgId}', '${swapId}', '${testUsers.userA}', 'swap-chat-attachments/${swapId}/${testUsers.userA}/44444444-4444-4444-4444-444444444444-old.pdf', 'old.pdf', 'application/pdf', 1024, NOW() - INTERVAL '1 hour')
     RETURNING id;
   `);
   const expiredAttId = expiredMsgAttRes.rows[0].id;
@@ -413,7 +413,7 @@ export async function runFileLifecycleUnitTests(
       '${swapId}'::uuid,
       '${testUsers.userB}'::uuid,
       'Message with PDF attachment'::text,
-      '[{"storage_path": "chat-attachments/${swapId}/${msgWithAttId}/test.pdf", "file_name": "test.pdf", "file_size": 2048}]'::jsonb,
+      '[{"storage_path": "swap-chat-attachments/${swapId}/${testUsers.userA}/55555555-5555-5555-5555-555555555555-test.pdf", "file_name": "test.pdf", "file_size": 2048}]'::jsonb,
       '${msgWithAttId}'::uuid
     ) AS send_chat_message_with_attachments;
   `);
@@ -428,7 +428,7 @@ export async function runFileLifecycleUnitTests(
       '${swapId}'::uuid,
       '${testUsers.userB}'::uuid,
       ''::text,
-      '[{"storage_path": "chat-attachments/${swapId}/${attOnlyMsgId}/img.png", "file_name": "img.png", "file_size": 1024}]'::jsonb,
+      '[{"storage_path": "swap-chat-attachments/${swapId}/${testUsers.userA}/66666666-6666-6666-6666-666666666666-img.png", "file_name": "img.png", "file_size": 1024}]'::jsonb,
       '${attOnlyMsgId}'::uuid
     ) AS send_chat_message_with_attachments;
   `);
@@ -444,7 +444,7 @@ export async function runFileLifecycleUnitTests(
         '${swapId}'::uuid,
         '${testUsers.userB}'::uuid,
         'This should fail'::text,
-        '[{"storage_path": "chat-attachments/${swapId}/${failedMsgId}/virus.exe", "file_name": "virus.exe", "file_size": 1024}]'::jsonb,
+        '[{"storage_path": "swap-chat-attachments/${swapId}/${testUsers.userA}/77777777-7777-7777-7777-777777777777-virus.exe", "file_name": "virus.exe", "file_size": 1024}]'::jsonb,
         '${failedMsgId}'::uuid
       );
     `);
@@ -532,7 +532,7 @@ export async function runFileLifecycleUnitTests(
 
   const e2eAttRes = await db.query<{ id: string }>(`
     INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after)
-    VALUES ('${e2eMsgId}', '${swapId}', '${testUsers.userA}', 'swap-chat-attachments/${swapId}/${testUsers.userA}/e2e_test.pdf', 'e2e_test.pdf', 'application/pdf', 1024, NOW() - INTERVAL '2 hours')
+    VALUES ('${e2eMsgId}', '${swapId}', '${testUsers.userA}', 'swap-chat-attachments/${swapId}/${testUsers.userA}/88888888-8888-8888-8888-888888888888-e2e_test.pdf', 'e2e_test.pdf', 'application/pdf', 1024, NOW() - INTERVAL '2 hours')
     RETURNING id;
   `);
   const e2eAttId = e2eAttRes.rows[0].id;
@@ -559,7 +559,7 @@ export async function runFileLifecycleUnitTests(
   // Step 8 & 9: Simulate failure & retryability
   const e2eFailAttRes = await db.query<{ id: string }>(`
     INSERT INTO public.swap_message_attachments (message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, delete_after)
-    VALUES ('${e2eMsgId}', '${swapId}', '${testUsers.userA}', 'swap-chat-attachments/${swapId}/${testUsers.userA}/e2e_fail.pdf', 'e2e_fail.pdf', 'application/pdf', 1024, NOW() - INTERVAL '2 hours')
+    VALUES ('${e2eMsgId}', '${swapId}', '${testUsers.userA}', 'swap-chat-attachments/${swapId}/${testUsers.userA}/99999999-9999-9999-9999-999999999999-e2e_fail.pdf', 'e2e_fail.pdf', 'application/pdf', 1024, NOW() - INTERVAL '2 hours')
     RETURNING id;
   `);
   const e2eFailAttId = e2eFailAttRes.rows[0].id;
