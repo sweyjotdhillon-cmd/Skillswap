@@ -27,17 +27,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 
-  <!-- Instant Theme Sync -->
-  <script>
-    (function() {
-      try {
-        var savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-          document.documentElement.setAttribute('data-theme', 'dark');
-        }
-      } catch (e) {}
-    })();
-  </script>
+
 
   <!-- FAQPage Structured Data -->
   <script type="application/ld+json">
@@ -103,18 +93,6 @@
       color-scheme: light;
     }
 
-    [data-theme='dark'] {
-      --bg-color: #0d1117;
-      --text-color: #f0f6fc;
-      --shell-bg: #161b22;
-      --shell-border: rgba(240, 246, 252, 0.1);
-      --shell-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
-      --card-bg: #21262d;
-      --card-border: rgba(240, 246, 252, 0.12);
-      --text-muted: rgba(240, 246, 252, 0.7);
-      --radial-gold: rgba(214, 166, 74, 0.18);
-      color-scheme: dark;
-    }
 
     * {
       box-sizing: border-box;
@@ -218,10 +196,6 @@
       color: #a8781d;
     }
 
-    [data-theme='dark'] .main-nav a:hover,
-    [data-theme='dark'] .main-nav a.nav-link--active {
-      color: #d6a64a;
-    }
 
     .header-right-group {
       display: flex;
@@ -264,14 +238,7 @@
       background: #202832;
     }
 
-    [data-theme='dark'] .header-cta {
-      background: #d6a64a;
-      color: #11161c !important;
-    }
 
-    [data-theme='dark'] .header-cta:hover {
-      background: #e4af48;
-    }
 
     /* Mobile Hamburger & Drawer Controls */
     .mobile-hamburger {
@@ -344,16 +311,7 @@
       border: 1.5px solid var(--shell-border, rgba(17, 22, 28, 0.2)) !important;
     }
 
-    [data-theme='dark'] .mobile-drawer-cta {
-      background: #d6a64a !important;
-      color: #11161c !important;
-    }
 
-    [data-theme='dark'] .mobile-drawer-cta--outline {
-      background: transparent !important;
-      color: var(--text-color) !important;
-      border: 1.5px solid rgba(240, 246, 252, 0.25) !important;
-    }
 
     /* CSS Checkbox toggle for static HTML without JS dependency */
     #mobile-menu-toggle {
@@ -403,9 +361,6 @@
       margin-bottom: 0.5rem;
     }
 
-    [data-theme='dark'] .section-eyebrow {
-      color: #d6a64a;
-    }
 
     .section-title {
       margin: 0 0 1rem;
@@ -468,10 +423,6 @@
       margin-top: 3px;
     }
 
-    [data-theme='dark'] .faq-badge {
-      background: rgba(214, 166, 74, 0.22);
-      color: #d6a64a;
-    }
 
     .faq-card h2 {
       font-family: 'Playfair Display', Georgia, serif;
@@ -501,9 +452,6 @@
       color: var(--text-color);
     }
 
-    [data-theme='dark'] .faq-card p a {
-      color: #d6a64a;
-    }
 
     /* Contact Support Section */
     .faq-contact-section {
@@ -565,20 +513,12 @@
       color: #0369a1;
     }
 
-    [data-theme='dark'] .contact-card-icon--email {
-      background: rgba(56, 189, 248, 0.15);
-      color: #38bdf8;
-    }
 
     .contact-card-icon--whatsapp {
       background: rgba(22, 163, 74, 0.1);
       color: #16a34a;
     }
 
-    [data-theme='dark'] .contact-card-icon--whatsapp {
-      background: rgba(74, 222, 128, 0.15);
-      color: #4ade80;
-    }
 
     .contact-card-content {
       display: flex;
@@ -619,9 +559,6 @@
       transform: translateX(4px);
     }
 
-    [data-theme='dark'] .contact-card:hover .contact-card-arrow {
-      color: #d6a64a;
-    }
 
     /* CTA Banner */
     .faq-cta-banner {
@@ -637,10 +574,6 @@
       box-shadow: 0 20px 50px rgba(17, 22, 28, 0.18);
     }
 
-    [data-theme='dark'] .faq-cta-banner {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-    }
 
     .faq-cta-title {
       margin: 0.4rem 0 1rem;
@@ -650,9 +583,6 @@
       line-height: 1.1;
     }
 
-    [data-theme='dark'] .faq-cta-title {
-      color: var(--text-color);
-    }
 
     .faq-cta-text {
       font-size: clamp(1rem, 1.2vw, 1.15rem);
@@ -662,9 +592,6 @@
       margin: 0 0 2.25rem;
     }
 
-    [data-theme='dark'] .faq-cta-text {
-      color: var(--text-muted);
-    }
 
     .faq-cta-actions {
       display: flex;
@@ -714,11 +641,6 @@
       border-color: #ffffff;
     }
 
-    [data-theme='dark'] .action-button--outline {
-      background: rgba(255, 255, 255, 0.06);
-      color: var(--text-color) !important;
-      border-color: rgba(240, 246, 252, 0.2);
-    }
 
     /* Footer */
     .faq-footer {
@@ -750,109 +672,17 @@
       color: var(--text-color);
     }
 
-    /* Floating Theme Toggle Widget */
-    .theme-toggle-floating-wrapper {
-      position: fixed;
-      bottom: 1.5rem;
-      right: 1.5rem;
-      z-index: 999;
-      padding: 4px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.82);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border: 1.5px solid rgba(17, 22, 28, 0.14);
-      box-shadow: 0 10px 28px rgba(17, 22, 28, 0.14), 0 0 0 1px rgba(214, 166, 74, 0.25);
-      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
 
-    .theme-toggle-floating-wrapper:hover {
-      transform: translateY(-2px) scale(1.03);
-    }
 
-    [data-theme='dark'] .theme-toggle-floating-wrapper {
-      background: rgba(22, 27, 34, 0.88);
-      border-color: rgba(240, 246, 252, 0.2);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 0 1.5px rgba(214, 166, 74, 0.38);
-    }
 
-    .theme-toggle-btn {
-      position: relative;
-      border: none;
-      background: transparent;
-      padding: 0;
-      cursor: pointer;
-      outline: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 999px;
-    }
 
-    .theme-toggle-track {
-      position: relative;
-      width: 62px;
-      height: 32px;
-      border-radius: 999px;
-      background: rgba(17, 22, 28, 0.08);
-      border: 1px solid rgba(17, 22, 28, 0.12);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 5px;
-      overflow: hidden;
-    }
 
-    [data-theme='dark'] .theme-toggle-track {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.18);
-    }
 
-    .theme-toggle-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 20px;
-      height: 20px;
-      z-index: 1;
-    }
 
-    .theme-toggle-icon svg { width: 15px; height: 15px; }
-    .theme-toggle-icon--sun { color: #d97706; }
-    .theme-toggle-icon--moon { color: #a78bfa; }
 
-    .theme-toggle-thumb {
-      position: absolute;
-      top: 2.5px;
-      left: 2.5px;
-      width: 25px;
-      height: 25px;
-      border-radius: 50%;
-      background: #ffffff;
-      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2;
-      transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
 
-    [data-theme='dark'] .theme-toggle-thumb {
-      background: #d6a64a;
-      transform: translateX(30px);
-    }
 
-    .theme-toggle-thumb-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #11161c;
-    }
 
-    .theme-toggle-thumb-icon svg { width: 14px; height: 14px; }
 
     @media (max-width: 640px) {
       .page-shell {
@@ -891,10 +721,6 @@
       .faq-cta-actions .action-button {
         width: 100%;
         justify-content: center;
-      }
-      .theme-toggle-floating-wrapper {
-        bottom: 1rem;
-        right: 1rem;
       }
     }
   </style>
@@ -1110,65 +936,10 @@
     </footer>
   </div>
 
-  <!-- Theme Toggle Floating Widget -->
-  <div class="theme-toggle-floating-wrapper">
-    <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Toggle color theme" title="Toggle color theme">
-      <span class="theme-toggle-track">
-        <span class="theme-toggle-icon theme-toggle-icon--sun" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-          </svg>
-        </span>
-        <span class="theme-toggle-icon theme-toggle-icon--moon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
-          </svg>
-        </span>
-        <span class="theme-toggle-thumb">
-          <span class="theme-toggle-thumb-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-            </svg>
-          </span>
-        </span>
-      </span>
-    </button>
-  </div>
+
 
   <script>
-    // Theme toggle interaction handler
-    (function() {
-      var btn = document.getElementById('theme-toggle-btn');
-      if (btn) {
-        btn.addEventListener('click', function() {
-          var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-          var nextTheme = isDark ? 'light' : 'dark';
-          if (nextTheme === 'dark') {
-            document.documentElement.setAttribute('data-theme', 'dark');
-          } else {
-            document.documentElement.removeAttribute('data-theme');
-          }
-          try {
-            localStorage.setItem('theme', nextTheme);
-          } catch (e) {}
-        });
-      }
-
-      // Handle keyboard accessibility for hamburger label
-      var hamburger = document.querySelector('.mobile-hamburger');
-      var toggleCheckbox = document.getElementById('mobile-menu-toggle');
-      if (hamburger && toggleCheckbox) {
-        hamburger.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            toggleCheckbox.checked = !toggleCheckbox.checked;
-          }
-        });
-      }
-    })();
-  </script>
+      </script>
 
 </body>
 </html>

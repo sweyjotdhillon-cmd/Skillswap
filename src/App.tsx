@@ -15,7 +15,6 @@ import { ChangePasswordPage } from './pages/ChangePassword';
 import { OnboardingPage } from './pages/Onboarding';
 import { ProfilePage } from './pages/Profile';
 import { PublicProfilePage } from './pages/PublicProfile';
-import { ThemeToggle } from './components/ui/ThemeToggle';
 
 const PROTECTED_ROUTES = ['/profile', '/create-swap', '/active-swaps', '/change-password'];
 
@@ -211,7 +210,6 @@ export default function App() {
   return (
     <AuthProvider>
       <AppContent />
-      <ThemeToggle />
     </AuthProvider>
   );
 }
