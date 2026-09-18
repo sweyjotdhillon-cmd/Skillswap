@@ -41,17 +41,7 @@
   transform: translateY(0) scale(0.98);
 }
 
-[data-theme='dark'] .nav-credit-indicator-btn {
-  background: rgba(22, 27, 34, 0.85);
-  border-color: rgba(214, 166, 74, 0.35);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
-}
 
-[data-theme='dark'] .nav-credit-indicator-btn:hover {
-  background: rgba(33, 38, 45, 0.95);
-  border-color: #d6a64a;
-  box-shadow: 0 4px 16px rgba(214, 166, 74, 0.2);
-}
 
 .nav-credit-content-group {
   display: flex;
@@ -71,9 +61,6 @@
   line-height: 1;
 }
 
-[data-theme='dark'] .nav-credit-label {
-  color: #d6a64a;
-}
 
 .nav-credit-amount {
   font-size: 0.875rem;
@@ -97,13 +84,7 @@
   color: var(--text-color, #11161c);
 }
 
-[data-theme='dark'] .nav-credit-chevron {
-  color: rgba(255, 255, 255, 0.4);
-}
 
-[data-theme='dark'] .nav-credit-indicator-btn:hover .nav-credit-chevron {
-  color: #ffffff;
-}
 
 /* Mobile Header Credit Control */
 .mobile-credit-btn {
@@ -214,11 +195,6 @@
   transform: scale(0.92);
 }
 
-[data-theme='dark'] .credit-modal-close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.3);
-}
 
 /* Modal Scrollable Body */
 .credit-modal-body {
@@ -245,10 +221,6 @@
   overflow: hidden;
 }
 
-[data-theme='dark'] .credit-primary-balance-card {
-  background: linear-gradient(135deg, rgba(214, 166, 74, 0.18) 0%, rgba(214, 166, 74, 0.05) 100%), #161b22;
-  border-color: rgba(214, 166, 74, 0.45);
-}
 
 .credit-balance-eyebrow {
   font-size: 0.75rem;
@@ -258,9 +230,6 @@
   color: #a8781d;
 }
 
-[data-theme='dark'] .credit-balance-eyebrow {
-  color: #d6a64a;
-}
 
 .credit-balance-main-val {
   display: flex;
@@ -286,9 +255,6 @@
   margin-left: 0.25rem;
 }
 
-[data-theme='dark'] .credit-balance-currency {
-  color: #d6a64a;
-}
 
 .credit-balance-subtext {
   font-size: 0.85rem;
@@ -314,10 +280,6 @@
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
-[data-theme='dark'] .credit-stat-card {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(240, 246, 252, 0.1);
-}
 
 .credit-stat-label {
   font-size: 0.725rem;
@@ -339,17 +301,11 @@
   color: #d97706;
 }
 
-[data-theme='dark'] .credit-stat-value--reserved {
-  color: #facc15;
-}
 
 .credit-stat-value--positive {
   color: #059669;
 }
 
-[data-theme='dark'] .credit-stat-value--positive {
-  color: #34d399;
-}
 
 .credit-stat-value--negative {
   color: var(--text-muted, #64748b);
@@ -388,9 +344,6 @@
   padding: 0.2rem;
 }
 
-[data-theme='dark'] .credit-filter-pills {
-  background: rgba(255, 255, 255, 0.08);
-}
 
 .credit-filter-btn {
   background: transparent;
@@ -418,10 +371,6 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
-[data-theme='dark'] .credit-filter-btn--active {
-  background: #21262d;
-  color: #fff;
-}
 
 /* Transaction List & Cards */
 .credit-tx-list {
@@ -443,10 +392,6 @@
   outline: none;
 }
 
-[data-theme='dark'] .credit-tx-card {
-  background: rgba(255, 255, 255, 0.025);
-  border-color: rgba(240, 246, 252, 0.08);
-}
 
 .credit-tx-card:hover,
 .credit-tx-card:focus-visible {
@@ -524,20 +469,8 @@
   color: #d97706;
 }
 
-[data-theme='dark'] .credit-badge--grant {
-  color: #60a5fa;
-  background: rgba(59, 130, 246, 0.2);
-}
 
-[data-theme='dark'] .credit-badge--positive {
-  color: #34d399;
-  background: rgba(16, 185, 129, 0.2);
-}
 
-[data-theme='dark'] .credit-badge--negative {
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.2);
-}
 
 .credit-tx-reason {
   margin: 0;
@@ -571,17 +504,11 @@
   color: #059669;
 }
 
-[data-theme='dark'] .credit-amount--positive {
-  color: #34d399;
-}
 
 .credit-amount--negative {
   color: #d97706;
 }
 
-[data-theme='dark'] .credit-amount--negative {
-  color: #fbbf24;
-}
 
 .credit-tx-currency-unit {
   font-family: Inter, system-ui, sans-serif;
@@ -601,9 +528,6 @@
   margin-top: 0.15rem;
 }
 
-[data-theme='dark'] .credit-tx-expand-hint {
-  color: #d6a64a;
-}
 
 /* Expanded Details Area */
 .credit-tx-details-panel {
@@ -658,9 +582,6 @@
   color: var(--text-color, #11161c);
 }
 
-[data-theme='dark'] .credit-tx-detail-code {
-  background: rgba(255, 255, 255, 0.08);
-}
 
 /* Skeleton Loading State */
 .credit-skeleton-list {
@@ -678,9 +599,6 @@
   border-radius: 16px;
 }
 
-[data-theme='dark'] .credit-skeleton-item {
-  background: rgba(255, 255, 255, 0.03);
-}
 
 .credit-skeleton-icon {
   width: 40px;
@@ -734,9 +652,6 @@
   gap: 0.5rem;
 }
 
-[data-theme='dark'] .credit-empty-state {
-  background: rgba(255, 255, 255, 0.02);
-}
 
 .credit-empty-icon {
   width: 48px;
@@ -789,9 +704,6 @@
   color: #dc2626;
 }
 
-[data-theme='dark'] .credit-error-text {
-  color: #f87171;
-}
 
 .credit-retry-btn {
   background: var(--color-transactional, #d6a64a);
@@ -815,10 +727,6 @@
   transform: translateY(0) scale(0.98);
 }
 
-[data-theme='dark'] .credit-retry-btn {
-  background: var(--color-transactional, #d6a64a);
-  color: #11161c;
-}
 
 /* Modal Footer */
 .credit-modal-footer {
@@ -848,10 +756,6 @@
   transform: translateY(-1px);
 }
 
-[data-theme='dark'] .credit-close-action-btn {
-  background: var(--color-transactional, #d6a64a);
-  color: #11161c;
-}
 
 /* ----------------------------------------------------------------------------
    3. RESPONSIVE BREAKPOINTS

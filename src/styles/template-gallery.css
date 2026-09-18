@@ -10,11 +10,6 @@
   border: 1px solid var(--color-border, rgba(17, 22, 28, 0.08));
 }
 
-[data-theme='dark'] .template-gallery-section {
-  background: rgba(255, 255, 255, 0.02);
-  border-color: rgba(255, 255, 255, 0.08);
-}
-
 .template-gallery-header {
   display: flex;
   align-items: flex-start;
@@ -36,10 +31,6 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-accent, #a8781d);
-}
-
-[data-theme='dark'] .template-gallery-eyebrow {
-  color: #d6a64a;
 }
 
 .template-gallery-title {
@@ -87,11 +78,6 @@
   color: var(--text-color, #11161c);
 }
 
-[data-theme='dark'] .scaffolding-dismiss-btn {
-  color: rgba(240, 246, 252, 0.7);
-  border-color: rgba(240, 246, 252, 0.2);
-}
-
 .start-from-scratch-btn {
   display: inline-flex;
   align-items: center;
@@ -114,12 +100,6 @@
   background: var(--color-structure-muted, rgba(2, 132, 199, 0.1));
   color: var(--color-structure, #0284c7);
   transform: translateY(-1px);
-}
-
-[data-theme='dark'] .start-from-scratch-btn {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(240, 246, 252, 0.2);
-  color: var(--text-color);
 }
 
 .template-gallery-grid {
@@ -152,11 +132,6 @@
   background: rgba(214, 166, 74, 0.06);
 }
 
-[data-theme='dark'] .template-card {
-  background: var(--card-bg);
-  border-color: var(--card-border);
-}
-
 .template-card-header {
   display: flex;
   align-items: center;
@@ -179,12 +154,6 @@
   background: var(--color-structure-muted, rgba(2, 132, 199, 0.1));
   color: var(--color-structure, #0284c7);
   border: 1px solid var(--color-structure-border, rgba(2, 132, 199, 0.22));
-}
-
-[data-theme='dark'] .template-tag-badge {
-  background: rgba(56, 189, 248, 0.12);
-  color: #38bdf8;
-  border-color: rgba(56, 189, 248, 0.3);
 }
 
 .template-card-title {
@@ -216,21 +185,12 @@
   border: 1px dashed var(--color-border, rgba(17, 22, 28, 0.12));
 }
 
-[data-theme='dark'] .template-useful-box {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
 .template-useful-label {
   font-size: 0.725rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-accent, #a8781d);
-}
-
-[data-theme='dark'] .template-useful-label {
-  color: #d6a64a;
 }
 
 .template-useful-text {
@@ -249,11 +209,6 @@
   border-radius: 8px;
   background: var(--color-structure-muted, rgba(2, 132, 199, 0.06));
   border: 1px solid var(--color-structure-border, rgba(2, 132, 199, 0.15));
-}
-
-[data-theme='dark'] .template-prefill-pill {
-  background: rgba(56, 189, 248, 0.08);
-  border-color: rgba(56, 189, 248, 0.2);
 }
 
 .template-prefill-icon {
