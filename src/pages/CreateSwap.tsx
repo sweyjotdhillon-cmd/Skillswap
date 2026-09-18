@@ -14,6 +14,7 @@ import { SwapTemplate } from '../constants/templates';
 import { useAuth } from '../context/AuthContext';
 import { useScaffolding } from '../hooks/useScaffolding';
 import { createCreditSwap, uploadSwapAttachments, cancelCreditSwap } from '../lib/supabase/credits';
+import { logger } from '../lib/logger';
 import { getTagSlug, getTagLabel, isValidSwapTag } from '../constants/tags';
 import { generateUUID } from '../lib/uuid';
 
@@ -337,6 +338,8 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         return;
       }
 
+      const publishStartTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
       const res = await createCreditSwap({
         topic: topicTitle,
         description: formState.description.trim(),
@@ -364,7 +367,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         .filter((f): f is File => Boolean(f));
 
       if (rawFiles.length > 0) {
-        const uploadRes = await uploadSwapAttachments(createdId, rawFiles);
+        const uploadRes = await uploadSwapAttachments(createdId, rawFiles, user.id);
         if (!uploadRes.success) {
           // Roll back newly created swap on attachment failure
           await cancelCreditSwap(createdId);
@@ -377,7 +380,11 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
         }
       }
 
-      await refreshAccount();
+      const publishEndTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      logger.debug(`[PERF] Publish flow completed in ${(publishEndTime - publishStartTime).toFixed(1)}ms for swap ${createdId}`);
+
+      // Refresh account state in background without delaying success UI
+      refreshAccount().catch((err) => logger.error('[CreateSwap] Background refreshAccount failed:', err));
 
       try {
         localStorage.removeItem(draftKey);

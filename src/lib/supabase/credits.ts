@@ -1205,19 +1205,35 @@ export async function getSwapAttachments(swapId: string): Promise<{ data: SwapAt
 
 export async function uploadSwapAttachments(
   swapId: string,
-  files: File[]
+  files: File[],
+  userId?: string
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'You must be logged in to upload attachments.' };
 
   if (!files || files.length === 0) return { success: true };
 
   if (files.length > 5) {
     return { success: false, error: 'Maximum 5 attachments allowed per swap.' };
   }
+
+  // Early validation of all files before initiating network calls
+  for (const file of files) {
+    if (file.size > 25 * 1024 * 1024) {
+      return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
+    }
+  }
+
+  const startTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+  let uId = userId;
+  if (!uId) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'You must be logged in to upload attachments.' };
+    uId = user.id;
+  }
+
+  const activeUserId = uId;
 
   const uploadedPaths: string[] = [];
   const registeredIds: string[] = [];
@@ -1229,7 +1245,7 @@ export async function uploadSwapAttachments(
         await supabase.rpc('unregister_swap_attachment', { p_attachment_id: attId });
       } catch {
         // Fallback table deletion if RPC is unavailable
-        await supabase.from('swap_attachment_files').delete().eq('id', attId).eq('uploaded_by', user.id);
+        await supabase.from('swap_attachment_files').delete().eq('id', attId).eq('uploaded_by', activeUserId);
       }
     }
     // Delete files from swap-attachments bucket
@@ -1243,15 +1259,10 @@ export async function uploadSwapAttachments(
   };
 
   try {
-    for (const file of files) {
-      if (file.size > 25 * 1024 * 1024) {
-        await cleanupRollback();
-        return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
-      }
-
+    const filePromises = files.map(async (file) => {
       const storedFileName = sanitizeFileName(file.name);
       const normalizedMime = getNormalizedMimeType(storedFileName, file.type);
-      const storagePath = `swap-attachments/${swapId}/${user.id}/${generateUUID()}-${storedFileName}`;
+      const storagePath = `swap-attachments/${swapId}/${activeUserId}/${generateUUID()}-${storedFileName}`;
 
       const { error: uploadErr } = await supabase.storage
         .from('swap-attachments')
@@ -1262,14 +1273,12 @@ export async function uploadSwapAttachments(
 
       if (uploadErr) {
         console.error('Creator attachment upload failed:', uploadErr);
-        await cleanupRollback();
-        return { success: false, error: formatSubmissionErrorMessage(uploadErr, file.name) };
+        throw new Error(formatSubmissionErrorMessage(uploadErr, file.name));
       }
 
       uploadedPaths.push(storagePath);
 
       // Register metadata via RPC register_swap_attachment using the exact storedFileName
-      let attachmentId: string | null = null;
       const { data: rpcData, error: rpcErr } = await supabase.rpc('register_swap_attachment', {
         p_swap_id: swapId,
         p_storage_path: storagePath,
@@ -1280,16 +1289,15 @@ export async function uploadSwapAttachments(
 
       if (rpcErr) {
         console.error('register_swap_attachment RPC error:', rpcErr);
-        await cleanupRollback();
-        return { success: false, error: formatSubmissionErrorMessage(rpcErr, file.name) };
+        throw new Error(formatSubmissionErrorMessage(rpcErr, file.name));
       }
 
+      let attachmentId: string | null = null;
       if (rpcData) {
         const res = rpcData as { success?: boolean; attachment_id?: string; id?: string; error?: string };
         if (res.success === false) {
           console.error('register_swap_attachment RPC returned failure:', res.error);
-          await cleanupRollback();
-          return { success: false, error: res.error ? `Failed to register attachment: ${res.error}` : 'Failed to register creator attachment.' };
+          throw new Error(res.error ? `Failed to register attachment: ${res.error}` : 'Failed to register creator attachment.');
         }
         if (res.attachment_id) {
           attachmentId = res.attachment_id;
@@ -1302,10 +1310,24 @@ export async function uploadSwapAttachments(
         registeredIds.push(attachmentId);
       } else {
         console.error('register_swap_attachment RPC returned invalid response shape:', rpcData);
-        await cleanupRollback();
-        return { success: false, error: `Failed to record attachment "${file.name}".` };
+        throw new Error(`Failed to record attachment "${file.name}".`);
       }
+    });
+
+    const results = await Promise.allSettled(filePromises);
+    const rejected = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+
+    if (rejected) {
+      await cleanupRollback();
+      const reason = rejected.reason;
+      return {
+        success: false,
+        error: reason instanceof Error ? reason.message : (typeof reason === 'string' ? reason : 'Failed to process attachments.'),
+      };
     }
+
+    const endTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    logger.debug(`[PERF] uploadSwapAttachments completed in ${(endTime - startTime).toFixed(1)}ms for ${files.length} file(s)`);
 
     return { success: true };
   } catch (err) {
