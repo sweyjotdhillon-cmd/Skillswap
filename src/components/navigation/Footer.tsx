@@ -4,10 +4,6 @@ type FooterProps = {
 
 export function Footer({ onNavigate }: FooterProps) {
   const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
-    if (path === '/faq') {
-      window.location.href = '/faq';
-      return;
-    }
     if (onNavigate) {
       e.preventDefault();
       onNavigate(path);
