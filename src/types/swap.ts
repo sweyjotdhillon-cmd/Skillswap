@@ -10,6 +10,12 @@ export type SwapStatus =
   | 'withdrawn'
   | 'expired';
 
+export interface FileLifecycle {
+  expiresAt?: string | null;
+  deletedAt?: string | null;
+  deleteStatus?: string | null;
+}
+
 export interface SwapProfile {
   fullName: string;
   username: string;
@@ -45,7 +51,7 @@ export interface Swap {
   participantProfile?: SwapProfile | null;
 }
 
-export interface SwapMessageAttachment {
+export interface SwapMessageAttachment extends FileLifecycle {
   id: string;
   messageId: string;
   swapId: string;
@@ -56,8 +62,6 @@ export interface SwapMessageAttachment {
   fileSize?: number | null;
   createdAt: string;
   deleteAfter?: string | null;
-  deletedAt?: string | null;
-  deleteStatus?: 'active' | 'in_progress' | 'pending_deletion' | 'deleted' | 'failed' | string | null;
   deleteError?: string | null;
 }
 
@@ -73,7 +77,7 @@ export interface SwapMessage {
   attachments?: SwapMessageAttachment[];
 }
 
-export interface SwapSubmissionFile {
+export interface SwapSubmissionFile extends FileLifecycle {
   id: string;
   submissionId: string;
   storagePath: string;

@@ -46,7 +46,8 @@ describe('File Expiry System Tests', () => {
 
   test('getFileExpiryStatus evaluates timestamps and deletion flags accurately', () => {
     const now = Date.now();
-    const inTwoHours = new Date(now + 2 * 3600 * 1000).toISOString();
+    // 10s buffer ensures Date.now() execution delta doesn't reduce remaining duration below 2 hours
+    const inTwoHours = new Date(now + 2 * 3600 * 1000 + 10000).toISOString();
     const pastOneHour = new Date(now - 3600 * 1000).toISOString();
 
     // Active future file
@@ -68,6 +69,10 @@ describe('File Expiry System Tests', () => {
   });
 
   test('Data Model Mapping preserves authoritative expiry fields across file types', () => {
+    const creatorExpiry = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
+    const submissionExpiry = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    const chatExpiry = new Date(Date.now() + 6 * 3600 * 1000).toISOString();
+
     const creatorAttachment: SwapAttachment = {
       id: 'att-1',
       swapId: 'swap-1',
@@ -75,7 +80,10 @@ describe('File Expiry System Tests', () => {
       storagePath: 'swap-attachments/swap-1/user-1/doc.pdf',
       fileName: 'doc.pdf',
       createdAt: new Date().toISOString(),
-      storageExpiresAt: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+      expiresAt: creatorExpiry,
+      deletedAt: null,
+      deleteStatus: 'active',
+      storageExpiresAt: creatorExpiry,
       storageDeletedAt: null,
       storageDeleteStatus: 'active',
     };
@@ -86,7 +94,10 @@ describe('File Expiry System Tests', () => {
       storagePath: 'submissions/swap-1/user-1/deliverable.zip',
       fileName: 'deliverable.zip',
       createdAt: new Date().toISOString(),
-      storageExpiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+      expiresAt: submissionExpiry,
+      deletedAt: null,
+      deleteStatus: 'active',
+      storageExpiresAt: submissionExpiry,
       storageDeletedAt: null,
       storageDeleteStatus: 'active',
     };
@@ -99,19 +110,20 @@ describe('File Expiry System Tests', () => {
       storagePath: 'swap-chat-attachments/swap-1/user-1/screenshot.png',
       fileName: 'screenshot.png',
       createdAt: new Date().toISOString(),
-      deleteAfter: new Date(Date.now() + 6 * 3600 * 1000).toISOString(),
+      expiresAt: chatExpiry,
       deletedAt: null,
       deleteStatus: 'active',
+      deleteAfter: chatExpiry,
     };
 
-    assert.ok(creatorAttachment.storageExpiresAt);
-    assert.strictEqual(getFileExpiryStatus(creatorAttachment.storageExpiresAt).isExpired, false);
+    assert.ok(creatorAttachment.expiresAt);
+    assert.strictEqual(getFileExpiryStatus(creatorAttachment.expiresAt).isExpired, false);
 
-    assert.ok(submissionFile.storageExpiresAt);
-    assert.strictEqual(getFileExpiryStatus(submissionFile.storageExpiresAt).isExpired, false);
+    assert.ok(submissionFile.expiresAt);
+    assert.strictEqual(getFileExpiryStatus(submissionFile.expiresAt).isExpired, false);
 
-    assert.ok(chatAttachment.deleteAfter);
-    assert.strictEqual(getFileExpiryStatus(chatAttachment.deleteAfter).isExpired, false);
+    assert.ok(chatAttachment.expiresAt);
+    assert.strictEqual(getFileExpiryStatus(chatAttachment.expiresAt).isExpired, false);
   });
 
   test('FileExpiryIndicator Component renders cleanly across all attachment surfaces', () => {

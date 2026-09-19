@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { FileExpiryIndicator } from '../ui/FileExpiryIndicator';
+import type { FileLifecycle } from '../../types/swap';
 
-export interface AttachmentItem {
+export interface AttachmentItem extends FileLifecycle {
   id: string;
   name: string;
   size: number;
@@ -178,11 +179,9 @@ export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAtta
                     <span className="attachment-name" title={item.name}>{item.name}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                       <span className="attachment-size">{formatFileSize(item.size)}</span>
-                      {item.storageExpiresAt && (
+                      {(item.expiresAt || item.storageExpiresAt) && (
                         <FileExpiryIndicator
-                          expiresAt={item.storageExpiresAt}
-                          deletedAt={item.storageDeletedAt}
-                          deleteStatus={item.storageDeleteStatus}
+                          lifecycle={item}
                           inline
                         />
                       )}
