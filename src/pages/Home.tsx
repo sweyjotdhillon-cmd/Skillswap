@@ -59,8 +59,37 @@ const DEMO_SWAPS = [
   },
 ];
 
+const HOMEPAGE_FAQS = [
+  {
+    id: 'free-model',
+    question: 'How is SkillSwap free? Is there a catch or hidden fee?',
+    answer: 'SkillSwap is 100% free with zero transaction fees. Members exchange skills directly using SkillCredits—our internal currency—rather than cash. When you complete your profile setup, you receive an initial welcome allocation of 100 SkillCredits to begin proposing and accepting swaps right away.',
+  },
+  {
+    id: 'how-credits-work',
+    question: 'How do SkillCredits work?',
+    answer: 'SkillCredits are SkillSwap\'s internal unit of account. When you create a swap, the required SkillCredits are reserved from your balance and held safely during the swap lifecycle. Upon completing the swap, reserved credits transfer to the fulfiller. If a qualifying swap is cancelled before fulfillment, your reserved SkillCredits are released back to your balance.',
+  },
+  {
+    id: 'delivery-and-quality',
+    question: 'What happens if someone doesn\'t deliver or does a poor job?',
+    answer: 'SkillCredits are reserved for the swap and are only transferred when the swap is marked complete. If work is not submitted, reserved credits are released back to the requester according to platform lifecycle rules and automated timeouts. While SkillSwap holds credits in reserve during active swaps, the platform does not currently provide a dispute resolution mechanism for subjective quality disagreements, so we encourage setting clear requirements before accepting an exchange.',
+  },
+  {
+    id: 'cross-skill-trading',
+    question: 'Can I trade different types of skills (e.g., writing for logo design)?',
+    answer: 'Yes! SkillCredits remove the need for direct 1:1 barter. You can earn SkillCredits by offering your expertise—like technical writing or coding—to one member, and then spend those earned credits to get logo design, video editing, or marketing strategy from anyone else in the community.',
+  },
+  {
+    id: 'getting-started',
+    question: 'How do I get started and earn my first credits?',
+    answer: 'Signing up is fast and free. Complete your profile setup to receive your initial 100 SkillCredits. From there, you can spend credits to request a swap on the marketplace or list your own skills to fulfill swaps and earn additional credits.',
+  },
+];
+
 export function Home({ onNavigate }: HomeProps) {
   const [activeCategory, setActiveCategory] = useState('all');
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
   const filteredSwaps = activeCategory === 'all'
     ? DEMO_SWAPS
@@ -219,6 +248,66 @@ export function Home({ onNavigate }: HomeProps) {
               <span>Growth Loops</span>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Frequently Asked Questions / Trust Section */}
+      <section className="home-section" id="faq" aria-labelledby="home-faq-heading">
+        <div className="section-header">
+          <span className="section-eyebrow">Trust &amp; Mechanics</span>
+          <h2 id="home-faq-heading" className="section-title">Frequently Asked Questions</h2>
+          <p className="section-description">
+            Everything you need to know about SkillCredits, zero-fee skill trading, and how exchanges are secured.
+          </p>
+        </div>
+
+        <div className="home-faq-list" role="region" aria-label="Homepage Frequently Asked Questions">
+          {HOMEPAGE_FAQS.map((faq, index) => {
+            const isOpen = openFaqIndex === index;
+            return (
+              <div key={faq.id} className={`home-faq-item ${isOpen ? 'home-faq-item--open' : ''}`}>
+                <button
+                  type="button"
+                  id={`faq-btn-${faq.id}`}
+                  className="home-faq-button"
+                  aria-expanded={isOpen}
+                  aria-controls={`faq-answer-${faq.id}`}
+                  onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                >
+                  <span>{faq.question}</span>
+                  <span className={`home-faq-icon ${isOpen ? 'home-faq-icon--open' : ''}`} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </span>
+                </button>
+                {isOpen && (
+                  <div
+                    id={`faq-answer-${faq.id}`}
+                    role="region"
+                    aria-labelledby={`faq-btn-${faq.id}`}
+                    className="home-faq-answer"
+                  >
+                    {faq.answer}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="home-faq-footer-link">
+          <button
+            type="button"
+            className="home-faq-more-btn"
+            onClick={() => (onNavigate ? onNavigate('/faq') : (window.location.href = '/faq'))}
+          >
+            <span>Have more questions? View our full FAQ</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </button>
         </div>
       </section>
 
