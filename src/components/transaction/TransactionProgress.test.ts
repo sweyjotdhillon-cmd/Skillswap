@@ -1,4 +1,4 @@
-import { calculateRemainingAutoReleaseMs, formatRemainingTime, formatCountdown } from './TransactionProgress';
+import { calculateRemainingAutoReleaseMs, formatRemainingTime, formatCountdown } from './transactionUtils';
 import type { SwapStatus } from '../../types/swap';
 
 function assert(condition: boolean, message: string) {

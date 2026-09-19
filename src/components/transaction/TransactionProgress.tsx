@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import type { SwapStatus } from '../../types/swap';
 import { CompletionConfirmation } from './CompletionConfirmation';
 import { PendingTransactionVault } from './PendingTransactionVault';
+import {
+  calculateRemainingAutoReleaseMs,
+  formatRemainingTime,
+} from './transactionUtils';
 
 export interface TransactionProgressProps {
   swapId?: string;
@@ -20,101 +24,6 @@ const LIFECYCLE_STAGES: Array<{ key: SwapStatus; label: string }> = [
   { key: 'submitted', label: 'Submitted' },
   { key: 'completed', label: 'Completed' },
 ];
-
-/**
- * Single Canonical Auto-Release Deadline Utility
- * Calculates remaining time in milliseconds from a backend autoReleaseAt (or submittedAt fallback) timestamp relative to an absolute timestamp.
- */
-export function calculateRemainingAutoReleaseMs(
-  autoReleaseAtOrSubmittedAt: string | null | undefined,
-  submittedAtOrDays?: string | number | null,
-  nowMs: number = Date.now()
-): number {
-  if (!autoReleaseAtOrSubmittedAt) {
-    if (typeof submittedAtOrDays === 'string' && submittedAtOrDays) {
-      const subMs = new Date(submittedAtOrDays).getTime();
-      if (!isNaN(subMs)) {
-        return Math.max(0, subMs + 7 * 24 * 60 * 60 * 1000 - nowMs);
-      }
-    }
-    return 0;
-  }
-
-  // Case A: Second arg is number (legacy autoReleaseDays parameter e.g. 7)
-  if (typeof submittedAtOrDays === 'number') {
-    const submittedMs = new Date(autoReleaseAtOrSubmittedAt).getTime();
-    if (isNaN(submittedMs)) return 0;
-    const targetMs = submittedMs + submittedAtOrDays * 24 * 60 * 60 * 1000;
-    return Math.max(0, targetMs - nowMs);
-  }
-
-  // Case B: First arg is autoReleaseAt timestamp
-  const targetMs = new Date(autoReleaseAtOrSubmittedAt).getTime();
-  if (!isNaN(targetMs)) {
-    // If first arg and second arg are identical ISO strings, first arg was submittedAt
-    if (typeof submittedAtOrDays === 'string' && submittedAtOrDays) {
-      const subMs = new Date(submittedAtOrDays).getTime();
-      if (!isNaN(subMs) && targetMs === subMs) {
-        return Math.max(0, subMs + 7 * 24 * 60 * 60 * 1000 - nowMs);
-      }
-    }
-    return Math.max(0, targetMs - nowMs);
-  }
-
-  // Case C: Second arg is submittedAt string fallback
-  if (typeof submittedAtOrDays === 'string' && submittedAtOrDays) {
-    const subMs = new Date(submittedAtOrDays).getTime();
-    if (!isNaN(subMs)) {
-      return Math.max(0, subMs + 7 * 24 * 60 * 60 * 1000 - nowMs);
-    }
-  }
-
-  return 0;
-}
-
-/**
- * Formats milliseconds into human-readable time adhering to L10 UX guidelines:
- * - e.g. "Auto-release in 23h 41m", "Auto-release in 3h 18m", "Auto-release in 42m"
- * - for < 1m: "Auto-release soon"
- * - for <= 0ms: "Pending automatic settlement"
- */
-export function formatRemainingTime(ms: number): string {
-  if (ms <= 0) return 'Pending automatic settlement';
-
-  const totalMinutes = Math.floor(ms / (60 * 1000));
-  if (totalMinutes < 1) {
-    return 'Auto-release soon';
-  }
-
-  const days = Math.floor(totalMinutes / (24 * 60));
-  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
-  const minutes = totalMinutes % 60;
-
-  if (days > 0) {
-    return `Auto-release in ${days}d ${hours}h`;
-  }
-  if (hours > 0) {
-    return `Auto-release in ${hours}h ${minutes}m`;
-  }
-  return `Auto-release in ${minutes}m`;
-}
-
-/**
- * Formats remaining seconds into standardized timer display string.
- */
-export function formatCountdown(seconds: number): string {
-  if (seconds <= 0) return '00h 00m 00s';
-  const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  if (hrs >= 24) {
-    const days = Math.floor(hrs / 24);
-    const remHrs = hrs % 24;
-    return `${days}d ${pad(remHrs)}h ${pad(mins)}m ${pad(secs)}s`;
-  }
-  return `${pad(hrs)}h ${pad(mins)}m ${pad(secs)}s`;
-}
 
 export const TransactionProgress: React.FC<TransactionProgressProps> = ({
   swapId,
@@ -192,8 +101,8 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
     <section
       className={`tx-progress-container ${className}`}
       style={{
-        background: 'var(--card-bg, rgba(30, 41, 59, 0.6))',
-        border: '1px solid var(--border-color, rgba(255, 255, 255, 0.12))',
+        background: 'var(--card-bg, var(--color-surface, #ffffff))',
+        border: '1px solid var(--border-color, var(--color-border, rgba(15, 23, 42, 0.12)))',
         borderRadius: '12px',
         padding: '1rem',
         marginBottom: '1rem',
@@ -226,24 +135,24 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
 
           let badgeIcon = '○';
           let badgeClass = 'tx-step--future';
-          let color = 'var(--text-muted, #94a3b8)';
-          let bgColor = 'rgba(148, 163, 184, 0.1)';
-          let borderColor = 'rgba(148, 163, 184, 0.3)';
+          let color = 'var(--text-muted, #64748b)';
+          let bgColor = 'rgba(100, 116, 139, 0.1)';
+          let borderColor = 'rgba(100, 116, 139, 0.3)';
           let stateText = 'upcoming';
 
           if (isCompleted) {
             badgeIcon = '✓';
             badgeClass = 'tx-step--completed';
             color = '#10b981';
-            bgColor = 'rgba(16, 185, 129, 0.2)';
+            bgColor = 'rgba(16, 185, 129, 0.15)';
             borderColor = '#10b981';
             stateText = 'completed';
           } else if (isCurrent) {
             badgeIcon = isFinalGoal ? '★' : '●';
             badgeClass = 'tx-step--current';
-            color = status === 'completed' ? '#10b981' : '#38bdf8';
-            bgColor = status === 'completed' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.2)';
-            borderColor = status === 'completed' ? '#10b981' : '#38bdf8';
+            color = status === 'completed' ? '#10b981' : 'var(--color-structure, #0284c7)';
+            bgColor = status === 'completed' ? 'rgba(16, 185, 129, 0.15)' : 'var(--color-structure-muted, rgba(2, 132, 199, 0.1))';
+            borderColor = status === 'completed' ? '#10b981' : 'var(--color-structure, #0284c7)';
             stateText = 'current stage';
           } else if (isTerminated) {
             color = 'var(--text-muted, #64748b)';
@@ -252,8 +161,8 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
             stateText = 'inactive due to cancellation';
           } else if (isFinalGoal) {
             badgeIcon = '🏁';
-            color = 'var(--color-warning, #d6a64a)';
-            bgColor = 'rgba(214, 166, 74, 0.1)';
+            color = 'var(--color-accent, #d6a64a)';
+            bgColor = 'var(--color-accent-muted, rgba(214, 166, 74, 0.15))';
             borderColor = 'rgba(214, 166, 74, 0.4)';
             stateText = 'destination goal';
           }
@@ -302,10 +211,10 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
                     fontSize: '0.75rem',
                     fontWeight: isCurrent ? 700 : isCompleted ? 600 : 500,
                     color: isCurrent
-                      ? 'var(--text-color, #f8fafc)'
+                      ? 'var(--text-color, #0f172a)'
                       : isCompleted
                       ? color
-                      : 'var(--text-muted, #94a3b8)',
+                      : 'var(--text-muted, #64748b)',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -322,7 +231,7 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
                   style={{
                     flex: 1,
                     height: '3px',
-                    background: isCompleted ? '#10b981' : 'rgba(148, 163, 184, 0.2)',
+                    background: isCompleted ? '#10b981' : 'rgba(148, 163, 184, 0.25)',
                     marginTop: '-1.25rem',
                     borderRadius: '2px',
                     transition: 'background 0.2s ease-in-out',
@@ -345,17 +254,17 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
       )}
 
       {/* DYNAMIC CONTEXTUAL DETAILS & COUNTDOWN / CLOSURE BANNER */}
-      <div className="tx-progress-details" style={{ marginTop: '0.85rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '0.75rem' }}>
+      <div className="tx-progress-details" style={{ marginTop: '0.85rem', borderTop: '1px solid rgba(15, 23, 42, 0.08)', paddingTop: '0.75rem' }}>
         {status === 'open' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            <span style={{ color: '#38bdf8' }} aria-hidden="true">●</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary, #475569)' }}>
+            <span style={{ color: 'var(--color-structure, #0284c7)' }} aria-hidden="true">●</span>
             <span>Listing is open for community acceptance. Reserved credits remain held in escrow.</span>
           </div>
         )}
 
         {status === 'accepted' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            <span style={{ color: '#38bdf8' }} aria-hidden="true">●</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary, #475569)' }}>
+            <span style={{ color: 'var(--color-structure, #0284c7)' }} aria-hidden="true">●</span>
             <span>Swap in progress. Participant is fulfilling deliverables before submitting work for review.</span>
           </div>
         )}
@@ -373,16 +282,16 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#f59e0b' }}>
+              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#b45309' }}>
                 ● Deliverables Submitted for Requester Review
               </span>
-              <span style={{ fontSize: '0.825rem', fontFamily: 'monospace', fontWeight: 700, color: '#f59e0b', background: 'rgba(217, 119, 6, 0.15)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+              <span style={{ fontSize: '0.825rem', fontFamily: 'monospace', fontWeight: 700, color: '#b45309', background: 'rgba(217, 119, 6, 0.15)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
                 {!isAutoReleaseExpired
                   ? formatRemainingTime(remainingMs)
                   : 'Auto-release window reached (Pending automatic settlement)'}
               </span>
             </div>
-            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary, #cbd5e1)', lineHeight: 1.4 }}>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary, #475569)', lineHeight: 1.4 }}>
               {!isAutoReleaseExpired
                 ? 'The requester has time to review submitted deliverables before credits auto-release to participant.'
                 : 'The review window has passed. The backend scheduler or next action will finalize credit settlement.'}
@@ -409,7 +318,7 @@ export const TransactionProgress: React.FC<TransactionProgressProps> = ({
               padding: '0.65rem 0.85rem',
               borderRadius: '8px',
               fontSize: '0.85rem',
-              color: 'var(--error-color, #ef4444)',
+              color: 'var(--status-error, #dc2626)',
               fontWeight: 600,
             }}
           >
