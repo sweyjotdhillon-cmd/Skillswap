@@ -10,6 +10,7 @@
     "test": "tsx --test \"src/**/*.test.ts\"",
     "test:unit": "tsx --test \"src/**/*.test.ts\" --test-name-pattern=\"Unit\"",
     "test:integration": "tsx --test \"src/**/*.test.ts\" --test-name-pattern=\"Integration\"",
+    "test:e2e": "playwright test",
     "lint": "eslint .",
     "deploy": "npm run build && wrangler deploy"
   },
@@ -30,6 +31,7 @@
     "@cloudflare/workers-types": "5.20260828.1",
     "@electric-sql/pglite": "0.5.8",
     "@eslint/js": "9.39.5",
+    "@playwright/test": "^1.50.1",
     "@types/node": "26.4.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",

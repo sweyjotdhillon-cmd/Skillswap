@@ -1,44 +1,27 @@
+#!/usr/bin/env python3
+"""
+SkillSwap Browser & CUJ Verification Compatibility Wrapper.
+Runs Playwright E2E verification test suite and outputs diagnostic reports.
+"""
+
+import subprocess
+import sys
 import os
-from playwright.sync_api import sync_playwright
 
-def run_cuj(page):
-    # Navigate to Explore Swaps
-    page.goto("http://localhost:5173/explore")
-    page.wait_for_timeout(1000)
+def run_playwright_suite():
+    print("==================================================")
+    print("  Running SkillSwap Playwright E2E CUJ Suite      ")
+    print("==================================================")
 
-    # Capture Explore page screenshot
-    page.screenshot(path="verification/screenshots/explore_swaps.png")
-    page.wait_for_timeout(1000)
+    cmd = ["npx", "playwright", "test"]
+    result = subprocess.run(cmd, env=os.environ.copy())
 
-    # Navigate to Create Swap
-    page.goto("http://localhost:5173/create-swap")
-    page.wait_for_timeout(1000)
-    page.screenshot(path="verification/screenshots/create_swap.png")
-    page.wait_for_timeout(1000)
+    if result.returncode == 0:
+        print("\n✓ Playwright E2E Suite completed successfully!")
+    else:
+        print(f"\n❌ Playwright E2E Suite failed with exit code {result.returncode}")
 
-    # Navigate to Active Swaps
-    page.goto("http://localhost:5173/active-swaps")
-    page.wait_for_timeout(1000)
-    page.screenshot(path="verification/screenshots/active_swaps.png")
-    page.wait_for_timeout(1000)
-
-    # Navigate to Profile
-    page.goto("http://localhost:5173/profile")
-    page.wait_for_timeout(1000)
-    page.screenshot(path="verification/screenshots/profile.png")
-    page.wait_for_timeout(1000)
+    sys.exit(result.returncode)
 
 if __name__ == "__main__":
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(
-            record_video_dir="verification/videos"
-        )
-        page = context.new_page()
-        try:
-            run_cuj(page)
-        finally:
-            context.close()
-            browser.close()
-
-    print("Playwright script completed successfully!")
+    run_playwright_suite()
