@@ -577,9 +577,7 @@ export function SwapChatModal({
                                     📎 <strong>{att.fileName}</strong> {sizeKb > 0 ? `(${sizeKb} KB)` : ''}
                                   </span>
                                   <FileExpiryIndicator
-                                    expiresAt={att.deleteAfter}
-                                    deletedAt={att.deletedAt}
-                                    deleteStatus={att.deleteStatus}
+                                    lifecycle={att}
                                     inline
                                   />
                                 </div>
@@ -1000,9 +998,7 @@ export function SwapChatModal({
                             </button>
                           </div>
                           <FileExpiryIndicator
-                            expiresAt={file.storageExpiresAt}
-                            deletedAt={file.storageDeletedAt}
-                            deleteStatus={file.storageDeleteStatus}
+                            lifecycle={file}
                             inline
                           />
                         </div>
@@ -1039,9 +1035,7 @@ export function SwapChatModal({
                           </button>
                         </div>
                         <FileExpiryIndicator
-                          expiresAt={att.storageExpiresAt}
-                          deletedAt={att.storageDeletedAt}
-                          deleteStatus={att.storageDeleteStatus}
+                          lifecycle={att}
                           inline
                         />
                       </div>

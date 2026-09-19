@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { getFileExpiryStatus, type FileExpiryStatus } from '../../lib/fileExpiry';
+import type { FileLifecycle } from '../../types/swap';
 
 export interface FileExpiryIndicatorProps {
+  lifecycle?: FileLifecycle | null;
   expiresAt?: string | null;
   deletedAt?: string | null;
   deleteStatus?: string | null;
+  storageExpiresAt?: string | null;
+  storageDeletedAt?: string | null;
+  storageDeleteStatus?: string | null;
+  deleteAfter?: string | null;
   isDeleted?: boolean;
   inline?: boolean;
   className?: string;
@@ -12,30 +18,39 @@ export interface FileExpiryIndicatorProps {
 }
 
 export const FileExpiryIndicator: React.FC<FileExpiryIndicatorProps> = ({
+  lifecycle,
   expiresAt,
   deletedAt,
   deleteStatus,
+  storageExpiresAt,
+  storageDeletedAt,
+  storageDeleteStatus,
+  deleteAfter,
   isDeleted,
   inline = false,
   className = '',
   style,
 }) => {
+  const effectiveExpiresAt = lifecycle?.expiresAt ?? expiresAt ?? storageExpiresAt ?? deleteAfter ?? null;
+  const effectiveDeletedAt = lifecycle?.deletedAt ?? deletedAt ?? storageDeletedAt ?? null;
+  const effectiveDeleteStatus = lifecycle?.deleteStatus ?? deleteStatus ?? storageDeleteStatus ?? null;
+
   const isDeletedCombined = Boolean(
     isDeleted ||
-    deletedAt ||
-    (deleteStatus && deleteStatus !== 'active' && deleteStatus !== 'failed')
+    effectiveDeletedAt ||
+    (effectiveDeleteStatus && effectiveDeleteStatus !== 'active' && effectiveDeleteStatus !== 'failed')
   );
 
   const [expiryStatus, setExpiryStatus] = useState<FileExpiryStatus>(() =>
-    getFileExpiryStatus(expiresAt, isDeletedCombined)
+    getFileExpiryStatus(effectiveExpiresAt, isDeletedCombined)
   );
 
   useEffect(() => {
     // Immediate calculation on prop changes
-    const currentStatus = getFileExpiryStatus(expiresAt, isDeletedCombined);
+    const currentStatus = getFileExpiryStatus(effectiveExpiresAt, isDeletedCombined);
     setExpiryStatus(currentStatus);
 
-    if (!expiresAt || currentStatus.isExpired) {
+    if (!effectiveExpiresAt || currentStatus.isExpired) {
       return;
     }
 
@@ -44,7 +59,7 @@ export const FileExpiryIndicator: React.FC<FileExpiryIndicatorProps> = ({
     const updateIntervalMs = currentStatus.remainingMs < 60 * 60 * 1000 ? 10000 : 30000;
 
     const timer = setInterval(() => {
-      const nextStatus = getFileExpiryStatus(expiresAt, isDeletedCombined);
+      const nextStatus = getFileExpiryStatus(effectiveExpiresAt, isDeletedCombined);
       setExpiryStatus(nextStatus);
 
       if (nextStatus.isExpired) {
@@ -53,10 +68,10 @@ export const FileExpiryIndicator: React.FC<FileExpiryIndicatorProps> = ({
     }, updateIntervalMs);
 
     return () => clearInterval(timer);
-  }, [expiresAt, isDeletedCombined, deleteStatus, deletedAt]);
+  }, [effectiveExpiresAt, isDeletedCombined, effectiveDeleteStatus, effectiveDeletedAt]);
 
   // Don't render anything if no authoritative expiry timestamp exists and not deleted
-  if (!expiresAt && !isDeletedCombined) {
+  if (!effectiveExpiresAt && !isDeletedCombined) {
     return null;
   }
 

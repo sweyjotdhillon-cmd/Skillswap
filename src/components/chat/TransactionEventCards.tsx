@@ -152,9 +152,7 @@ export const SubmissionEventCard: React.FC<{
                         ) : null}
                       </div>
                       <FileExpiryIndicator
-                        expiresAt={file.storageExpiresAt}
-                        deletedAt={file.storageDeletedAt}
-                        deleteStatus={file.storageDeleteStatus}
+                        lifecycle={file}
                         inline
                       />
                     </div>

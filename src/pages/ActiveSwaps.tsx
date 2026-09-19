@@ -1075,9 +1075,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                                         <span className="attachment-size">{(att.fileSize / 1024).toFixed(1)} KB</span>
                                       ) : null}
                                       <FileExpiryIndicator
-                                        expiresAt={att.storageExpiresAt}
-                                        deletedAt={att.storageDeletedAt}
-                                        deleteStatus={att.storageDeleteStatus}
+                                        lifecycle={att}
                                         inline
                                       />
                                     </div>
@@ -1145,9 +1143,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                                             <span className="attachment-size">{(file.fileSize / 1024).toFixed(1)} KB</span>
                                           ) : null}
                                           <FileExpiryIndicator
-                                            expiresAt={file.storageExpiresAt}
-                                            deletedAt={file.storageDeletedAt}
-                                            deleteStatus={file.storageDeleteStatus}
+                                            lifecycle={file}
                                             inline
                                           />
                                         </div>
@@ -1338,9 +1334,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                                         <span className="attachment-size">{(att.fileSize / 1024).toFixed(1)} KB</span>
                                       ) : null}
                                       <FileExpiryIndicator
-                                        expiresAt={att.storageExpiresAt}
-                                        deletedAt={att.storageDeletedAt}
-                                        deleteStatus={att.storageDeleteStatus}
+                                        lifecycle={att}
                                         inline
                                       />
                                     </div>
@@ -1623,9 +1617,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                                         <span className="attachment-size">{(att.fileSize / 1024).toFixed(1)} KB</span>
                                       ) : null}
                                       <FileExpiryIndicator
-                                        expiresAt={att.storageExpiresAt}
-                                        deletedAt={att.storageDeletedAt}
-                                        deleteStatus={att.storageDeleteStatus}
+                                        lifecycle={att}
                                         inline
                                       />
                                     </div>

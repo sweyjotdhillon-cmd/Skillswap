@@ -146,6 +146,9 @@ export interface SwapAttachment {
   mimeType?: string | null;
   fileSize?: number | null;
   createdAt: string;
+  expiresAt?: string | null;
+  deletedAt?: string | null;
+  deleteStatus?: string | null;
   storageExpiresAt?: string | null;
   storageDeletedAt?: string | null;
   storageDeleteStatus?: string | null;
@@ -797,8 +800,8 @@ export async function getSwapMessages(swapId: string): Promise<{ data: SwapMessa
     const { data, error } = await supabase
       .from('swap_messages')
       .select(`
-        *,
-        swap_message_attachments(*)
+        id, swap_id, sender_id, recipient_id, body, read_at, created_at, expires_at,
+        swap_message_attachments(id, message_id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, created_at, delete_after, deleted_at, delete_status, delete_error, delete_claimed_at)
       `)
       .eq('swap_id', swapId)
       .order('created_at', { ascending: true });
@@ -810,21 +813,27 @@ export async function getSwapMessages(swapId: string): Promise<{ data: SwapMessa
 
     const messages: SwapMessage[] = (data || []).map((m) => {
       const attachments = Array.isArray(m.swap_message_attachments)
-        ? m.swap_message_attachments.map((att: Record<string, unknown>) => ({
-            id: att.id as string,
-            messageId: att.message_id as string,
-            swapId: att.swap_id as string,
-            uploadedBy: att.uploaded_by as string,
-            storagePath: att.storage_path as string,
-            fileName: att.file_name as string,
-            mimeType: att.mime_type as string | null,
-            fileSize: typeof att.file_size === 'number' ? att.file_size : Number(att.file_size || 0),
-            createdAt: att.created_at as string,
-            deleteAfter: (att.delete_after as string) || null,
-            deletedAt: (att.deleted_at as string) || null,
-            deleteStatus: (att.delete_status as string) || 'active',
-            deleteError: att.delete_error as string | null,
-          }))
+        ? m.swap_message_attachments.map((att: Record<string, unknown>) => {
+            const expiresAt = (att.delete_after as string) || null;
+            const deletedAt = (att.deleted_at as string) || null;
+            const deleteStatus = (att.delete_status as string) || 'active';
+            return {
+              id: att.id as string,
+              messageId: att.message_id as string,
+              swapId: att.swap_id as string,
+              uploadedBy: att.uploaded_by as string,
+              storagePath: att.storage_path as string,
+              fileName: att.file_name as string,
+              mimeType: att.mime_type as string | null,
+              fileSize: typeof att.file_size === 'number' ? att.file_size : Number(att.file_size || 0),
+              createdAt: att.created_at as string,
+              expiresAt,
+              deletedAt,
+              deleteStatus,
+              deleteAfter: expiresAt,
+              deleteError: att.delete_error as string | null,
+            };
+          })
         : [];
 
       return {
@@ -1012,21 +1021,27 @@ export async function sendSwapMessageWithAttachments(
 
   const rawMsg = resObj.message;
   const attachments = Array.isArray(rawMsg.attachments)
-    ? rawMsg.attachments.map((att) => ({
-        id: att.id as string,
-        messageId: att.message_id as string,
-        swapId: att.swap_id as string,
-        uploadedBy: att.uploaded_by as string,
-        storagePath: att.storage_path as string,
-        fileName: att.file_name as string,
-        mimeType: att.mime_type as string | null,
-        fileSize: typeof att.file_size === 'number' ? att.file_size : Number(att.file_size || 0),
-        createdAt: att.created_at as string,
-        deleteAfter: att.delete_after as string,
-        deletedAt: (att.deleted_at as string) || null,
-        deleteStatus: (att.delete_status as 'active' | 'in_progress' | 'pending_deletion' | 'deleted' | 'failed') || 'active',
-        deleteError: (att.delete_error as string) || null,
-      }))
+    ? rawMsg.attachments.map((att) => {
+        const expiresAt = (att.delete_after as string) || null;
+        const deletedAt = (att.deleted_at as string) || null;
+        const deleteStatus = (att.delete_status as string) || 'active';
+        return {
+          id: att.id as string,
+          messageId: att.message_id as string,
+          swapId: att.swap_id as string,
+          uploadedBy: att.uploaded_by as string,
+          storagePath: att.storage_path as string,
+          fileName: att.file_name as string,
+          mimeType: att.mime_type as string | null,
+          fileSize: typeof att.file_size === 'number' ? att.file_size : Number(att.file_size || 0),
+          createdAt: att.created_at as string,
+          expiresAt,
+          deletedAt,
+          deleteStatus,
+          deleteAfter: expiresAt,
+          deleteError: (att.delete_error as string) || null,
+        };
+      })
     : [];
 
   const message: SwapMessage = {
@@ -1095,7 +1110,7 @@ export async function getSwapSubmission(swapId: string): Promise<{ data: SwapSub
   try {
     const { data: subData, error: subError } = await supabase
       .from('swap_submissions')
-      .select('*')
+      .select('id, swap_id, submitted_by, notes, reviewed_at, reviewed_by, created_at, updated_at')
       .eq('swap_id', swapId)
       .maybeSingle();
 
@@ -1110,7 +1125,7 @@ export async function getSwapSubmission(swapId: string): Promise<{ data: SwapSub
 
     const { data: fileData, error: fileError } = await supabase
       .from('swap_submission_files')
-      .select('*')
+      .select('id, submission_id, storage_path, file_name, mime_type, file_size, created_at, storage_expires_at, storage_deleted_at, storage_delete_status, storage_delete_error, storage_delete_claimed_at')
       .eq('submission_id', subData.id)
       .order('created_at', { ascending: true });
 
@@ -1118,18 +1133,26 @@ export async function getSwapSubmission(swapId: string): Promise<{ data: SwapSub
       console.error('Error fetching submission files:', fileError);
     }
 
-    const files: SwapSubmissionFile[] = (fileData || []).map((f) => ({
-      id: f.id,
-      submissionId: f.submission_id,
-      storagePath: f.storage_path,
-      fileName: f.file_name,
-      mimeType: f.mime_type,
-      fileSize: f.file_size,
-      createdAt: f.created_at,
-      storageExpiresAt: f.storage_expires_at ?? null,
-      storageDeletedAt: f.storage_deleted_at ?? null,
-      storageDeleteStatus: f.storage_delete_status ?? null,
-    }));
+    const files: SwapSubmissionFile[] = (fileData || []).map((f) => {
+      const expiresAt = f.storage_expires_at ?? null;
+      const deletedAt = f.storage_deleted_at ?? null;
+      const deleteStatus = f.storage_delete_status ?? null;
+      return {
+        id: f.id,
+        submissionId: f.submission_id,
+        storagePath: f.storage_path,
+        fileName: f.file_name,
+        mimeType: f.mime_type,
+        fileSize: f.file_size,
+        createdAt: f.created_at,
+        expiresAt,
+        deletedAt,
+        deleteStatus,
+        storageExpiresAt: expiresAt,
+        storageDeletedAt: deletedAt,
+        storageDeleteStatus: deleteStatus,
+      };
+    });
 
     const submission: SwapSubmission = {
       id: subData.id,
@@ -1191,19 +1214,27 @@ export async function getSwapAttachments(swapId: string): Promise<{ data: SwapAt
       return { data: [], error: formatFriendlyErrorMessage(error) };
     }
 
-    const attachments: SwapAttachment[] = (data || []).map((a) => ({
-      id: a.id,
-      swapId: a.swap_id,
-      uploadedBy: a.uploaded_by,
-      storagePath: a.storage_path,
-      fileName: a.file_name,
-      mimeType: a.mime_type,
-      fileSize: a.file_size,
-      createdAt: a.created_at,
-      storageExpiresAt: a.storage_expires_at ?? null,
-      storageDeletedAt: a.storage_deleted_at ?? null,
-      storageDeleteStatus: a.storage_delete_status ?? null,
-    }));
+    const attachments: SwapAttachment[] = (data || []).map((a) => {
+      const expiresAt = a.storage_expires_at ?? null;
+      const deletedAt = a.storage_deleted_at ?? null;
+      const deleteStatus = a.storage_delete_status ?? null;
+      return {
+        id: a.id,
+        swapId: a.swap_id,
+        uploadedBy: a.uploaded_by,
+        storagePath: a.storage_path,
+        fileName: a.file_name,
+        mimeType: a.mime_type,
+        fileSize: a.file_size,
+        createdAt: a.created_at,
+        expiresAt,
+        deletedAt,
+        deleteStatus,
+        storageExpiresAt: expiresAt,
+        storageDeletedAt: deletedAt,
+        storageDeleteStatus: deleteStatus,
+      };
+    });
 
     return { data: attachments };
   } catch (err) {
