@@ -596,7 +596,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
 
   return (
     <div className="page-shell active-swaps-shell">
-      <Navbar onNavigate={onNavigate} showUserHeader={true} currentPath="/active-swaps" />
+      <Navbar onNavigate={onNavigate} currentPath="/active-swaps" />
 
       <main className="active-swaps-page">
         {/* PAGE HEADER */}
