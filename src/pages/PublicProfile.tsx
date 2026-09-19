@@ -184,7 +184,7 @@ export function PublicProfilePage({ targetUsername, targetUserId, onNavigate }: 
               </button>
               <button
                 type="button"
-                className="action-button action-button--outlined"
+                className="action-button action-button--outline"
                 style={{ fontSize: '0.85rem', padding: '0.45rem 0.9rem' }}
                 onClick={() => onNavigate && onNavigate('/login?redirectTo=/explore')}
               >

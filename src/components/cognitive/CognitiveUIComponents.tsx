@@ -96,7 +96,7 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
         </div>
         <button
           onClick={onAccept}
-          className="w-full md:w-auto min-h-[44px] px-5 py-2 text-sm font-bold text-white dark:text-[#0f172a] bg-[var(--color-structure)] hover:bg-[var(--color-structure-hover)] active:scale-95 rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center"
+          className="w-full md:w-auto min-h-[44px] px-5 py-2 text-sm font-bold text-[#11161c] bg-[var(--color-transactional,#d6a64a)] hover:bg-[var(--color-transactional-hover,#e4af48)] active:scale-95 rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center"
         >
           Accept Swap
         </button>

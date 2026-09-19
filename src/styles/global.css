@@ -534,7 +534,14 @@ button:disabled,
 .brand:hover .brand-logo-img {
   opacity: 0.9;
 }
-.main-nav { gap: clamp(1.5rem, 4vw, 4.5rem); margin-left: auto; font-size: .95rem; font-weight: 700; }
+.main-nav { gap: clamp(0.85rem, 2vw, 2.25rem); margin-left: auto; font-size: .95rem; font-weight: 700; }
+
+@media (max-width: 1200px) {
+  .site-header { gap: 1rem; }
+  .main-nav { gap: clamp(0.65rem, 1.5vw, 1.5rem); font-size: 0.9rem; }
+  .header-right-group { gap: 0.5rem; }
+  .auth-user-menu { gap: 0.5rem; }
+}
 .main-nav a { transition: color .2s ease, border-color .2s ease; padding: 0.25rem 0; border-bottom: 2px solid transparent; }
 .main-nav a:hover { color: var(--color-structure); }
 .main-nav a.nav-link--active { color: var(--color-structure); border-bottom-color: var(--color-structure); }
@@ -1957,8 +1964,8 @@ h1 span { color: #a8781d; }
 .explore-illustration-wrapper .ecosystem {
   position: absolute;
   inset: 0;
-  width: 120%;
-  left: -10%;
+  width: 100%;
+  left: 0;
   min-height: auto;
 }
 
@@ -3826,7 +3833,7 @@ h1 span { color: #a8781d; }
 /* Stats Horizontal Row */
 .as-stats-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 1rem;
   background: rgba(247, 245, 240, 0.6);
   border: 1px solid rgba(17, 22, 28, 0.08);
