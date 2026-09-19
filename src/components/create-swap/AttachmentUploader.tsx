@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { FileExpiryIndicator } from '../ui/FileExpiryIndicator';
 
 export interface AttachmentItem {
   id: string;
@@ -6,6 +7,9 @@ export interface AttachmentItem {
   size: number;
   type: string;
   file?: File;
+  storageExpiresAt?: string | null;
+  storageDeletedAt?: string | null;
+  storageDeleteStatus?: string | null;
 }
 
 type AttachmentUploaderProps = {
@@ -172,7 +176,17 @@ export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAtta
                   {getFileIcon(item.name, item.type)}
                   <div className="attachment-details">
                     <span className="attachment-name" title={item.name}>{item.name}</span>
-                    <span className="attachment-size">{formatFileSize(item.size)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <span className="attachment-size">{formatFileSize(item.size)}</span>
+                      {item.storageExpiresAt && (
+                        <FileExpiryIndicator
+                          expiresAt={item.storageExpiresAt}
+                          deletedAt={item.storageDeletedAt}
+                          deleteStatus={item.storageDeleteStatus}
+                          inline
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
                 <button

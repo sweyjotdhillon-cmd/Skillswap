@@ -25,6 +25,7 @@ import { TransactionProgress } from '../components/transaction/TransactionProgre
 import { PendingTransactionVault } from '../components/transaction/PendingTransactionVault';
 import { useScaffolding } from '../hooks/useScaffolding';
 import { VerificationBadge } from '../components/ui/VerificationBadge';
+import { FileExpiryIndicator } from '../components/ui/FileExpiryIndicator';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 
@@ -1057,25 +1058,39 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                         <div className="attachment-list" style={{ marginTop: '0.5rem' }}>
                           {creatorAttachments.map((att) => {
                             const isDownloading = downloadingFileId === att.id;
+                            const isAttExpired = Boolean(
+                              att.storageDeletedAt ||
+                              (att.storageDeleteStatus && att.storageDeleteStatus !== 'active' && att.storageDeleteStatus !== 'failed') ||
+                              (att.storageExpiresAt && new Date(att.storageExpiresAt).getTime() <= Date.now())
+                            );
+
                             return (
                               <div key={att.id} className="attachment-card" style={{ flexWrap: 'wrap' }}>
                                 <div className="attachment-info">
                                   <span style={{ fontSize: '1.2rem', marginRight: '0.25rem' }}>📎</span>
                                   <div className="attachment-details">
                                     <span className="attachment-name" title={att.fileName}>{att.fileName}</span>
-                                    {att.fileSize ? (
-                                      <span className="attachment-size">{(att.fileSize / 1024).toFixed(1)} KB</span>
-                                    ) : null}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                      {att.fileSize ? (
+                                        <span className="attachment-size">{(att.fileSize / 1024).toFixed(1)} KB</span>
+                                      ) : null}
+                                      <FileExpiryIndicator
+                                        expiresAt={att.storageExpiresAt}
+                                        deletedAt={att.storageDeletedAt}
+                                        deleteStatus={att.storageDeleteStatus}
+                                        inline
+                                      />
+                                    </div>
                                   </div>
                                 </div>
                                 <button
                                   type="button"
                                   className="as-btn as-btn--secondary"
                                   style={{ padding: '0.35rem 0.85rem', fontSize: '0.825rem' }}
-                                  disabled={isDownloading}
+                                  disabled={isDownloading || isAttExpired}
                                   onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false)}
                                 >
-                                  {isDownloading ? 'Downloading...' : 'Download'}
+                                  {isAttExpired ? 'Unavailable' : isDownloading ? 'Downloading...' : 'Download'}
                                 </button>
                               </div>
                             );
@@ -1113,25 +1128,39 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                             <div className="attachment-list">
                               {currentSubmission.files.map((file) => {
                                 const isDownloading = downloadingFileId === file.id;
+                                const isFileExpired = Boolean(
+                                  file.storageDeletedAt ||
+                                  (file.storageDeleteStatus && file.storageDeleteStatus !== 'active' && file.storageDeleteStatus !== 'failed') ||
+                                  (file.storageExpiresAt && new Date(file.storageExpiresAt).getTime() <= Date.now())
+                                );
+
                                 return (
                                   <div key={file.id} className="attachment-card" style={{ flexWrap: 'wrap' }}>
                                     <div className="attachment-info">
                                       <span style={{ fontSize: '1.2rem', marginRight: '0.25rem' }}>📎</span>
                                       <div className="attachment-details">
                                         <span className="attachment-name" title={file.fileName}>{file.fileName}</span>
-                                        {file.fileSize ? (
-                                          <span className="attachment-size">{(file.fileSize / 1024).toFixed(1)} KB</span>
-                                        ) : null}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                          {file.fileSize ? (
+                                            <span className="attachment-size">{(file.fileSize / 1024).toFixed(1)} KB</span>
+                                          ) : null}
+                                          <FileExpiryIndicator
+                                            expiresAt={file.storageExpiresAt}
+                                            deletedAt={file.storageDeletedAt}
+                                            deleteStatus={file.storageDeleteStatus}
+                                            inline
+                                          />
+                                        </div>
                                       </div>
                                     </div>
                                     <button
                                       type="button"
                                       className="as-btn as-btn--secondary"
                                       style={{ padding: '0.35rem 0.85rem', fontSize: '0.825rem' }}
-                                      disabled={isDownloading}
+                                      disabled={isDownloading || isFileExpired}
                                       onClick={() => handleDownloadFile(file.storagePath, file.fileName, file.id, true)}
                                     >
-                                      {isDownloading ? 'Downloading...' : 'Download'}
+                                      {isFileExpired ? 'Unavailable' : isDownloading ? 'Downloading...' : 'Download'}
                                     </button>
                                   </div>
                                 );

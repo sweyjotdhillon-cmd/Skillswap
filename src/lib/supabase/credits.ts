@@ -146,6 +146,9 @@ export interface SwapAttachment {
   mimeType?: string | null;
   fileSize?: number | null;
   createdAt: string;
+  storageExpiresAt?: string | null;
+  storageDeletedAt?: string | null;
+  storageDeleteStatus?: string | null;
 }
 
 /** Creates the swap and its reservation in one database transaction using a stable idempotency key. */
@@ -817,9 +820,9 @@ export async function getSwapMessages(swapId: string): Promise<{ data: SwapMessa
             mimeType: att.mime_type as string | null,
             fileSize: typeof att.file_size === 'number' ? att.file_size : Number(att.file_size || 0),
             createdAt: att.created_at as string,
-            deleteAfter: att.delete_after as string,
-            deletedAt: att.deleted_at as string | null,
-            deleteStatus: (att.delete_status as 'active' | 'in_progress' | 'pending_deletion' | 'deleted' | 'failed') || 'active',
+            deleteAfter: (att.delete_after as string) || null,
+            deletedAt: (att.deleted_at as string) || null,
+            deleteStatus: (att.delete_status as string) || 'active',
             deleteError: att.delete_error as string | null,
           }))
         : [];
@@ -1123,6 +1126,9 @@ export async function getSwapSubmission(swapId: string): Promise<{ data: SwapSub
       mimeType: f.mime_type,
       fileSize: f.file_size,
       createdAt: f.created_at,
+      storageExpiresAt: f.storage_expires_at ?? null,
+      storageDeletedAt: f.storage_deleted_at ?? null,
+      storageDeleteStatus: f.storage_delete_status ?? null,
     }));
 
     const submission: SwapSubmission = {
@@ -1194,6 +1200,9 @@ export async function getSwapAttachments(swapId: string): Promise<{ data: SwapAt
       mimeType: a.mime_type,
       fileSize: a.file_size,
       createdAt: a.created_at,
+      storageExpiresAt: a.storage_expires_at ?? null,
+      storageDeletedAt: a.storage_deleted_at ?? null,
+      storageDeleteStatus: a.storage_delete_status ?? null,
     }));
 
     return { data: attachments };

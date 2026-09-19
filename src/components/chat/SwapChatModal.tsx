@@ -18,6 +18,7 @@ import { getTagLabel } from '../../constants/tags';
 import { TransactionProgress } from '../transaction/TransactionProgress';
 import { PendingTransactionVault } from '../transaction/PendingTransactionVault';
 import { VerificationBadge } from '../ui/VerificationBadge';
+import { FileExpiryIndicator } from '../ui/FileExpiryIndicator';
 import {
   EmbeddedTransactionCard,
   SubmissionEventCard,
@@ -571,9 +572,17 @@ export function SwapChatModal({
                                   gap: '0.5rem',
                                 }}
                               >
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  📎 <strong>{att.fileName}</strong> {sizeKb > 0 ? `(${sizeKb} KB)` : ''}
-                                </span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                    📎 <strong>{att.fileName}</strong> {sizeKb > 0 ? `(${sizeKb} KB)` : ''}
+                                  </span>
+                                  <FileExpiryIndicator
+                                    expiresAt={att.deleteAfter}
+                                    deletedAt={att.deletedAt}
+                                    deleteStatus={att.deleteStatus}
+                                    inline
+                                  />
+                                </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
                                   {isExpired ? (
                                     <span style={{ fontSize: '0.75rem', opacity: 0.7, fontStyle: 'italic' }}>
@@ -970,19 +979,35 @@ export function SwapChatModal({
                 )}
                 {submission.files && submission.files.length > 0 && (
                   <div className="ws-files-list">
-                    {submission.files.map((file) => (
-                      <div key={file.id} className="ws-file-item">
-                        <span className="ws-file-name">📄 {file.fileName}</span>
-                        <button
-                          type="button"
-                          className="as-btn as-btn--secondary ws-file-dl-btn"
-                          disabled={downloadingFileId === file.id}
-                          onClick={() => handleDownloadFile(file.storagePath, file.fileName, file.id, true)}
-                        >
-                          {downloadingFileId === file.id ? '...' : 'Download'}
-                        </button>
-                      </div>
-                    ))}
+                    {submission.files.map((file) => {
+                      const isFileExpired = Boolean(
+                        file.storageDeletedAt ||
+                        (file.storageDeleteStatus && file.storageDeleteStatus !== 'active' && file.storageDeleteStatus !== 'failed') ||
+                        (file.storageExpiresAt && new Date(file.storageExpiresAt).getTime() <= Date.now())
+                      );
+
+                      return (
+                        <div key={file.id} className="ws-file-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.35rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                            <span className="ws-file-name">📄 {file.fileName}</span>
+                            <button
+                              type="button"
+                              className="as-btn as-btn--secondary ws-file-dl-btn"
+                              disabled={downloadingFileId === file.id || isFileExpired}
+                              onClick={() => handleDownloadFile(file.storagePath, file.fileName, file.id, true)}
+                            >
+                              {isFileExpired ? 'Unavailable' : downloadingFileId === file.id ? '...' : 'Download'}
+                            </button>
+                          </div>
+                          <FileExpiryIndicator
+                            expiresAt={file.storageExpiresAt}
+                            deletedAt={file.storageDeletedAt}
+                            deleteStatus={file.storageDeleteStatus}
+                            inline
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </section>
@@ -993,19 +1018,35 @@ export function SwapChatModal({
               <section className="ws-section ws-resources-card" aria-label="Creator Resources">
                 <h4 className="ws-section-title">Creator Resources ({creatorAttachments.length})</h4>
                 <div className="ws-files-list">
-                  {creatorAttachments.map((att) => (
-                    <div key={att.id} className="ws-file-item">
-                      <span className="ws-file-name">📎 {att.fileName}</span>
-                      <button
-                        type="button"
-                        className="as-btn as-btn--secondary ws-file-dl-btn"
-                        disabled={downloadingFileId === att.id}
-                        onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false)}
-                      >
-                        {downloadingFileId === att.id ? '...' : 'Download'}
-                      </button>
-                    </div>
-                  ))}
+                  {creatorAttachments.map((att) => {
+                    const isAttExpired = Boolean(
+                      att.storageDeletedAt ||
+                      (att.storageDeleteStatus && att.storageDeleteStatus !== 'active' && att.storageDeleteStatus !== 'failed') ||
+                      (att.storageExpiresAt && new Date(att.storageExpiresAt).getTime() <= Date.now())
+                    );
+
+                    return (
+                      <div key={att.id} className="ws-file-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.35rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                          <span className="ws-file-name">📎 {att.fileName}</span>
+                          <button
+                            type="button"
+                            className="as-btn as-btn--secondary ws-file-dl-btn"
+                            disabled={downloadingFileId === att.id || isAttExpired}
+                            onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false)}
+                          >
+                            {isAttExpired ? 'Unavailable' : downloadingFileId === att.id ? '...' : 'Download'}
+                          </button>
+                        </div>
+                        <FileExpiryIndicator
+                          expiresAt={att.storageExpiresAt}
+                          deletedAt={att.storageDeletedAt}
+                          deleteStatus={att.storageDeleteStatus}
+                          inline
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               </section>
             )}
