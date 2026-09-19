@@ -289,7 +289,7 @@ export function runSwapChatModalAndDesignSystemTests() {
   // SECTION: OPEN SWAP CHAT & MOBILE ERROR UI CONTRACTS
   // =========================================================================
 
-  // 1. Open Swap Recipient Derivation Logic
+  // 1. Open Swap & Active Swap Recipient Derivation Logic
   const openSwap: Swap = {
     ...mockSwap,
     status: 'open',
@@ -297,17 +297,31 @@ export function runSwapChatModalAndDesignSystemTests() {
     participantProfile: undefined,
   };
 
-  const getRecipientId = (swapRec: Swap, currentUserId: string): string => {
+  const getRecipientId = (swapRec: Swap, currentUserId: string | null): string | null => {
+    if (!currentUserId) return null;
     const isReq = currentUserId === swapRec.requesterId;
-    const isPart = swapRec.participantId ? currentUserId === swapRec.participantId : false;
-    if (isReq) return swapRec.participantId || '';
+    const isPart = Boolean(swapRec.participantId && currentUserId === swapRec.participantId);
+    const isOpenApplicant = swapRec.status === 'open' && !isReq;
+
+    if (isReq) return swapRec.participantId;
     if (isPart) return swapRec.requesterId;
-    return swapRec.requesterId; // Open-swap visitor chatting with requester
+    if (isOpenApplicant) return swapRec.requesterId;
+    return null;
   };
 
   const visitorUserId = 'user-visitor-99';
   const derivedRecipient = getRecipientId(openSwap, visitorUserId);
   assert(derivedRecipient === openSwap.requesterId, 'Open-swap visitor correctly derives requester as recipient');
+
+  const unauthorizedUserId = 'user-unauthorized-99';
+  const unauthorizedActiveRecipient = getRecipientId(mockSwap, unauthorizedUserId);
+  assert(unauthorizedActiveRecipient === null, 'Unauthorized user on active swap gets null recipient ID');
+
+  const requesterActiveRecipient = getRecipientId(mockSwap, 'user-req-1');
+  assert(requesterActiveRecipient === 'user-part-2', 'Requester on active swap derives participant as recipient');
+
+  const participantActiveRecipient = getRecipientId(mockSwap, 'user-part-2');
+  assert(participantActiveRecipient === 'user-req-1', 'Participant on active swap derives requester as recipient');
 
   // 2. Realtime Subscription Guard Contract
   const shouldSubscribeRealtime = (swapRec: Swap, currentUserId: string): boolean => {

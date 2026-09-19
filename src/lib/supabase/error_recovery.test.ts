@@ -75,7 +75,7 @@ export function runErrorRecoveryUnitTests() {
   console.log('Test 6: Session expiry recovery formatting...');
   const sessionErr = formatFriendlyErrorMessage('jwt expired');
   assert(
-    sessionErr === 'Your session has expired. Please sign in again with your account to continue.',
+    sessionErr === 'Your session has expired. Please sign in again.',
     'Session expiry error instructs user to sign in again'
   );
 

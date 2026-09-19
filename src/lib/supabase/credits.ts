@@ -854,7 +854,7 @@ export async function sendSwapMessage(
   if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'You must be logged in to send messages.' };
+  if (!user) return { success: false, error: 'Your session has expired. Please sign in again.' };
 
   const cleanBody = body.trim();
   if (!cleanBody) return { success: false, error: 'Message cannot be empty.' };

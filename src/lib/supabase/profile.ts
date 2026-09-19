@@ -122,7 +122,21 @@ export function formatFriendlyErrorMessage(error: unknown): string {
     return 'Password must be at least 8 characters long.';
   }
 
-  // 3. Authorization / RLS Failures
+  // 3. Chat & Workspace Specific Authorization Errors
+  if (lower.includes('user is not a participant') || lower.includes('not a participant in this swap')) {
+    return 'This account is not a participant in this swap.';
+  }
+  if (lower.includes('invalid recipient')) {
+    return 'This conversation recipient is no longer available.';
+  }
+  if (lower.includes('swap is not active') || lower.includes('swap is no longer active')) {
+    return 'This swap is no longer active.';
+  }
+  if (lower.includes('cannot send open-swap messages to themselves') || lower.includes('cannot send messages to themselves')) {
+    return 'You cannot send messages to yourself in an open swap.';
+  }
+
+  // 4. Authorization / RLS Failures
   if (
     lower.includes('permission denied') ||
     lower.includes('row-level security') ||
@@ -133,6 +147,9 @@ export function formatFriendlyErrorMessage(error: unknown): string {
     lower.includes('unauthorized credit operation') ||
     lower.includes('not authorized')
   ) {
+    if (lower.includes('swap_messages') || lower.includes('chat_message') || lower.includes('send_chat')) {
+      return 'You’re not authorized to send messages in this swap.';
+    }
     return 'You don’t have permission to perform this action. Make sure you’re signed in with the correct account.';
   }
 
@@ -239,7 +256,7 @@ export function formatFriendlyErrorMessage(error: unknown): string {
     lower.includes('jwt expired') ||
     lower.includes('session expired')
   ) {
-    return 'Your session has expired. Please sign in again with your account to continue.';
+    return 'Your session has expired. Please sign in again.';
   }
 
   // 12. Network / Connection Errors
