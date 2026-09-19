@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Frequently Asked Questions — SkillSwap</title>
-  <meta name="description" content="Find answers to common questions about trading skills, getting design, writing, coding, or tech help, and joining the SkillSwap community using SkillCredits without money.">
+  <meta name="description" content="Find answers to common questions about trading skills, earning SkillCredits, platform safety, getting design, writing, coding, or tech help, and joining the SkillSwap community without money.">
   <link rel="canonical" href="https://skillswap.sweyjotdhillon.workers.dev/faq">
   <meta name="robots" content="index, follow">
 
@@ -12,7 +12,7 @@
 
   <!-- Open Graph -->
   <meta property="og:title" content="Frequently Asked Questions — SkillSwap">
-  <meta property="og:description" content="Learn how to trade skills, get design or tech help, and participate in the SkillSwap community without spending money.">
+  <meta property="og:description" content="Learn how to trade skills, earn SkillCredits, get design or tech help, and participate in the SkillSwap community without spending money.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://skillswap.sweyjotdhillon.workers.dev/faq">
   <meta property="og:site_name" content="SkillSwap">
@@ -20,14 +20,12 @@
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Frequently Asked Questions — SkillSwap">
-  <meta name="twitter:description" content="Learn how to trade skills, get design or tech help, and participate in the SkillSwap community without spending money.">
+  <meta name="twitter:description" content="Learn how to trade skills, earn SkillCredits, get design or tech help, and participate in the SkillSwap community without spending money.">
 
   <!-- Fonts matching SkillSwap -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-
-
 
   <!-- FAQPage Structured Data -->
   <script type="application/ld+json">
@@ -35,6 +33,46 @@
     "@context": "https://schema.org",
     "@type": "FAQPage",
     "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How is SkillSwap free? Is there a catch or hidden fee?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "SkillSwap is 100% free with zero transaction fees. Members exchange skills directly using SkillCredits—our internal currency—rather than cash. When you complete your profile setup, you receive an initial welcome allocation of 100 SkillCredits to begin proposing and accepting swaps right away."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do SkillCredits work?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "SkillCredits are SkillSwap's internal unit of account. When you create a swap, the required SkillCredits are reserved from your balance and held safely during the swap lifecycle. Upon completing the swap, reserved credits transfer to the fulfiller. If a qualifying swap is cancelled before fulfillment, your reserved SkillCredits are released back to your balance."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What happens if someone doesn't deliver or does a poor job?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "SkillCredits are reserved for the swap and are only transferred when the swap is marked complete. If work is not submitted, reserved credits are released back to the requester according to platform lifecycle rules and automated timeouts. While SkillSwap holds credits in reserve during active swaps, the platform does not currently provide a dispute resolution mechanism for subjective quality disagreements, so we encourage setting clear requirements before accepting an exchange."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I trade different types of skills (e.g., writing for logo design)?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes! SkillCredits remove the need for direct 1:1 barter. You can earn SkillCredits by offering your expertise—like technical writing or coding—to one member, and then spend those earned credits to get logo design, video editing, or marketing strategy from anyone else in the community."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do I get started and earn my first credits?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Signing up is fast and free. Complete your profile setup to receive your initial 100 SkillCredits. From there, you can spend credits to request a swap on the marketplace or list your own skills to fulfill swaps and earn additional credits."
+        }
+      },
       {
         "@type": "Question",
         "name": "Where can I find someone to design something if I offer my skills in return?",
@@ -92,7 +130,6 @@
       --radial-gold: rgba(214, 166, 74, 0.11);
       color-scheme: light;
     }
-
 
     * {
       box-sizing: border-box;
@@ -196,7 +233,6 @@
       color: #a8781d;
     }
 
-
     .header-right-group {
       display: flex;
       align-items: center;
@@ -237,8 +273,6 @@
       transform: translateY(-2px);
       background: #202832;
     }
-
-
 
     /* Mobile Hamburger & Drawer Controls */
     .mobile-hamburger {
@@ -311,9 +345,6 @@
       border: 1.5px solid var(--shell-border, rgba(17, 22, 28, 0.2)) !important;
     }
 
-
-
-    /* CSS Checkbox toggle for static HTML without JS dependency */
     #mobile-menu-toggle {
       position: absolute;
       opacity: 0;
@@ -326,7 +357,6 @@
       display: block;
     }
 
-    /* Icon swap when mobile menu toggles */
     .icon-close { display: none; }
     #mobile-menu-toggle:checked ~ .site-header .header-right-group .mobile-hamburger .icon-hamburger { display: none; }
     #mobile-menu-toggle:checked ~ .site-header .header-right-group .mobile-hamburger .icon-close { display: block; }
@@ -361,7 +391,6 @@
       margin-bottom: 0.5rem;
     }
 
-
     .section-title {
       margin: 0 0 1rem;
       font-family: 'Playfair Display', Georgia, serif;
@@ -379,11 +408,39 @@
       max-width: 680px;
     }
 
+    /* Category Section Headers */
+    .faq-category-header {
+      margin: 3rem 0 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid var(--shell-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .faq-category-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(1.6rem, 2.8vw, 2.2rem);
+      font-weight: 700;
+      color: var(--text-color);
+    }
+
+    .faq-category-badge {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #a8781d;
+      background: rgba(214, 166, 74, 0.15);
+      padding: 0.35rem 0.85rem;
+      border-radius: 999px;
+    }
+
     /* FAQ Cards Grid */
     .faq-grid {
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 1.25rem;
     }
 
     .faq-card {
@@ -423,10 +480,9 @@
       margin-top: 3px;
     }
 
-
     .faq-card h2 {
       font-family: 'Playfair Display', Georgia, serif;
-      font-size: clamp(1.25rem, 2vw, 1.45rem);
+      font-size: clamp(1.2rem, 2vw, 1.4rem);
       font-weight: 700;
       color: var(--text-color);
       line-height: 1.35;
@@ -451,7 +507,6 @@
     .faq-card p a:hover {
       color: var(--text-color);
     }
-
 
     /* Contact Support Section */
     .faq-contact-section {
@@ -513,12 +568,10 @@
       color: #0369a1;
     }
 
-
     .contact-card-icon--whatsapp {
       background: rgba(22, 163, 74, 0.1);
       color: #16a34a;
     }
-
 
     .contact-card-content {
       display: flex;
@@ -559,7 +612,6 @@
       transform: translateX(4px);
     }
 
-
     /* CTA Banner */
     .faq-cta-banner {
       margin-top: 4.5rem;
@@ -574,7 +626,6 @@
       box-shadow: 0 20px 50px rgba(17, 22, 28, 0.18);
     }
 
-
     .faq-cta-title {
       margin: 0.4rem 0 1rem;
       font-family: 'Playfair Display', Georgia, serif;
@@ -583,7 +634,6 @@
       line-height: 1.1;
     }
 
-
     .faq-cta-text {
       font-size: clamp(1rem, 1.2vw, 1.15rem);
       line-height: 1.6;
@@ -591,7 +641,6 @@
       max-width: 620px;
       margin: 0 0 2.25rem;
     }
-
 
     .faq-cta-actions {
       display: flex;
@@ -641,7 +690,6 @@
       border-color: #ffffff;
     }
 
-
     /* Footer */
     .faq-footer {
       border-top: 1px solid var(--shell-border);
@@ -671,18 +719,6 @@
     .faq-footer-nav a:hover {
       color: var(--text-color);
     }
-
-
-
-
-
-
-
-
-
-
-
-
 
     @media (max-width: 640px) {
       .page-shell {
@@ -780,67 +816,138 @@
         <span class="section-eyebrow">Help &amp; Knowledge Base</span>
         <h1 class="section-title">Frequently Asked Questions</h1>
         <p class="section-description">
-          Everything you need to know about trading skills, earning SkillCredits, and getting help with design, writing, coding, and technical projects on SkillSwap.
+          Everything you need to know about trading skills, earning SkillCredits, platform mechanics, and finding help with design, writing, coding, or tech projects on SkillSwap.
         </p>
       </section>
 
-      <section class="faq-grid" aria-label="Frequently Asked Questions">
+      <!-- Category A: How It Works & Trust -->
+      <section aria-labelledby="cat-a-heading">
+        <div class="faq-category-header">
+          <h2 id="cat-a-heading" class="faq-category-title">How It Works &amp; Trust</h2>
+          <span class="faq-category-badge">Category A</span>
+        </div>
 
-        <!-- Question 1 -->
-        <article class="faq-card">
-          <div class="faq-card-header">
-            <span class="faq-badge" aria-hidden="true">Q</span>
-            <h2>Where can I find someone to design something if I offer my skills in return?</h2>
-          </div>
-          <p>
-            SkillSwap is a peer-to-peer platform where you can find designers for UI/UX, graphic design, logos, and branding by offering your own skills in return. Using SkillCredits, you can trade coding, writing, video editing, translation, or tech help for professional design work without using money. You can <a href="/explore">explore open design swaps</a> or <a href="/create-swap">create your own swap offer</a> today.
-          </p>
-        </article>
+        <div class="faq-grid" aria-label="How It Works &amp; Trust Questions">
+          <!-- Question 1 -->
+          <article class="faq-card">
+            <div class="faq-card-header">
+              <span class="faq-badge" aria-hidden="true">1</span>
+              <h2>How is SkillSwap free? Is there a catch or hidden fee?</h2>
+            </div>
+            <p>
+              SkillSwap is 100% free with zero transaction fees. Members exchange skills directly using SkillCredits—our internal currency—rather than cash. When you complete your profile setup, you receive an initial welcome allocation of 100 SkillCredits to begin proposing and accepting swaps right away. <a href="/signup">Sign up for free</a> to get started.
+            </p>
+          </article>
 
-        <!-- Question 2 -->
-        <article class="faq-card">
-          <div class="faq-card-header">
-            <span class="faq-badge" aria-hidden="true">Q</span>
-            <h2>Where can I find a skill-swap community?</h2>
-          </div>
-          <p>
-            SkillSwap provides a dedicated online skill-swap community where creators, freelancers, and learners exchange talents. On SkillSwap, you can browse open skill swaps across categories like design, development, writing, and video editing, connect with collaborators, and earn or spend SkillCredits in a fair, secure ecosystem. <a href="/signup">Sign up for free</a> to join our growing community.
-          </p>
-        </article>
+          <!-- Question 2 -->
+          <article class="faq-card">
+            <div class="faq-card-header">
+              <span class="faq-badge" aria-hidden="true">2</span>
+              <h2>How do SkillCredits work?</h2>
+            </div>
+            <p>
+              SkillCredits are SkillSwap's internal unit of account. When you create a swap, the required SkillCredits are reserved from your balance and held safely during the swap lifecycle. Upon completing the swap, reserved credits transfer to the fulfiller. If a qualifying swap is cancelled before fulfillment, your reserved SkillCredits are released back to your balance. <a href="/explore">Browse the marketplace</a> to see active credit requirements.
+            </p>
+          </article>
 
-        <!-- Question 3 -->
-        <article class="faq-card">
-          <div class="faq-card-header">
-            <span class="faq-badge" aria-hidden="true">Q</span>
-            <h2>Can I trade writing skills for logo/design help?</h2>
-          </div>
-          <p>
-            Yes! On SkillSwap, you can directly trade writing skills—such as copywriting, technical writing, or content creation—for logo design and graphic assets. You can post a custom swap offer describing what you need and what you offer, or request an existing design swap using your SkillCredits. Check out available design listings on our <a href="/explore">Explore Swaps marketplace</a>.
-          </p>
-        </article>
+          <!-- Question 3 -->
+          <article class="faq-card">
+            <div class="faq-card-header">
+              <span class="faq-badge" aria-hidden="true">3</span>
+              <h2>What happens if someone doesn't deliver or does a poor job?</h2>
+            </div>
+            <p>
+              SkillCredits are reserved for the swap and are only transferred when the swap is marked complete. If work is not submitted, reserved credits are released back to the requester according to platform lifecycle rules and automated timeouts. While SkillSwap holds credits in reserve during active swaps, the platform does not currently provide a dispute resolution mechanism for subjective quality disagreements, so we encourage setting clear requirements before accepting an exchange.
+            </p>
+          </article>
 
-        <!-- Question 4 -->
-        <article class="faq-card">
-          <div class="faq-card-header">
-            <span class="faq-badge" aria-hidden="true">Q</span>
-            <h2>Where can I trade my skills for someone else's skills?</h2>
-          </div>
-          <p>
-            You can trade your skills for someone else's skills on SkillSwap. The platform features an open marketplace where members offer and request services in design, web development, content writing, video production, language learning, and technical support using SkillCredits. Simply <a href="/create-swap">list the skill you offer</a> and the service you need in return.
-          </p>
-        </article>
+          <!-- Question 4 -->
+          <article class="faq-card">
+            <div class="faq-card-header">
+              <span class="faq-badge" aria-hidden="true">4</span>
+              <h2>Can I trade different types of skills (e.g., writing for logo design)?</h2>
+            </div>
+            <p>
+              Yes! SkillCredits remove the need for direct 1:1 barter. You can earn SkillCredits by offering your expertise—like technical writing or coding—to one member, and then spend those earned credits to get logo design, video editing, or marketing strategy from anyone else in the community. You can <a href="/create-swap">create a swap offer</a> anytime.
+            </p>
+          </article>
 
-        <!-- Question 5 -->
-        <article class="faq-card">
-          <div class="faq-card-header">
-            <span class="faq-badge" aria-hidden="true">Q</span>
-            <h2>Where can I get free tech help by offering my own skills in return?</h2>
-          </div>
-          <p>
-            SkillSwap allows you to get free technical support, software troubleshooting, website debugging, or coding assistance by offering your own skills in return. You earn SkillCredits by helping others with your talents and spend those credits to receive tech help from experienced community members. Start by <a href="/explore">browsing tech help swaps</a> or offering your expertise on SkillSwap.
-          </p>
-        </article>
+          <!-- Question 5 -->
+          <article class="faq-card">
+            <div class="faq-card-header">
+              <span class="faq-badge" aria-hidden="true">5</span>
+              <h2>How do I get started and earn my first credits?</h2>
+            </div>
+            <p>
+              Signing up is fast and free. Complete your profile setup to receive your initial 100 SkillCredits. From there, you can spend credits to request a swap on the marketplace or list your own skills to fulfill swaps and earn additional credits. <a href="/signup">Create your free account</a> today.
+            </p>
+          </article>
+        </div>
+      </section>
 
+      <!-- Category B: Popular Skill Swaps / Use Cases -->
+      <section aria-labelledby="cat-b-heading">
+        <div class="faq-category-header">
+          <h2 id="cat-b-heading" class="faq-category-title">Popular Skill Swaps &amp; Use Cases</h2>
+          <span class="faq-category-badge">Category B</span>
+        </div>
+
+        <div class="faq-grid" aria-label="Popular Skill Swaps &amp; Use Cases Questions">
+          <!-- Question 6 -->
+          <article class="faq-card">
+            <div class="faq-card-header">
+              <span class="faq-badge" aria-hidden="true">6</span>
+              <h2>Where can I find someone to design something if I offer my skills in return?</h2>
+            </div>
+            <p>
+              SkillSwap is a peer-to-peer platform where you can find designers for UI/UX, graphic design, logos, and branding by offering your own skills in return. Using SkillCredits, you can trade coding, writing, video editing, translation, or tech help for professional design work without using money. You can <a href="/explore">explore open design swaps</a> or <a href="/create-swap">create your own swap offer</a> today.
+            </p>
+          </article>
+
+          <!-- Question 7 -->
+          <article class="faq-card">
+            <div class="faq-card-header">
+              <span class="faq-badge" aria-hidden="true">7</span>
+              <h2>Where can I find a skill-swap community?</h2>
+            </div>
+            <p>
+              SkillSwap provides a dedicated online skill-swap community where creators, freelancers, and learners exchange talents. On SkillSwap, you can browse open skill swaps across categories like design, development, writing, and video editing, connect with collaborators, and earn or spend SkillCredits in a fair, secure ecosystem. <a href="/signup">Sign up for free</a> to join our growing community.
+            </p>
+          </article>
+
+          <!-- Question 8 -->
+          <article class="faq-card">
+            <div class="faq-card-header">
+              <span class="faq-badge" aria-hidden="true">8</span>
+              <h2>Can I trade writing skills for logo/design help?</h2>
+            </div>
+            <p>
+              Yes! On SkillSwap, you can directly trade writing skills—such as copywriting, technical writing, or content creation—for logo design and graphic assets. You can post a custom swap offer describing what you need and what you offer, or request an existing design swap using your SkillCredits. Check out available design listings on our <a href="/explore">Explore Swaps marketplace</a>.
+            </p>
+          </article>
+
+          <!-- Question 9 -->
+          <article class="faq-card">
+            <div class="faq-card-header">
+              <span class="faq-badge" aria-hidden="true">9</span>
+              <h2>Where can I trade my skills for someone else's skills?</h2>
+            </div>
+            <p>
+              You can trade your skills for someone else's skills on SkillSwap. The platform features an open marketplace where members offer and request services in design, web development, content writing, video production, language learning, and technical support using SkillCredits. Simply <a href="/create-swap">list the skill you offer</a> and the service you need in return.
+            </p>
+          </article>
+
+          <!-- Question 10 -->
+          <article class="faq-card">
+            <div class="faq-card-header">
+              <span class="faq-badge" aria-hidden="true">10</span>
+              <h2>Where can I get free tech help by offering my own skills in return?</h2>
+            </div>
+            <p>
+              SkillSwap allows you to get free technical support, software troubleshooting, website debugging, or coding assistance by offering your own skills in return. You earn SkillCredits by helping others with your talents and spend those credits to receive tech help from experienced community members. Start by <a href="/explore">browsing tech help swaps</a> or offering your expertise on SkillSwap.
+            </p>
+          </article>
+        </div>
       </section>
 
       <section class="faq-contact-section" aria-labelledby="faq-contact-heading">
@@ -935,11 +1042,6 @@
       <p>&copy; SkillSwap. Trade Skills, Not Money.</p>
     </footer>
   </div>
-
-
-
-  <script>
-      </script>
 
 </body>
 </html>
