@@ -143,11 +143,11 @@ export function PublicProfilePage({ targetUsername, targetUserId, onNavigate }: 
             className="auth-alert"
             style={{
               marginBottom: '1.5rem',
-              background: 'var(--color-surface, #1E293B)',
-              border: '1px solid var(--color-structure, #38BDF8)',
+              background: 'var(--card-bg, var(--color-surface, #ffffff))',
+              border: '1px solid var(--color-structure, #0284c7)',
               borderRadius: '12px',
               padding: '1.1rem 1.25rem',
-              color: 'var(--color-text)',
+              color: 'var(--color-text-primary, #0f172a)',
               display: 'flex',
               flexDirection: 'column',
               gap: '0.75rem',
@@ -156,8 +156,8 @@ export function PublicProfilePage({ targetUsername, targetUserId, onNavigate }: 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
               <span
                 style={{
-                  background: 'rgba(56, 189, 248, 0.15)',
-                  color: 'var(--color-structure, #38BDF8)',
+                  background: 'var(--color-structure-muted, rgba(2, 132, 199, 0.1))',
+                  color: 'var(--color-structure, #0284c7)',
                   fontSize: '0.75rem',
                   fontWeight: 700,
                   padding: '0.2rem 0.55rem',
@@ -170,7 +170,7 @@ export function PublicProfilePage({ targetUsername, targetUserId, onNavigate }: 
               </span>
               <strong style={{ fontSize: '0.95rem' }}>Viewing Public Member Profile</strong>
             </div>
-            <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5 }}>
+            <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-text-secondary, #475569)', lineHeight: 1.5 }}>
               You are exploring SkillSwap in scannable guest mode. You can inspect public skill capabilities, completed exchanges, and community ratings. Registering or signing in unlocks direct skill swapping, real-time chat, and credit transfers.
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
@@ -207,7 +207,7 @@ export function PublicProfilePage({ targetUsername, targetUserId, onNavigate }: 
           <div
             style={{
               marginBottom: '1.5rem',
-              background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, rgba(214, 166, 74, 0.12) 100%)',
+              background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(214, 166, 74, 0.12) 100%)',
               border: '1px solid rgba(214, 166, 74, 0.35)',
               borderRadius: '12px',
               padding: '1.1rem 1.25rem',
@@ -220,7 +220,7 @@ export function PublicProfilePage({ targetUsername, targetUserId, onNavigate }: 
               <span
                 style={{
                   background: 'var(--color-transactional, #d6a64a)',
-                  color: '#000',
+                  color: '#0f172a',
                   fontSize: '0.75rem',
                   fontWeight: 700,
                   padding: '0.2rem 0.55rem',
@@ -232,7 +232,7 @@ export function PublicProfilePage({ targetUsername, targetUserId, onNavigate }: 
               </span>
               <strong style={{ fontSize: '0.95rem' }}>Complete your profile to start trading skills!</strong>
             </div>
-            <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary, #94A3B8)', lineHeight: 1.5 }}>
+            <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-text-secondary, #475569)', lineHeight: 1.5 }}>
               Members with complete profiles get up to 3x higher response rates on swap requests. Add your skills and bio to make your expertise discoverable to community partners like {profile.full_name}.
             </p>
             <div>

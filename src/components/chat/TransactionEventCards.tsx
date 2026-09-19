@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Swap, SwapSubmission } from '../../types/swap';
-import { calculateRemainingAutoReleaseMs, formatRemainingTime } from '../transaction/TransactionProgress';
+import { calculateRemainingAutoReleaseMs, formatRemainingTime } from '../transaction/transactionUtils';
 
 export type TransactionEventType =
   | 'SUBMISSION'

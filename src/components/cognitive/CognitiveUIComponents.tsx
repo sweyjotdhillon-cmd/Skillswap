@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { calculateRemainingAutoReleaseMs, formatRemainingTime } from '../transaction/TransactionProgress';
+import { calculateRemainingAutoReleaseMs, formatRemainingTime } from '../transaction/transactionUtils';
 import { VerificationBadge } from '../ui/VerificationBadge';
 
 // ==========================================
@@ -196,14 +196,14 @@ export const MultiModalChat: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[500px] w-full max-w-xl bg-[#0F172A] border border-slate-800 rounded-xl overflow-hidden shadow-2xl" role="region" aria-label="Multi-Modal Chat Workspace">
+    <div className="flex flex-col h-[500px] w-full max-w-xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl overflow-hidden shadow-2xl" role="region" aria-label="Multi-Modal Chat Workspace">
       {/* Header */}
-      <div className="px-4 py-3 bg-[#1E293B] border-b border-slate-800 flex items-center justify-between">
+      <div className="px-4 py-3 bg-[var(--color-canvas-elevated)] border-b border-[var(--color-border)] flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" aria-hidden="true"></div>
           <div>
-            <h4 className="text-sm font-bold text-slate-100">Swap Room: Landing Page Refactor</h4>
-            <p className="text-xs text-slate-400">Collaborating with @sohan</p>
+            <h4 className="text-sm font-bold text-[var(--color-text-primary)]">Swap Room: Landing Page Refactor</h4>
+            <p className="text-xs text-[var(--color-text-secondary)]">Collaborating with @sohan</p>
           </div>
         </div>
       </div>
@@ -215,26 +215,26 @@ export const MultiModalChat: React.FC = () => {
             // Render Inline Temporal Status Cards instead of segregating details (Spatial Contiguity)
             if (msg.systemEventType === 'SUBMISSION') {
               return (
-                <div key={msg.id} className="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-4 my-2 text-left shadow-inner flex flex-col gap-3">
-                  <div className="flex items-center gap-2 text-amber-400">
+                <div key={msg.id} className="w-full bg-[var(--color-canvas)] border border-[var(--color-border)] rounded-xl p-4 my-2 text-left shadow-inner flex flex-col gap-3">
+                  <div className="flex items-center gap-2 text-amber-500">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     <span className="text-sm font-bold tracking-tight">Deliverables Submitted</span>
                   </div>
                   {/* File Metadata */}
-                  <div className="flex items-center justify-between p-2.5 bg-slate-950/50 rounded-lg border border-slate-800">
+                  <div className="flex items-center justify-between p-2.5 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)]">
                     <div className="flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-[var(--color-text-muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                       </svg>
-                      <span className="text-xs font-semibold text-slate-300 truncate max-w-[180px]">{msg.systemEventDetails?.fileName}</span>
+                      <span className="text-xs font-semibold text-[var(--color-text-primary)] truncate max-w-[180px]">{msg.systemEventDetails?.fileName}</span>
                     </div>
-                    <span className="text-[10px] font-mono text-slate-500">{msg.systemEventDetails?.fileSize}</span>
+                    <span className="text-[10px] font-mono text-[var(--color-text-muted)]">{msg.systemEventDetails?.fileSize}</span>
                   </div>
                   {/* Zeigarnik Resolution Countdown */}
-                  <div className="flex items-center justify-between text-xs border-t border-slate-800 pt-2.5">
-                    <div className="text-slate-400">
+                  <div className="flex items-center justify-between text-xs border-t border-[var(--color-border)] pt-2.5">
+                    <div className="text-[var(--color-text-secondary)]">
                       Auto-release Timer:{' '}
                       <span className="font-mono font-bold text-amber-500">
                         {remainingMs > 0 ? formatRemainingTime(remainingMs) : 'Ready for release'}
@@ -252,20 +252,20 @@ export const MultiModalChat: React.FC = () => {
             }
             if (msg.systemEventType === 'SETTLEMENT') {
               return (
-                <div key={msg.id} className="w-full bg-emerald-950/25 border border-emerald-500/20 rounded-xl p-4 my-1 flex items-center justify-between text-left">
+                <div key={msg.id} className="w-full bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 my-1 flex items-center justify-between text-left">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-500/10 rounded-full text-emerald-400" aria-hidden="true">
+                    <div className="p-2 bg-emerald-500/10 rounded-full text-emerald-600" aria-hidden="true">
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
                     <div>
-                      <h5 className="text-sm font-bold text-slate-100">Swap Transacted Successfully</h5>
-                      <p className="text-xs text-slate-400">Escrow funds settled and balances updated.</p>
+                      <h5 className="text-sm font-bold text-[var(--color-text-primary)]">Swap Transacted Successfully</h5>
+                      <p className="text-xs text-[var(--color-text-secondary)]">Escrow funds settled and balances updated.</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-sm font-extrabold text-emerald-400">+{msg.systemEventDetails?.creditsTransferred} credits</span>
+                    <span className="text-sm font-extrabold text-emerald-600">+{msg.systemEventDetails?.creditsTransferred} credits</span>
                   </div>
                 </div>
               );
@@ -275,8 +275,8 @@ export const MultiModalChat: React.FC = () => {
           const isMe = msg.senderId === 'user_b';
           return (
             <div key={msg.id} className={`flex flex-col max-w-[80%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}>
-              <span className="text-[10px] text-slate-500 mb-0.5">{msg.senderName} • {msg.timestamp}</span>
-              <div className={`p-3 rounded-2xl text-sm ${isMe ? 'bg-[#38BDF8] text-slate-900 rounded-tr-none text-right font-medium' : 'bg-[#1E293B] text-slate-100 rounded-tl-none text-left'}`}>
+              <span className="text-[10px] text-[var(--color-text-muted)] mb-0.5">{msg.senderName} • {msg.timestamp}</span>
+              <div className={`p-3 rounded-2xl text-sm ${isMe ? 'bg-[var(--color-structure)] text-white rounded-tr-none text-right font-medium' : 'bg-[var(--color-canvas-elevated)] text-[var(--color-text-primary)] rounded-tl-none text-left'}`}>
                 {msg.text}
               </div>
             </div>
@@ -285,7 +285,7 @@ export const MultiModalChat: React.FC = () => {
       </div>
 
       {/* Input controls */}
-      <div className="p-3 bg-[#1E293B] border-t border-slate-800 flex items-center gap-2">
+      <div className="p-3 bg-[var(--color-canvas-elevated)] border-t border-[var(--color-border)] flex items-center gap-2">
         <input
           type="text"
           value={inputText}
@@ -293,12 +293,12 @@ export const MultiModalChat: React.FC = () => {
           onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
           placeholder="Collaborate securely..."
           aria-label="Chat input message"
-          className="flex-1 bg-slate-900 border border-slate-700 text-sm text-slate-100 rounded-lg px-3 py-2 focus:outline-none focus:border-[#38BDF8]"
+          className="flex-1 bg-[var(--color-surface)] border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] rounded-lg px-3 py-2 focus:outline-none focus:border-[var(--color-structure)]"
         />
         <button
           onClick={handleSendMessage}
           aria-label="Send message"
-          className="p-2 bg-[#38BDF8] hover:bg-[#7DD3FC] text-slate-900 rounded-lg transition-colors duration-150 flex items-center justify-center min-w-[36px] min-h-[36px]"
+          className="p-2 bg-[var(--color-structure)] hover:bg-[var(--color-structure-hover)] text-white rounded-lg transition-colors duration-150 flex items-center justify-center min-w-[36px] min-h-[36px]"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -345,9 +345,9 @@ export const OnboardingProgressBar: React.FC<OnboardingProgressBarProps> = ({
     <div
       className={`w-full max-w-xl rounded-2xl p-6 shadow-xl text-left flex flex-col gap-5 ${className}`}
       style={{
-        background: 'var(--card-bg, #1E293B)',
-        border: '1px solid var(--card-border, rgba(148, 163, 184, 0.2))',
-        color: 'var(--color-text-primary, #F8FAFC)',
+        background: 'var(--card-bg, var(--color-surface, #ffffff))',
+        border: '1px solid var(--card-border, var(--color-border, rgba(15, 23, 42, 0.12)))',
+        color: 'var(--color-text-primary, #0f172a)',
       }}
     >
       {/* Dynamic Header incorporating the Empowered Progress Effect */}
@@ -355,13 +355,13 @@ export const OnboardingProgressBar: React.FC<OnboardingProgressBarProps> = ({
         <div className="flex justify-between items-center mb-1">
           <span
             className="text-xs font-extrabold uppercase tracking-widest"
-            style={{ color: 'var(--color-structural, #38BDF8)' }}
+            style={{ color: 'var(--color-structural, #0284c7)' }}
           >
             YOUR JOURNEY IS UNDERWAY
           </span>
           <span
             className="text-sm font-extrabold"
-            style={{ color: 'var(--color-structural, #38BDF8)' }}
+            style={{ color: 'var(--color-structural, #0284c7)' }}
           >
             {percent}% COMPLETED
           </span>
@@ -370,8 +370,8 @@ export const OnboardingProgressBar: React.FC<OnboardingProgressBarProps> = ({
         <div
           className="w-full h-3 rounded-full overflow-hidden"
           style={{
-            background: 'var(--surface-muted, rgba(15, 23, 42, 0.2))',
-            border: '1px solid var(--card-border, rgba(148, 163, 184, 0.2))',
+            background: 'var(--surface-muted, rgba(15, 23, 42, 0.08))',
+            border: '1px solid var(--card-border, rgba(15, 23, 42, 0.12))',
           }}
           role="progressbar"
           aria-valuenow={percent}
@@ -383,7 +383,7 @@ export const OnboardingProgressBar: React.FC<OnboardingProgressBarProps> = ({
             className="h-full rounded-full transition-all duration-500 ease-out"
             style={{
               width: `${percent}%`,
-              background: 'linear-gradient(90deg, var(--color-structural, #38BDF8) 0%, #10B981 100%)',
+              background: 'linear-gradient(90deg, var(--color-structural, #0284c7) 0%, #10B981 100%)',
             }}
           />
         </div>
@@ -412,13 +412,13 @@ export const OnboardingProgressBar: React.FC<OnboardingProgressBarProps> = ({
         <div className="flex-1">
           <h5
             className="text-sm font-bold"
-            style={{ color: 'var(--color-text-primary, #F8FAFC)' }}
+            style={{ color: 'var(--color-text-primary, #0f172a)' }}
           >
             {creditsBalance} SkillCredits Already Claimed!
           </h5>
           <p
             className="text-xs mt-0.5 leading-relaxed"
-            style={{ color: 'var(--color-text-secondary, #94A3B8)' }}
+            style={{ color: 'var(--color-text-secondary, #475569)' }}
           >
             Your welcome balance has been securely reserved in your account ledger. Complete the quick steps below to activate your account and start trading skills immediately.
           </p>
@@ -429,12 +429,12 @@ export const OnboardingProgressBar: React.FC<OnboardingProgressBarProps> = ({
       <div className="flex flex-col gap-3">
         {/* Step 1: Account Created & Grant */}
         <div className="flex items-center gap-3 opacity-100">
-          <div className="w-6 h-6 rounded-full bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
+          <div className="w-6 h-6 rounded-full bg-emerald-500/20 border-2 border-emerald-500 text-emerald-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
             ✓
           </div>
           <span
-            className="text-sm font-semibold line-through decoration-slate-500"
-            style={{ color: 'var(--color-text-secondary, #CBD5E1)' }}
+            className="text-sm font-semibold line-through decoration-slate-400"
+            style={{ color: 'var(--color-text-secondary, #475569)' }}
           >
             Account Created & {creditsBalance} Credits Granted (Endowed)
           </span>
@@ -445,7 +445,7 @@ export const OnboardingProgressBar: React.FC<OnboardingProgressBarProps> = ({
           <div
             className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
               isStep2Done
-                ? 'bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400'
+                ? 'bg-emerald-500/20 border-2 border-emerald-500 text-emerald-600'
                 : isStep2Active
                   ? 'animate-pulse'
                   : ''
@@ -454,14 +454,14 @@ export const OnboardingProgressBar: React.FC<OnboardingProgressBarProps> = ({
               !isStep2Done
                 ? isStep2Active
                   ? {
-                      background: 'var(--surface-muted, rgba(15, 23, 42, 0.2))',
-                      border: '2px solid var(--color-structural, #38BDF8)',
-                      color: 'var(--color-structural, #38BDF8)',
+                      background: 'var(--surface-muted, rgba(15, 23, 42, 0.08))',
+                      border: '2px solid var(--color-structural, #0284c7)',
+                      color: 'var(--color-structural, #0284c7)',
                     }
                   : {
-                      background: 'var(--surface-muted, rgba(15, 23, 42, 0.2))',
-                      border: '2px solid var(--card-border, rgba(148, 163, 184, 0.2))',
-                      color: 'var(--color-text-muted, #64748B)',
+                      background: 'var(--surface-muted, rgba(15, 23, 42, 0.08))',
+                      border: '2px solid var(--card-border, rgba(15, 23, 42, 0.12))',
+                      color: 'var(--color-text-muted, #64748b)',
                     }
                 : undefined
             }
@@ -471,17 +471,17 @@ export const OnboardingProgressBar: React.FC<OnboardingProgressBarProps> = ({
           <span
             className={`text-sm ${
               isStep2Done
-                ? 'font-semibold line-through decoration-slate-500'
+                ? 'font-semibold line-through decoration-slate-400'
                 : isStep2Active
                   ? 'font-bold'
                   : 'font-semibold'
             }`}
             style={{
               color: isStep2Done
-                ? 'var(--color-text-secondary, #CBD5E1)'
+                ? 'var(--color-text-secondary, #475569)'
                 : isStep2Active
-                  ? 'var(--color-text-primary, #F8FAFC)'
-                  : 'var(--color-text-muted, #64748B)',
+                  ? 'var(--color-text-primary, #0f172a)'
+                  : 'var(--color-text-muted, #64748b)',
             }}
           >
             Choose Your @username & Skills Profiling (Category Setup)
@@ -493,7 +493,7 @@ export const OnboardingProgressBar: React.FC<OnboardingProgressBarProps> = ({
           <div
             className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
               isStep3Done
-                ? 'bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400'
+                ? 'bg-emerald-500/20 border-2 border-emerald-500 text-emerald-600'
                 : isStep3Active
                   ? 'animate-pulse'
                   : ''
@@ -502,14 +502,14 @@ export const OnboardingProgressBar: React.FC<OnboardingProgressBarProps> = ({
               !isStep3Done
                 ? isStep3Active
                   ? {
-                      background: 'var(--surface-muted, rgba(15, 23, 42, 0.2))',
-                      border: '2px solid var(--color-structural, #38BDF8)',
-                      color: 'var(--color-structural, #38BDF8)',
+                      background: 'var(--surface-muted, rgba(15, 23, 42, 0.08))',
+                      border: '2px solid var(--color-structural, #0284c7)',
+                      color: 'var(--color-structural, #0284c7)',
                     }
                   : {
-                      background: 'var(--surface-muted, rgba(15, 23, 42, 0.2))',
-                      border: '2px solid var(--card-border, rgba(148, 163, 184, 0.2))',
-                      color: 'var(--color-text-muted, #64748B)',
+                      background: 'var(--surface-muted, rgba(15, 23, 42, 0.08))',
+                      border: '2px solid var(--card-border, rgba(15, 23, 42, 0.12))',
+                      color: 'var(--color-text-muted, #64748b)',
                     }
                 : undefined
             }
@@ -526,10 +526,10 @@ export const OnboardingProgressBar: React.FC<OnboardingProgressBarProps> = ({
             }`}
             style={{
               color: isStep3Done
-                ? 'var(--color-text-secondary, #CBD5E1)'
+                ? 'var(--color-text-secondary, #475569)'
                 : isStep3Active
-                  ? 'var(--color-text-primary, #F8FAFC)'
-                  : 'var(--color-text-muted, #64748B)',
+                  ? 'var(--color-text-primary, #0f172a)'
+                  : 'var(--color-text-muted, #64748b)',
             }}
           >
             Activate Wallet & Begin Swapping

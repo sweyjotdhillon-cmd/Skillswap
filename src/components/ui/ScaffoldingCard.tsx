@@ -47,8 +47,8 @@ export const ScaffoldingCard: React.FC<ScaffoldingCardProps> = ({
           position: 'relative',
           padding: '1rem 1.25rem',
           borderRadius: '12px',
-          background: 'var(--color-surface, rgba(30, 41, 59, 0.6))',
-          border: '1px solid var(--color-structure-border, rgba(56, 189, 248, 0.25))',
+          background: 'var(--card-bg, var(--color-surface, #ffffff))',
+          border: '1px solid var(--color-structure-border, rgba(2, 132, 199, 0.22))',
           marginBottom: '1.25rem',
           transition: 'all 0.2s ease-in-out',
         }}
@@ -70,7 +70,7 @@ export const ScaffoldingCard: React.FC<ScaffoldingCardProps> = ({
             onClick={dismissScaffold}
             style={{
               background: 'transparent',
-              border: '1px solid var(--color-structure-border, rgba(148, 163, 184, 0.25))',
+              border: '1px solid var(--color-border, rgba(15, 23, 42, 0.15))',
               borderRadius: '6px',
               cursor: 'pointer',
               fontSize: '0.75rem',
@@ -113,7 +113,7 @@ export const ScaffoldingCard: React.FC<ScaffoldingCardProps> = ({
           padding: '0.25rem 0.65rem',
           borderRadius: '6px',
           background: 'transparent',
-          border: '1px solid var(--color-structure-border, rgba(148, 163, 184, 0.2))',
+          border: '1px solid var(--color-border, rgba(15, 23, 42, 0.15))',
           color: 'var(--color-text-muted, var(--text-muted))',
           cursor: 'pointer',
         }}

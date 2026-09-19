@@ -1,5 +1,6 @@
 import React from 'react';
 import type { SwapStatus } from '../../types/swap';
+import { getVaultState } from './transactionUtils';
 
 export interface PendingTransactionVaultProps {
   creditAmount?: number;
@@ -7,26 +8,6 @@ export interface PendingTransactionVaultProps {
   compact?: boolean;
   className?: string;
   showDetails?: boolean;
-}
-
-/**
- * Normalizes any swap or transaction status string into canonical vault lifecycle states:
- * - 'pending': open, accepted, submitted, pending, reserved
- * - 'completed': completed, settled
- * - 'cancelled': cancelled, declined, withdrawn, expired
- */
-export function getVaultState(
-  status?: string
-): 'pending' | 'completed' | 'cancelled' {
-  if (!status) return 'pending';
-  const lower = status.toLowerCase();
-  if (['completed', 'settled', 'released'].includes(lower)) {
-    return 'completed';
-  }
-  if (['cancelled', 'declined', 'withdrawn', 'expired', 'closed'].includes(lower)) {
-    return 'cancelled';
-  }
-  return 'pending';
 }
 
 /**
@@ -67,7 +48,7 @@ export const PendingTransactionVault: React.FC<PendingTransactionVaultProps> = R
       <div
         className={`tx-vault-container ${compact ? 'tx-vault-container--compact' : ''} ${className}`}
         style={{
-          background: 'var(--card-bg, #1E293B)',
+          background: 'var(--card-bg, var(--color-surface, #ffffff))',
           border: `1px solid ${accentBorder}`,
           borderRadius: '12px',
           padding: compact ? '0.65rem 0.85rem' : '1rem',
@@ -75,7 +56,7 @@ export const PendingTransactionVault: React.FC<PendingTransactionVaultProps> = R
           flexDirection: compact ? 'row' : 'column',
           alignItems: compact ? 'center' : 'stretch',
           gap: '0.85rem',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
           transition: 'border-color 0.3s ease, background 0.3s ease',
           margin: '0.5rem 0',
         }}
@@ -118,16 +99,16 @@ export const PendingTransactionVault: React.FC<PendingTransactionVaultProps> = R
               <defs>
                 {/* 30-degree isometric gradients */}
                 <linearGradient id="vaultTopGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#334155" />
-                  <stop offset="100%" stopColor="#1E293B" />
+                  <stop offset="0%" stopColor="#f1f5f9" />
+                  <stop offset="100%" stopColor="#e2e8f0" />
                 </linearGradient>
                 <linearGradient id="vaultFrontGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#1E293B" />
-                  <stop offset="100%" stopColor="#0F172A" />
+                  <stop offset="0%" stopColor="#e2e8f0" />
+                  <stop offset="100%" stopColor="#cbd5e1" />
                 </linearGradient>
                 <linearGradient id="vaultSideGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#0F172A" />
-                  <stop offset="100%" stopColor="#020617" />
+                  <stop offset="0%" stopColor="#cbd5e1" />
+                  <stop offset="100%" stopColor="#94a3b8" />
                 </linearGradient>
 
                 {/* Status glow filters */}
@@ -142,25 +123,25 @@ export const PendingTransactionVault: React.FC<PendingTransactionVaultProps> = R
               </defs>
 
               {/* ISOMETRIC BASE SHADOW (PERSPECTIVE TILT) */}
-              <ellipse cx="60" cy="100" rx="42" ry="14" fill="rgba(0, 0, 0, 0.4)" />
+              <ellipse cx="60" cy="100" rx="42" ry="14" fill="rgba(0, 0, 0, 0.12)" />
 
               {/* ISOMETRIC 30° VAULT BODY */}
               {/* Top Face (Tilted at 30 degrees) */}
-              <polygon points="60,18 100,38 60,58 20,38" fill="url(#vaultTopGrad)" stroke="#38BDF8" strokeWidth="1" strokeOpacity="0.4" />
+              <polygon points="60,18 100,38 60,58 20,38" fill="url(#vaultTopGrad)" stroke="#0284c7" strokeWidth="1" strokeOpacity="0.4" />
 
               {/* Left Front Face */}
-              <polygon points="20,38 60,58 60,94 20,74" fill="url(#vaultFrontGrad)" stroke="#38BDF8" strokeWidth="1" strokeOpacity="0.3" />
+              <polygon points="20,38 60,58 60,94 20,74" fill="url(#vaultFrontGrad)" stroke="#0284c7" strokeWidth="1" strokeOpacity="0.3" />
 
               {/* Right Side Face */}
-              <polygon points="60,58 100,38 100,74 60,94" fill="url(#vaultSideGrad)" stroke="#38BDF8" strokeWidth="1" strokeOpacity="0.2" />
+              <polygon points="60,58 100,38 100,74 60,94" fill="url(#vaultSideGrad)" stroke="#0284c7" strokeWidth="1" strokeOpacity="0.2" />
 
               {/* 30° ISOMETRIC DOOR & LOCK DIAL ON FRONT FACE */}
               {/* Outer Door Frame */}
-              <polygon points="28,47 52,59 52,85 28,73" fill="rgba(30, 41, 59, 0.9)" stroke={accentColor} strokeWidth="1.5" />
+              <polygon points="28,47 52,59 52,85 28,73" fill="rgba(248, 250, 252, 0.95)" stroke={accentColor} strokeWidth="1.5" />
 
               {/* Circular Dial Plate in Isometric Projection */}
               <g transform="translate(40, 66) scale(1, 0.6) rotate(-30)">
-                <circle cx="0" cy="0" r="13" fill="#0F172A" stroke="#38BDF8" strokeWidth="1.5" />
+                <circle cx="0" cy="0" r="13" fill="#ffffff" stroke="#0284c7" strokeWidth="1.5" />
                 <circle cx="0" cy="0" r="8" fill="none" stroke={accentColor} strokeWidth="1" strokeDasharray="2,2" />
 
                 {/* Central Lock Handle & Indicator Light */}
@@ -178,7 +159,7 @@ export const PendingTransactionVault: React.FC<PendingTransactionVaultProps> = R
               {vaultState === 'pending' && (
                 <g transform="translate(85, 25)" className="tx-vault-ambient-pulse">
                   <circle cx="0" cy="0" r="10" fill="#d6a64a" />
-                  <path d="M-2,-5 L3,-1 L0,0 L2,5 L-3,1 L0,0 Z" fill="#0F172A" />
+                  <path d="M-2,-5 L3,-1 L0,0 L2,5 L-3,1 L0,0 Z" fill="#ffffff" />
                 </g>
               )}
 
@@ -201,7 +182,7 @@ export const PendingTransactionVault: React.FC<PendingTransactionVaultProps> = R
           {/* TEXT & CONTEXT CONTENT */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary, #f8fafc)' }}>
+              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary, #0f172a)' }}>
                 {titleText}
               </span>
               <span
@@ -225,7 +206,7 @@ export const PendingTransactionVault: React.FC<PendingTransactionVaultProps> = R
                 style={{
                   margin: '0.35rem 0 0 0',
                   fontSize: '0.8rem',
-                  color: 'var(--color-text-secondary, #94a3b8)',
+                  color: 'var(--color-text-secondary, #475569)',
                   lineHeight: 1.4,
                 }}
               >

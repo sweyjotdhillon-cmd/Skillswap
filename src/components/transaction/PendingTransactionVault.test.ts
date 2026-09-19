@@ -1,4 +1,4 @@
-import { getVaultState } from './PendingTransactionVault';
+import { getVaultState } from './transactionUtils';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {

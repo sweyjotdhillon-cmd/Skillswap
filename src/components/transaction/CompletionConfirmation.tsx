@@ -1,21 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import type { SwapStatus } from '../../types/swap';
+import { checkPrefersReducedMotion } from './transactionUtils';
 
 export interface CompletionConfirmationProps {
   swapId?: string;
   status: SwapStatus;
   creditAmount?: number;
   className?: string;
-}
-
-/**
- * Checks if the user prefers reduced motion via CSS media query.
- */
-export function checkPrefersReducedMotion(): boolean {
-  if (typeof window === 'undefined' || !window.matchMedia) {
-    return false;
-  }
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 /**
