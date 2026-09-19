@@ -15,6 +15,7 @@ import { ChangePasswordPage } from './pages/ChangePassword';
 import { OnboardingPage } from './pages/Onboarding';
 import { ProfilePage } from './pages/Profile';
 import { PublicProfilePage } from './pages/PublicProfile';
+import { FAQPage } from './pages/FAQ';
 
 const PROTECTED_ROUTES = ['/profile', '/create-swap', '/active-swaps', '/change-password'];
 
@@ -55,6 +56,8 @@ function AppContent() {
       document.title = 'About — SkillSwap';
     } else if (path === '/how-it-works') {
       document.title = 'How It Works — SkillSwap';
+    } else if (path === '/faq' || path === '/faq/') {
+      document.title = 'Frequently Asked Questions — SkillSwap';
     } else if (path.startsWith('/login')) {
       document.title = 'Log In — SkillSwap';
     } else if (path.startsWith('/signup')) {
@@ -199,8 +202,7 @@ function AppContent() {
   }
 
   if (path === '/faq' || path === '/faq/') {
-    window.location.href = '/faq';
-    return null;
+    return <FAQPage onNavigate={navigate} />;
   }
 
   return <Home onNavigate={navigate} />;

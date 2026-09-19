@@ -46,10 +46,6 @@ export function Navbar({ onNavigate, ctaLabel, ctaPath, currentPath }: NavbarPro
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, itemPath: string) => {
     setMobileMenuOpen(false);
-    if (itemPath === '/faq') {
-      window.location.href = '/faq';
-      return;
-    }
     if (onNavigate) {
       e.preventDefault();
       onNavigate(itemPath);
