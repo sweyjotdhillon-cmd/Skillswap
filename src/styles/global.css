@@ -3028,6 +3028,22 @@ h1 span { color: #a8781d; }
   overscroll-behavior: contain;
 }
 
+.chat-error {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0;
+  border-radius: 8px;
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--color-error, #ef4444);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
 .chat-message-bubble {
   max-width: 80%;
   padding: 0.85rem 1.1rem;

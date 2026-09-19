@@ -163,7 +163,16 @@ export function SwapChatModal({
     // 1. Initial database SELECT
     void fetchPersistedMessages();
 
-    // 2. Setup Realtime subscription
+    // 2. Setup Realtime subscription ONLY if user is an active swap member (requester or participant)
+    const isMember = isRequester || isParticipant;
+    if (!isMember) {
+      // For open-swap visitors, avoid subscribing to Realtime since they are not swap members.
+      // Persisted DB message insertion and optimistic timeline updates are relied upon instead.
+      return () => {
+        isMounted = false;
+      };
+    }
+
     const channelName = `skillswap-chat:${swap.id}`;
     const channel = supabase.channel(channelName, {
       config: {
@@ -235,7 +244,7 @@ export function SwapChatModal({
       channelRef.current = null;
       void supabase.removeChannel(channel);
     };
-  }, [swap.id, user]);
+  }, [swap.id, user, isRequester, isParticipant]);
 
   // Auto-scroll to bottom on message list update
   useEffect(() => {
@@ -593,7 +602,7 @@ export function SwapChatModal({
             </div>
 
             {chatError && (
-              <div style={{ color: 'var(--color-error)', padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
+              <div className="chat-error" role="alert" aria-live="assertive">
                 {chatError}
               </div>
             )}

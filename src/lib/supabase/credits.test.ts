@@ -189,6 +189,7 @@ export async function runCreditSystemTests() {
     '043_phase_a_file_lifecycle_consolidation.sql',
     '044_phase_a_lifecycle_contract_synchronization.sql',
     '045_lifecycle_contract_synchronization_final.sql',
+    '046_open_swap_chat_permissions.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -480,9 +481,68 @@ export async function runCreditSystemTests() {
   console.log('  -> Duplicate settlement idempotency verified.');
 
   // =========================================================================
-  // TEST 9: Real P2P Messaging Persistence & Security
+  // TEST 9: Real P2P Messaging Persistence & Security (OPEN & ACTIVE Swaps)
   // =========================================================================
   console.log('Test 9: Real P2P Messaging Persistence & Security...');
+
+  // 9a. OPEN SWAP CHAT AUTHORIZATION
+  // User A creates an open swap
+  await setAuthUser(userA);
+  const openSwapRes = await db.query<{ swap_id: string }>(`
+    SELECT public.create_credit_swap(
+      'Open Swap Chat Topic', 'Description', 'Requirements', 10, ARRAY['coding']::text[], NULL, 'open_chat_test_key_1'
+    ) AS swap_id;
+  `);
+  const openSwapId = openSwapRes.rows[0].swap_id;
+
+  // User B (non-requester) sends message to User A (requester) on Open Swap
+  await setAuthUser(userB);
+  await db.query(`
+    INSERT INTO public.swap_messages (swap_id, sender_id, recipient_id, body)
+    VALUES ('${openSwapId}'::uuid, '${userB}'::uuid, '${userA}'::uuid, 'Hi User A! Interested in your open swap proposal.');
+  `);
+
+  // User A (requester) reads the open swap message
+  await setAuthUser(userA);
+  const openMsgResA = await db.query<{ body: string }>(`SELECT body FROM public.swap_messages WHERE swap_id = '${openSwapId}';`);
+  assert(openMsgResA.rows.length === 1 && openMsgResA.rows[0].body.includes('Interested in your open swap proposal'), 'Requester User A reads open swap message from User B');
+
+  // User C (unrelated authenticated user) attempts to read open swap message
+  await setAuthUser(userC);
+  const openMsgResC = await db.query<{ body: string }>(`SELECT body FROM public.swap_messages WHERE swap_id = '${openSwapId}';`);
+  assert(openMsgResC.rows.length === 0, 'Unrelated User C cannot read open swap message');
+
+  // User A (requester) attempts to send open swap message to themselves (Forbidden)
+  await setAuthUser(userA);
+  let openSelfErr: unknown = null;
+  try {
+    await db.query(`
+      INSERT INTO public.swap_messages (swap_id, sender_id, recipient_id, body)
+      VALUES ('${openSwapId}'::uuid, '${userA}'::uuid, '${userA}'::uuid, 'Self message on open swap');
+    `);
+  } catch (err) {
+    openSelfErr = err;
+  }
+  assert(Boolean(openSelfErr), 'Requester is forbidden from sending an open-swap message to themselves');
+
+  // Anonymous user attempts to send message on open swap (Forbidden)
+  await setAuthUser(null);
+  let anonErr: unknown = null;
+  try {
+    await db.query(`
+      INSERT INTO public.swap_messages (swap_id, sender_id, recipient_id, body)
+      VALUES ('${openSwapId}'::uuid, '${userB}'::uuid, '${userA}'::uuid, 'Anon message');
+    `);
+  } catch (err) {
+    anonErr = err;
+  }
+  assert(Boolean(anonErr), 'Anonymous users cannot insert chat messages');
+
+  // Clean up test open swap reservation
+  await setAuthUser(userA);
+  await db.query(`SELECT public.cancel_credit_swap('${openSwapId}'::uuid);`);
+
+  // 9b. ACTIVE SWAP CHAT AUTHORIZATION
   await setAuthUser(userA);
   await db.query(`
     INSERT INTO public.swap_messages (swap_id, sender_id, recipient_id, body)
@@ -493,11 +553,29 @@ export async function runCreditSystemTests() {
   const msgRes = await db.query<{ body: string }>(`SELECT body FROM public.swap_messages WHERE swap_id = '${swap2Id}';`);
   assert(msgRes.rows[0].body.includes('Hello User B'), 'User B successfully reads persisted message from User A');
 
-  // User C (unrelated) attempts to read messages from Swap 2
+  // User B messages User A back on active swap
+  await db.query(`
+    INSERT INTO public.swap_messages (swap_id, sender_id, recipient_id, body)
+    VALUES ('${swap2Id}'::uuid, '${userB}'::uuid, '${userA}'::uuid, 'Hi User A, excited to collaborate!');
+  `);
+
+  // User C (unrelated) attempts to send message to active swap (Forbidden)
   await setAuthUser(userC);
+  let activeUnrelatedErr: unknown = null;
+  try {
+    await db.query(`
+      INSERT INTO public.swap_messages (swap_id, sender_id, recipient_id, body)
+      VALUES ('${swap2Id}'::uuid, '${userC}'::uuid, '${userA}'::uuid, 'Unrelated insertion attempt');
+    `);
+  } catch (err) {
+    activeUnrelatedErr = err;
+  }
+  assert(Boolean(activeUnrelatedErr), 'Unrelated User C cannot insert messages into active swap');
+
+  // User C (unrelated) attempts to read messages from Swap 2
   const msgResC = await db.query<{ body: string }>(`SELECT body FROM public.swap_messages WHERE swap_id = '${swap2Id}';`);
   assert(msgResC.rows.length === 0, 'Unrelated User C receives 0 messages due to RLS');
-  console.log('  -> P2P Chat persistence and RLS isolation verified.');
+  console.log('  -> P2P Chat persistence, OPEN swap authorization, and RLS isolation verified.');
 
   // =========================================================================
   // TEST 10: Account Reconciliation Diagnostic Check
