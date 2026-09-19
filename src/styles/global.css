@@ -197,7 +197,6 @@ button:disabled,
 .profile-manage-skills-btn,
 .onboarding-btn,
 .btn-signout,
-.header-icon-btn,
 .nav-credit-indicator-btn,
 .credit-modal-close-btn,
 .credit-retry-btn,
@@ -238,7 +237,6 @@ button:disabled,
 .profile-manage-skills-btn:active:not(:disabled),
 .onboarding-btn:active:not(:disabled),
 .btn-signout:active:not(:disabled),
-.header-icon-btn:active:not(:disabled),
 .nav-credit-indicator-btn:active:not(:disabled),
 .credit-modal-close-btn:active:not(:disabled),
 .credit-retry-btn:active:not(:disabled),
@@ -690,43 +688,6 @@ h1 span { color: #a8781d; }
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-}
-
-/* Header User Actions */
-.header-user-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-}
-
-.header-icon-btn {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
-  border-radius: 50%;
-  border: 1px solid rgba(17, 22, 28, 0.12);
-  background: #fff;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  color: #11161c;
-  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease, border-color 0.2s ease;
-}
-
-.header-icon-btn:hover {
-  background: rgba(17, 22, 28, 0.05);
-  border-color: rgba(17, 22, 28, 0.25);
-  transform: scale(1.05);
-}
-
-.header-icon-btn:active {
-  transform: scale(0.95);
-}
-
-.nav-icon {
-  width: 18px;
-  height: 18px;
 }
 
 .header-avatar {

@@ -449,7 +449,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
 
   return (
     <div className="page-shell">
-      <Navbar onNavigate={onNavigate} showUserHeader />
+      <Navbar onNavigate={onNavigate} />
       <main className="create-swap-page">
         <div className="create-swap-layout">
           <div className="create-swap-card">

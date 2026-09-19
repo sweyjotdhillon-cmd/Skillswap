@@ -13,13 +13,12 @@ const navItems = [
 
 type NavbarProps = {
   onNavigate?: (path: string) => void;
-  showUserHeader?: boolean;
   ctaLabel?: string;
   ctaPath?: string;
   currentPath?: string;
 };
 
-export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentPath }: NavbarProps) {
+export function Navbar({ onNavigate, ctaLabel, ctaPath, currentPath }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [creditModalOpen, setCreditModalOpen] = useState(false);
   const activePath = currentPath || window.location.pathname;
@@ -154,32 +153,6 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                 >
                   Security
                 </a>
-                {showUserHeader && (
-                  <div className="header-user-actions" aria-label="User profile and notifications">
-                    <button
-                      type="button"
-                      className="header-icon-btn"
-                      aria-label="Notifications"
-                      onClick={() => onNavigate && onNavigate('/active-swaps')}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav-icon">
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      className="header-icon-btn"
-                      aria-label="Messages"
-                      onClick={() => onNavigate && onNavigate('/active-swaps')}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav-icon">
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                        <polyline points="22,6 12,13 2,6" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
                 <button
                   type="button"
                   className="btn-signout"
@@ -288,19 +261,6 @@ export function Navbar({ onNavigate, showUserHeader, ctaLabel, ctaPath, currentP
                   >
                     My Profile
                   </a>
-                  {showUserHeader && (
-                    <a
-                      href="/active-swaps"
-                      className="mobile-drawer-link"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setMobileMenuOpen(false);
-                        if (onNavigate) onNavigate('/active-swaps');
-                      }}
-                    >
-                      Notifications &amp; Messages
-                    </a>
-                  )}
                   <a
                     href="/change-password"
                     className="mobile-drawer-link"
