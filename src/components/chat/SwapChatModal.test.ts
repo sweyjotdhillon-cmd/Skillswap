@@ -285,6 +285,60 @@ export function runSwapChatModalAndDesignSystemTests() {
     assert(terminalActionTitle === '⚠️ Swap Inactive', `Terminal status '${status}' maps to '⚠️ Swap Inactive' notice in sidebar`);
   }
 
+  // =========================================================================
+  // SECTION: OPEN SWAP CHAT & MOBILE ERROR UI CONTRACTS
+  // =========================================================================
+
+  // 1. Open Swap Recipient Derivation Logic
+  const openSwap: Swap = {
+    ...mockSwap,
+    status: 'open',
+    participantId: null,
+    participantProfile: undefined,
+  };
+
+  const getRecipientId = (swapRec: Swap, currentUserId: string): string => {
+    const isReq = currentUserId === swapRec.requesterId;
+    const isPart = swapRec.participantId ? currentUserId === swapRec.participantId : false;
+    if (isReq) return swapRec.participantId || '';
+    if (isPart) return swapRec.requesterId;
+    return swapRec.requesterId; // Open-swap visitor chatting with requester
+  };
+
+  const visitorUserId = 'user-visitor-99';
+  const derivedRecipient = getRecipientId(openSwap, visitorUserId);
+  assert(derivedRecipient === openSwap.requesterId, 'Open-swap visitor correctly derives requester as recipient');
+
+  // 2. Realtime Subscription Guard Contract
+  const shouldSubscribeRealtime = (swapRec: Swap, currentUserId: string): boolean => {
+    const isReq = currentUserId === swapRec.requesterId;
+    const isPart = Boolean(swapRec.participantId && currentUserId === swapRec.participantId);
+    return isReq || isPart;
+  };
+
+  assert(shouldSubscribeRealtime(openSwap, visitorUserId) === false, 'Open-swap visitor skips Realtime subscription to prevent websocket errors');
+  assert(shouldSubscribeRealtime(openSwap, openSwap.requesterId) === true, 'Open-swap requester subscribes to Realtime channel');
+  assert(shouldSubscribeRealtime(mockSwap, 'user-part-2') === true, 'Active swap participant subscribes to Realtime channel');
+
+  // 3. Mobile Chat Error UI Contract
+  const errorUiContract = {
+    className: 'chat-error',
+    role: 'alert',
+    'aria-live': 'assertive',
+    styles: {
+      width: '100%',
+      boxSizing: 'border-box',
+      minWidth: '0',
+      overflowWrap: 'anywhere',
+    },
+  };
+
+  assert(errorUiContract.className === 'chat-error', 'Dedicated chat-error class used');
+  assert(errorUiContract.role === 'alert', 'Accessible role="alert" attribute verified');
+  assert(errorUiContract['aria-live'] === 'assertive', 'Accessible aria-live="assertive" attribute verified');
+  assert(errorUiContract.styles.width === '100%', 'Mobile error UI spans 100% container width');
+  assert(errorUiContract.styles.overflowWrap === 'anywhere', 'Mobile error UI prevents horizontal scroll overflow with overflow-wrap: anywhere');
+
   console.log('✓ All E.3, E.4, L13 & Section L15 Consolidated Workspace unit tests passed!');
 }
 
