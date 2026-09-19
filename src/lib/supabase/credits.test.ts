@@ -15,6 +15,7 @@ import { runTemplateGalleryUnitTests } from '../../components/create-swap/Templa
 import { runL18GuestModeUnitTests } from './l18_guest_mode.test';
 import { runMarketplaceCardUnitTests } from '../../components/credits/MarketplaceCard.test';
 import { runFileLifecycleUnitTests } from './file_lifecycle.test';
+import { runCreatorAttachmentLifecycleTests } from './creator_attachment_lifecycle.test';
 import './credibility_verification.test';
 
 function assert(condition: boolean, message: string) {
@@ -2048,6 +2049,9 @@ export async function runCreditSystemTests() {
 
   // Test 24: File Lifecycle System Integration
   await runFileLifecycleUnitTests(db, { userA, userB, userC });
+
+  // Test 25: Dedicated Creator Attachment Lifecycle & 10-Invariant Verification
+  await runCreatorAttachmentLifecycleTests();
 
   console.log('--- ALL SKILLSWAP CREDIT INTEGRATION & SECURITY TESTS PASSED PERFECTLY! ---');
 }
