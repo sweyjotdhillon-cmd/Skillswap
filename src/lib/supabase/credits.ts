@@ -1182,7 +1182,7 @@ export async function getSwapAttachments(swapId: string): Promise<{ data: SwapAt
   try {
     const { data, error } = await supabase
       .from('swap_attachment_files')
-      .select('*')
+      .select('id, swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, created_at, available_from, storage_expires_at, storage_deleted_at, storage_delete_status, storage_delete_error, storage_delete_claimed_at')
       .eq('swap_id', swapId)
       .order('created_at', { ascending: true });
 

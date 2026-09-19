@@ -133,4 +133,14 @@ describe('File Expiry System Tests', () => {
     assert.strictEqual(badgeElement.type, FileExpiryIndicator);
     assert.strictEqual(badgeElement.props.inline, false);
   });
+
+  test('getFileExpiryStatus handles null expiry timestamps without fake countdown text', () => {
+    const nullStatus = getFileExpiryStatus(null, false);
+    assert.strictEqual(nullStatus.displayText, '');
+    assert.strictEqual(nullStatus.isExpired, false);
+
+    const undefinedStatus = getFileExpiryStatus(undefined, false);
+    assert.strictEqual(undefinedStatus.displayText, '');
+    assert.strictEqual(undefinedStatus.isExpired, false);
+  });
 });
