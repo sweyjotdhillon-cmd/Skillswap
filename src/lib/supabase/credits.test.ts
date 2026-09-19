@@ -190,6 +190,7 @@ export async function runCreditSystemTests() {
     '044_phase_a_lifecycle_contract_synchronization.sql',
     '045_lifecycle_contract_synchronization_final.sql',
     '046_open_swap_chat_permissions.sql',
+    '047_fix_swap_chat_permissions_and_rpc.sql',
   ];
 
   for (const file of migrationFiles) {

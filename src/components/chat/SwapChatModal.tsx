@@ -92,18 +92,26 @@ export function SwapChatModal({
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const channelRef = useRef<ReturnType<NonNullable<ReturnType<typeof getSupabaseBrowserClient>>['channel']> | null>(null);
 
-  // Derive recipient ID strictly from swap record
-  const isRequester = user ? user.id === swap.requesterId : false;
-  const isParticipant = user && swap.participantId ? user.id === swap.participantId : false;
+  // Explicit source of truth for user role and recipient derivation
+  const currentUserId = user?.id || null;
+  const isRequester = Boolean(currentUserId && currentUserId === swap.requesterId);
+  const isParticipant = Boolean(currentUserId && swap.participantId && currentUserId === swap.participantId);
+  const isOpenSwapApplicant = Boolean(currentUserId && swap.status === 'open' && !isRequester);
+
+  // Authorize chatting strictly for valid swap roles
+  const canChat = isRequester
+    ? Boolean(swap.participantId) || swap.status === 'open'
+    : (isParticipant || isOpenSwapApplicant);
 
   let recipientId: string | null = null;
   if (isRequester) {
     recipientId = swap.participantId;
   } else if (isParticipant) {
     recipientId = swap.requesterId;
-  } else {
-    // Open swap chat where current user is applicant/visitor chatting with requester
+  } else if (isOpenSwapApplicant) {
     recipientId = swap.requesterId;
+  } else {
+    recipientId = null;
   }
 
   // Partner profile metadata
@@ -139,12 +147,40 @@ export function SwapChatModal({
     };
   }, [swap.id, swap.status]);
 
+  // Modal Escape key listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
   // Primary effect: Manage Realtime postgres_changes + Broadcast subscription & database initial fetch / reconnect catch-up
   useEffect(() => {
     setChatError(null);
 
+    if (!user) {
+      setChatError('Your session has expired. Please sign in again.');
+      return;
+    }
+
+    if (!canChat || !recipientId) {
+      if (['cancelled', 'declined', 'withdrawn', 'expired'].includes(swap.status)) {
+        setChatError('This swap is no longer active.');
+      } else if (!isRequester && !isParticipant && !isOpenSwapApplicant) {
+        setChatError('This account is not a participant in this swap.');
+      } else if (isRequester && swap.status !== 'open' && !swap.participantId) {
+        setChatError('This swap does not have an active participant.');
+      }
+    }
+
     const supabase = getSupabaseBrowserClient();
-    if (!supabase || !swap.id || !user) return;
+    if (!supabase || !swap.id) return;
 
     let isMounted = true;
 
@@ -283,7 +319,23 @@ export function SwapChatModal({
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanText = input.trim();
-    if ((!cleanText && selectedFiles.length === 0) || sending || !user || !recipientId) return;
+    if ((!cleanText && selectedFiles.length === 0) || sending) return;
+
+    if (!user) {
+      setChatError('Your session has expired. Please sign in again.');
+      return;
+    }
+
+    if (!canChat || !recipientId) {
+      if (['cancelled', 'declined', 'withdrawn', 'expired'].includes(swap.status)) {
+        setChatError('This swap is no longer active.');
+      } else if (!isRequester && !isParticipant && !isOpenSwapApplicant) {
+        setChatError('This account is not a participant in this swap.');
+      } else {
+        setChatError('You’re not authorized to send messages in this swap.');
+      }
+      return;
+    }
 
     setSending(true);
     setChatError(null);
@@ -404,8 +456,8 @@ export function SwapChatModal({
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontWeight: 700, color: 'var(--color-warning)', fontSize: '0.9rem', background: 'var(--color-accent-muted)', padding: '0.25rem 0.65rem', borderRadius: '999px' }}>
+          <div className="chat-modal-header-actions">
+            <span className="chat-credits-badge">
               ⚡ {swap.creditAmount} SkillCredits
             </span>
             <span className={`as-status-badge as-status-badge--${swap.status}`}>
