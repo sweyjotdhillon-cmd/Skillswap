@@ -55,9 +55,9 @@ export interface SwapMessageAttachment {
   mimeType?: string | null;
   fileSize?: number | null;
   createdAt: string;
-  deleteAfter: string;
+  deleteAfter?: string | null;
   deletedAt?: string | null;
-  deleteStatus: 'active' | 'in_progress' | 'pending_deletion' | 'deleted' | 'failed';
+  deleteStatus?: 'active' | 'in_progress' | 'pending_deletion' | 'deleted' | 'failed' | string | null;
   deleteError?: string | null;
 }
 
@@ -81,6 +81,9 @@ export interface SwapSubmissionFile {
   mimeType?: string | null;
   fileSize?: number | null;
   createdAt: string;
+  storageExpiresAt?: string | null;
+  storageDeletedAt?: string | null;
+  storageDeleteStatus?: string | null;
 }
 
 export interface SwapSubmission {

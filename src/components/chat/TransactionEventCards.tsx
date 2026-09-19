@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Swap, SwapSubmission } from '../../types/swap';
 import { calculateRemainingAutoReleaseMs, formatRemainingTime } from '../transaction/transactionUtils';
+import { FileExpiryIndicator } from '../ui/FileExpiryIndicator';
 
 export type TransactionEventType =
   | 'SUBMISSION'
@@ -112,6 +113,12 @@ export const SubmissionEventCard: React.FC<{
                   : `${Math.round(file.fileSize / 1024)} KB`
                 : '';
 
+              const isFileExpired = Boolean(
+                file.storageDeletedAt ||
+                (file.storageDeleteStatus && file.storageDeleteStatus !== 'active' && file.storageDeleteStatus !== 'failed') ||
+                (file.storageExpiresAt && new Date(file.storageExpiresAt).getTime() <= Date.now())
+              );
+
               return (
                 <div
                   key={file.id}
@@ -133,24 +140,34 @@ export const SubmissionEventCard: React.FC<{
                         d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                       />
                     </svg>
-                    <span className="text-xs font-semibold text-slate-200 truncate">
-                      {file.fileName}
-                    </span>
-                    {formattedSize ? (
-                      <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">
-                        ({formattedSize})
-                      </span>
-                    ) : null}
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-xs font-semibold text-slate-200 truncate">
+                          {file.fileName}
+                        </span>
+                        {formattedSize ? (
+                          <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">
+                            ({formattedSize})
+                          </span>
+                        ) : null}
+                      </div>
+                      <FileExpiryIndicator
+                        expiresAt={file.storageExpiresAt}
+                        deletedAt={file.storageDeletedAt}
+                        deleteStatus={file.storageDeleteStatus}
+                        inline
+                      />
+                    </div>
                   </div>
 
                   {onDownloadFile ? (
                     <button
                       type="button"
                       className="px-2.5 py-1 text-xs font-bold text-slate-900 bg-slate-200 hover:bg-white rounded transition-colors duration-150 flex-shrink-0 disabled:opacity-50"
-                      disabled={downloadingFileId === file.id}
+                      disabled={downloadingFileId === file.id || isFileExpired}
                       onClick={() => onDownloadFile(file.storagePath, file.fileName, file.id)}
                     >
-                      {downloadingFileId === file.id ? '...' : 'Download'}
+                      {isFileExpired ? 'Unavailable' : downloadingFileId === file.id ? '...' : 'Download'}
                     </button>
                   ) : null}
                 </div>
