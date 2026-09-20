@@ -527,20 +527,20 @@ export function SwapChatModal({
         <div className="chat-modal-header">
           <div className="chat-user-header-info">
             <img src={displayAvatar} alt={`Profile photo of ${displayName}`} className="chat-avatar swap-avatar-ring" />
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                <h3 className="chat-title" style={{ margin: 0 }}>
+            <div className="chat-header-text-details">
+              <div className="chat-header-name-row">
+                <h3 className="chat-title">
                   Swap Workspace with {displayName}
                 </h3>
                 {partnerProfile?.username && (
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                  <span className="chat-header-username">
                     @{partnerProfile.username}
                   </span>
                 )}
                 <VerificationBadge isVerified={isPartnerVerified} size="sm" />
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.15rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)', flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: (partnerProfile?.reviewCount ?? 0) > 0 ? 600 : 400, color: (partnerProfile?.reviewCount ?? 0) > 0 ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>
+              <div className="chat-header-stats-row">
+                <span className="chat-header-rating">
                   {partnerProfile?.reviewCount && partnerProfile.reviewCount > 0 && partnerProfile?.averageRating !== null && partnerProfile?.averageRating !== undefined
                     ? `★ ${partnerProfile.averageRating.toFixed(1)} (${partnerProfile.reviewCount} ${partnerProfile.reviewCount === 1 ? 'review' : 'reviews'})`
                     : 'No reviews yet'}
@@ -550,17 +550,19 @@ export function SwapChatModal({
                   <strong>{partnerProfile?.completedSwapsCount ?? 0}</strong> {(partnerProfile?.completedSwapsCount ?? 0) === 1 ? 'completed swap' : 'completed swaps'}
                 </span>
               </div>
-              <p className="chat-subtitle" style={{ marginTop: '0.2rem' }}>{swap.topic}</p>
+              <p className="chat-subtitle">{swap.topic}</p>
             </div>
           </div>
 
           <div className="chat-modal-header-actions">
-            <span className="chat-credits-badge">
-              ⚡ {swap.creditAmount} SkillCredits
-            </span>
-            <span className={`as-status-badge as-status-badge--${swap.status}`}>
-              ● {swap.status}
-            </span>
+            <div className="chat-header-badges">
+              <span className="chat-credits-badge">
+                ⚡ {swap.creditAmount} SkillCredits
+              </span>
+              <span className={`as-status-badge as-status-badge--${swap.status}`}>
+                ● {swap.status}
+              </span>
+            </div>
             <button type="button" className="chat-close-btn" onClick={onClose} aria-label="Close workspace">
               ×
             </button>
