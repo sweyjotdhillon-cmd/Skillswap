@@ -615,7 +615,7 @@ export function CreateSwapPage({ onNavigate }: CreateSwapPageProps) {
                       error={errors.description}
                     />
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', gap: '1rem' }}>
                       <button
                         type="button"
                         className="btn-save-draft"

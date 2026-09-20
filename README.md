@@ -244,6 +244,8 @@ VITE_SUPABASE_URL=https://your-supabase-project.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-anon-key
 ```
 
+> **Note**: `VITE_SUPABASE_PUBLISHABLE_KEY` is preferred. `VITE_SUPABASE_ANON_KEY` is also supported for backwards compatibility.
+
 For Supabase Edge Functions deployment, configure the following secrets in your Supabase project:
 
 ```bash
@@ -251,6 +253,11 @@ SUPABASE_URL=https://your-supabase-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 ALLOWED_ORIGIN=https://your-app-domain.workers.dev
 ```
+
+### Production Authentication URL Configuration
+When deploying to production, update the hosted Supabase project's **Authentication -> URL Configuration** in the Supabase Dashboard:
+- **Site URL**: Set to the real production application URL (e.g., `https://your-app-domain.workers.dev`).
+- **Redirect URLs**: Add exact redirect URLs used for OAuth callbacks, email verification, and password resets (e.g., `https://your-app-domain.workers.dev/reset-password`, `https://your-app-domain.workers.dev/verify-email`).
 
 ---
 

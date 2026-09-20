@@ -606,7 +606,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                 {/* Custom skills */}
                 {customSkills.map((cs) => (
                   <div key={cs.id} className="profile-skill-chip profile-skill-chip--custom">
-                      <span className="profile-skill-name">{cs.skill_name || cs.name}</span>
+                    <span className="profile-skill-name">{cs.skill_name}</span>
                     <span className="profile-custom-tag">Custom</span>
                   </div>
                 ))}
@@ -852,13 +852,13 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   {predefinedSkills.map((us) => {
                     const skillName = us.skills?.name || 'Predefined Skill';
                     return (
-                      <span key={us.id || us.skill_id} className="skill-chip">
+                      <span key={us.id} className="skill-chip">
                         <span className="skill-chip-name">{skillName}</span>
                         <button
                           type="button"
                           className="skill-chip-remove"
                           title={`Remove ${skillName}`}
-                          onClick={() => handleRemoveSkill('predefined', us.skill_id)}
+                          onClick={() => handleRemoveSkill('predefined', us.id)}
                           disabled={skillSubmitting}
                         >
                           &times;
@@ -866,24 +866,21 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                       </span>
                     );
                   })}
-                  {customSkills.map((cs) => {
-                    const cName = cs.skill_name || cs.name || 'Custom Skill';
-                    return (
-                      <span key={cs.id} className="skill-chip">
-                        <span className="skill-chip-name">{cName}</span>
-                        <span className="custom-skill-badge">Custom</span>
-                        <button
-                          type="button"
-                          className="skill-chip-remove"
-                          title={`Remove ${cName}`}
-                          onClick={() => handleRemoveSkill('custom', cs.id)}
-                          disabled={skillSubmitting}
-                        >
-                          &times;
-                        </button>
-                      </span>
-                    );
-                  })}
+                  {customSkills.map((cs) => (
+                    <span key={cs.id} className="skill-chip">
+                      <span className="skill-chip-name">{cs.skill_name}</span>
+                      <span className="custom-skill-badge">Custom</span>
+                      <button
+                        type="button"
+                        className="skill-chip-remove"
+                        title={`Remove ${cs.skill_name}`}
+                        onClick={() => handleRemoveSkill('custom', cs.id)}
+                        disabled={skillSubmitting}
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))}
                 </div>
               )}
             </div>

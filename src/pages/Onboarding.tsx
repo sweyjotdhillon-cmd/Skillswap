@@ -118,7 +118,7 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
           for (const cs of existingSkills.custom) {
             loadedSkills.push({
               id: `custom-${cs.id}`,
-              name: cs.skill_name || cs.name || 'Custom Skill',
+              name: cs.skill_name,
               isCustom: true,
             });
           }

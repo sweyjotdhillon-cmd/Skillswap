@@ -74,26 +74,25 @@ export function SwapChatModal({
   isApproving = false,
 }: SwapChatModalProps) {
   const { user } = useAuth();
-  const [freshSwap, setFreshSwap] = useState<Swap | null>(null);
+  const [currentSwap, setCurrentSwap] = useState<Swap>(initialSwap);
   const [messages, setMessages] = useState<SwapMessage[]>([]);
   const [input, setInput] = useState<string>('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [sending, setSending] = useState<boolean>(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
-  // Authoritatively derive current swap: initialSwap is immediately authoritative when props change
-  const swap = (freshSwap && freshSwap.id === initialSwap.id) ? freshSwap : initialSwap;
+  // Keep currentSwap synchronized if initialSwap changes
+  useEffect(() => {
+    setCurrentSwap(initialSwap);
+  }, [initialSwap]);
 
   // Fetch fresh database-backed swap object upon mount or when initialSwap.id changes
   useEffect(() => {
     let active = true;
-    const targetSwapId = initialSwap.id;
-    setFreshSwap(null);
-
     const fetchFreshSwap = async () => {
-      const { data } = await getSwapById(targetSwapId);
-      if (active && data && data.id === initialSwap.id) {
-        setFreshSwap(mapSwapRecordToSwap(data));
+      const { data } = await getSwapById(initialSwap.id);
+      if (active && data) {
+        setCurrentSwap(mapSwapRecordToSwap(data));
       }
     };
     void fetchFreshSwap();
@@ -101,6 +100,8 @@ export function SwapChatModal({
       active = false;
     };
   }, [initialSwap.id]);
+
+  const swap = currentSwap;
 
   // Mobile active view tab state (for responsive breakpoints <= 768px)
   const [mobileActiveTab, setMobileActiveTab] = useState<'chat' | 'workspace'>('chat');
@@ -164,33 +165,21 @@ export function SwapChatModal({
   // Load persisted submission and attachments for context
   useEffect(() => {
     let active = true;
-    const targetSwapId = initialSwap.id;
-    setSubmission(null);
-    setCreatorAttachments([]);
-
     const fetchWorkspaceDetails = async () => {
       const [subRes, attRes] = await Promise.all([
-        getSwapSubmission(targetSwapId),
-        getSwapAttachments(targetSwapId),
+        getSwapSubmission(swap.id),
+        getSwapAttachments(swap.id),
       ]);
       if (!active) return;
-      if (subRes.data && subRes.data.swapId === targetSwapId) {
-        setSubmission(subRes.data);
-      } else {
-        setSubmission(null);
-      }
-      if (attRes.data) {
-        setCreatorAttachments(attRes.data);
-      } else {
-        setCreatorAttachments([]);
-      }
+      if (subRes.data) setSubmission(subRes.data);
+      if (attRes.data) setCreatorAttachments(attRes.data);
     };
 
     void fetchWorkspaceDetails();
     return () => {
       active = false;
     };
-  }, [initialSwap.id, swap.status]);
+  }, [swap.id, swap.status]);
 
   // Modal Escape key listener
   useEffect(() => {
@@ -216,15 +205,10 @@ export function SwapChatModal({
 
   // Primary effect: Manage Realtime postgres_changes + Broadcast subscription & database initial fetch / reconnect catch-up
   useEffect(() => {
-    const targetSwapId = initialSwap.id;
     setChatError(null);
-    setMessages([]);
-    setInput('');
-    setSelectedFiles([]);
-    setSending(false);
 
     const supabase = getSupabaseBrowserClient();
-    if (!supabase || !targetSwapId) return;
+    if (!supabase || !swap.id) return;
 
     let isMounted = true;
 
@@ -250,12 +234,12 @@ export function SwapChatModal({
 
       // Helper to fetch latest persisted messages from PostgreSQL
       const fetchPersistedMessages = async () => {
-        const res = await getSwapMessages(targetSwapId);
+        const res = await getSwapMessages(swap.id);
         if (!isMounted) return;
 
         if (res.error) {
           setChatError(res.error);
-        } else if (res.data) {
+        } else {
           setMessages((prev) => mergeAndDeduplicate(prev, res.data));
         }
       };
@@ -269,7 +253,7 @@ export function SwapChatModal({
         return;
       }
 
-      const channelName = `skillswap-chat:${targetSwapId}`;
+      const channelName = `skillswap-chat:${swap.id}`;
       const channel = supabase.channel(channelName, {
         config: {
           broadcast: { self: true },
@@ -282,7 +266,7 @@ export function SwapChatModal({
         .on('broadcast', { event: 'chat_message' }, (payload) => {
           if (!isMounted) return;
           const msg = payload.payload as SwapMessage;
-          if (!msg || !msg.id || msg.swapId !== targetSwapId) return;
+          if (!msg || !msg.id || msg.swapId !== swap.id) return;
 
           setMessages((prev) => mergeAndDeduplicate(prev, [msg]));
         })
@@ -292,7 +276,7 @@ export function SwapChatModal({
             event: 'INSERT',
             schema: 'public',
             table: 'swap_messages',
-            filter: `swap_id=eq.${targetSwapId}`,
+            filter: `swap_id=eq.${swap.id}`,
           },
           (payload) => {
             if (!isMounted) return;
@@ -307,7 +291,7 @@ export function SwapChatModal({
               expires_at?: string;
             };
 
-            if (raw && raw.id && raw.swap_id === targetSwapId) {
+            if (raw && raw.id && raw.swap_id === swap.id) {
               const incomingMsg: SwapMessage = {
                 id: raw.id,
                 swapId: raw.swap_id,
@@ -346,7 +330,7 @@ export function SwapChatModal({
         channelRef.current = null;
       }
     };
-  }, [initialSwap.id, swap.status, swap.participantId, user, canChat, recipientId, isRequester, isParticipant, isOpenSwapApplicant]);
+  }, [swap.id, swap.status, swap.participantId, user, canChat, recipientId, isRequester, isParticipant, isOpenSwapApplicant]);
 
   // Auto-scroll to bottom on message list update
   useEffect(() => {
@@ -543,20 +527,20 @@ export function SwapChatModal({
         <div className="chat-modal-header">
           <div className="chat-user-header-info">
             <img src={displayAvatar} alt={`Profile photo of ${displayName}`} className="chat-avatar swap-avatar-ring" />
-            <div className="chat-header-text-details">
-              <div className="chat-header-name-row">
-                <h3 className="chat-title">
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                <h3 className="chat-title" style={{ margin: 0 }}>
                   Swap Workspace with {displayName}
                 </h3>
                 {partnerProfile?.username && (
-                  <span className="chat-header-username">
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>
                     @{partnerProfile.username}
                   </span>
                 )}
                 <VerificationBadge isVerified={isPartnerVerified} size="sm" />
               </div>
-              <div className="chat-header-stats-row">
-                <span className="chat-header-rating">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.15rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: (partnerProfile?.reviewCount ?? 0) > 0 ? 600 : 400, color: (partnerProfile?.reviewCount ?? 0) > 0 ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>
                   {partnerProfile?.reviewCount && partnerProfile.reviewCount > 0 && partnerProfile?.averageRating !== null && partnerProfile?.averageRating !== undefined
                     ? `★ ${partnerProfile.averageRating.toFixed(1)} (${partnerProfile.reviewCount} ${partnerProfile.reviewCount === 1 ? 'review' : 'reviews'})`
                     : 'No reviews yet'}
@@ -566,19 +550,17 @@ export function SwapChatModal({
                   <strong>{partnerProfile?.completedSwapsCount ?? 0}</strong> {(partnerProfile?.completedSwapsCount ?? 0) === 1 ? 'completed swap' : 'completed swaps'}
                 </span>
               </div>
-              <p className="chat-subtitle">{swap.topic}</p>
+              <p className="chat-subtitle" style={{ marginTop: '0.2rem' }}>{swap.topic}</p>
             </div>
           </div>
 
           <div className="chat-modal-header-actions">
-            <div className="chat-header-badges">
-              <span className="chat-credits-badge">
-                ⚡ {swap.creditAmount} SkillCredits
-              </span>
-              <span className={`as-status-badge as-status-badge--${swap.status}`}>
-                ● {swap.status}
-              </span>
-            </div>
+            <span className="chat-credits-badge">
+              ⚡ {swap.creditAmount} SkillCredits
+            </span>
+            <span className={`as-status-badge as-status-badge--${swap.status}`}>
+              ● {swap.status}
+            </span>
             <button type="button" className="chat-close-btn" onClick={onClose} aria-label="Close workspace">
               ×
             </button>
