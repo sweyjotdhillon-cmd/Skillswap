@@ -22,8 +22,11 @@ export function getCorsHeaders(req: Request): Record<string, string> | null {
   let isAllowed = allowedOrigins.includes(cleanOrigin);
 
   if (!isAllowed) {
-    // Allow localhost / 127.0.0.1 origins for local development
-    if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin)) {
+    // Allow localhost / 127.0.0.1 origins only when explicitly enabled via environment variable
+    const allowLocal =
+      Deno.env.get('ALLOW_LOCAL_ORIGINS') === 'true' ||
+      Deno.env.get('DENO_ENV') === 'development';
+    if (allowLocal && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin)) {
       isAllowed = true;
     }
   }
