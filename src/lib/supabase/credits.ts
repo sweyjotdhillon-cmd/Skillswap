@@ -766,6 +766,35 @@ export async function getUserSwaps(userId: string): Promise<GetUserSwapsResult> 
   }
 }
 
+/** Fetches a single swap record by ID directly from the database. */
+export async function getSwapById(swapId: string): Promise<{ data: SwapRecord | null; error?: string }> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase || !swapId) return { data: null, error: !swapId ? 'Swap ID is missing.' : 'Supabase client is unavailable.' };
+  try {
+    const { data, error } = await supabase
+      .from('swaps')
+      .select(`
+        *,
+        swap_tag_links(
+          tag:swap_tags(slug)
+        ),
+        requester_profile:profiles!swaps_requester_id_fkey(full_name, username, avatar_url, profile_completed, is_verified, average_rating, review_count, completed_swaps_count, created_at),
+        participant_profile:profiles!swaps_participant_id_fkey(full_name, username, avatar_url, profile_completed, is_verified, average_rating, review_count, completed_swaps_count, created_at)
+      `)
+      .eq('id', swapId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching swap by ID:', error);
+      return { data: null, error: formatFriendlyErrorMessage(error) };
+    }
+    return { data: (data || null) as SwapRecord | null };
+  } catch (err) {
+    console.error('Unexpected error fetching swap by ID:', err);
+    return { data: null, error: formatFriendlyErrorMessage(err) };
+  }
+}
+
 /** Fetches the count of completed swaps for a given user ID from real database records. */
 export async function getUserCompletedSwapsCount(userId: string): Promise<number> {
   const supabase = getSupabaseBrowserClient();

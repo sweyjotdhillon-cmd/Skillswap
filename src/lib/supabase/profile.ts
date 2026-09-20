@@ -124,13 +124,13 @@ export function formatFriendlyErrorMessage(error: unknown): string {
 
   // 3. Chat & Workspace Specific Authorization Errors
   if (lower.includes('user is not a participant') || lower.includes('not a participant in this swap')) {
-    return 'This account is not a participant in this swap.';
+    return 'You are not a participant in this swap.';
   }
   if (lower.includes('invalid recipient')) {
     return 'This conversation recipient is no longer available.';
   }
   if (lower.includes('swap is not active') || lower.includes('swap is no longer active')) {
-    return 'This swap is no longer active.';
+    return 'This chat is no longer available because the swap has closed.';
   }
   if (lower.includes('cannot send open-swap messages to themselves') || lower.includes('cannot send messages to themselves')) {
     return 'You cannot send messages to yourself in an open swap.';
@@ -147,8 +147,8 @@ export function formatFriendlyErrorMessage(error: unknown): string {
     lower.includes('unauthorized credit operation') ||
     lower.includes('not authorized')
   ) {
-    if (lower.includes('swap_messages') || lower.includes('chat_message') || lower.includes('send_chat')) {
-      return 'You’re not authorized to send messages in this swap.';
+    if (lower.includes('swap_messages') || lower.includes('chat_message') || lower.includes('send_chat') || lower.includes('participants can send swap messages')) {
+      return "We couldn't send your message. Please try again.";
     }
     return 'You don’t have permission to perform this action. Make sure you’re signed in with the correct account.';
   }
