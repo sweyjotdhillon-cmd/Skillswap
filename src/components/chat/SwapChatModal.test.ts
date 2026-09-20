@@ -1,5 +1,6 @@
 import { SWAP_TAG_OPTIONS, getTagSlug, getTagLabel } from '../../constants/tags';
 import type { Swap, SwapSubmission, SwapMessage } from '../../types/swap';
+import { formatFileExpiryTime, getFileExpiryStatus } from '../../lib/fileExpiry';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -354,6 +355,56 @@ export function runSwapChatModalAndDesignSystemTests() {
   assert(errorUiContract.styles.overflowWrap === 'anywhere', 'Mobile error UI prevents horizontal scroll overflow with overflow-wrap: anywhere');
 
   // =========================================================================
+  // USER-FACING FILE EXPIRY & DELETION CONTRACT TESTS (ALL 4 SURFACES)
+  // =========================================================================
+  console.log('--- Executing User-Facing File Expiry & Deletion Contract Tests ---');
+
+  // 1. Creator Attachment Expiry Contract
+  const openCreatorAttachmentStatus = getFileExpiryStatus(null, false);
+  assert(openCreatorAttachmentStatus.isExpired === false, 'Creator attachment on open swap remains active');
+  assert(openCreatorAttachmentStatus.displayText === '', 'Open swap attachment displays no expiry text');
+
+  const acceptedCreatorExpiry = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
+  const acceptedCreatorStatus = getFileExpiryStatus(acceptedCreatorExpiry, false);
+  assert(acceptedCreatorStatus.isExpired === false, 'Accepted swap creator attachment reads 48h expiry');
+  assert(acceptedCreatorStatus.displayText.startsWith('Expires in'), 'Active creator attachment shows "Expires in X"');
+
+  const expiredCreatorStatus = getFileExpiryStatus(new Date(Date.now() - 1000).toISOString(), false);
+  assert(expiredCreatorStatus.isExpired === true, 'Exact expiry changes status to expired');
+  assert(expiredCreatorStatus.displayText === 'File expired', 'Expired creator attachment displays "File expired"');
+  assert(expiredCreatorStatus.subtext === 'This file is no longer available.', 'Expired creator attachment displays "This file is no longer available." subtext');
+
+  // 2. Submission Attachment Expiry Contract
+  const submissionExpiry = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+  const activeSubmissionStatus = getFileExpiryStatus(submissionExpiry, false);
+  assert(activeSubmissionStatus.isExpired === false, 'Submission attachment reads 24h expiry');
+  assert(activeSubmissionStatus.displayText.startsWith('Expires in'), 'Active submission shows "Expires in X"');
+
+  const expiredSubmissionStatus = getFileExpiryStatus(new Date(Date.now() - 5000).toISOString(), false);
+  assert(expiredSubmissionStatus.isExpired === true, 'Expired submission attachment is expired');
+  assert(expiredSubmissionStatus.displayText === 'File expired', 'Expired submission displays "File expired"');
+  assert(expiredSubmissionStatus.subtext === 'This file is no longer available.', 'Expired submission subtext verified');
+
+  // 3. Chat Attachment & Message Expiry Contract
+  const chatMessageBody = 'Here is the project outline doc for review.';
+  const chatAttachmentExpiry = new Date(Date.now() - 3600 * 1000).toISOString();
+  const expiredChatAttachmentStatus = getFileExpiryStatus(chatAttachmentExpiry, false);
+
+  assert(chatMessageBody === 'Here is the project outline doc for review.', 'Chat message text remains visible when attachment expires');
+  assert(expiredChatAttachmentStatus.isExpired === true, 'Chat attachment expires independently');
+  assert(expiredChatAttachmentStatus.displayText === 'File expired', 'Chat attachment uses "File expired" wording without "Deleted" conflict');
+  assert(expiredChatAttachmentStatus.subtext === 'This file is no longer available.', 'Chat attachment subtext verified');
+
+  // 4. Download Action Contract & Missing Storage Object Security
+  const isDownloadActionAvailable = (expiresAt?: string | null, isDeleted?: boolean | string | null) => {
+    return !getFileExpiryStatus(expiresAt, isDeleted).isExpired;
+  };
+
+  assert(isDownloadActionAvailable(acceptedCreatorExpiry, false) === true, 'Download action available for active attachment');
+  assert(isDownloadActionAvailable(acceptedCreatorExpiry, 'deleted') === false, 'Download action unavailable for deleted object');
+  assert(isDownloadActionAvailable(chatAttachmentExpiry, false) === false, 'Download action unavailable for expired attachment');
+
+  // =========================================================================
   // DETERMINISTIC TEST PATH SUITE (CASES A - I)
   // =========================================================================
   console.log('--- Executing Deterministic Test Path Suite (Cases A - I) ---');
@@ -436,8 +487,8 @@ export function runSwapChatModalAndDesignSystemTests() {
     deleteAfter: new Date(Date.now() - 3600 * 1000).toISOString(),
     deleteStatus: 'deleted',
   };
-  const isAttExpiredState = expiredAttachment.deleteStatus === 'deleted' || (expiredAttachment.deleteAfter && new Date(expiredAttachment.deleteAfter).getTime() <= Date.now());
-  assert(isAttExpiredState === true, 'Case H: Expired attachment shows explicit expired/deleted state while chat remains operational');
+  const isAttExpiredState = getFileExpiryStatus(expiredAttachment.deleteAfter, expiredAttachment.deleteStatus).isExpired;
+  assert(isAttExpiredState === true, 'Case H: Expired attachment shows explicit expired state while chat remains operational');
 
   // Case I: Realtime reconnect -> chat continues working
   const existingMsgsState: SwapMessage[] = [caseAMsg];

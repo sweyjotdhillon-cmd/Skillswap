@@ -55,8 +55,14 @@ export const FileExpiryIndicator: React.FC<FileExpiryIndicatorProps> = ({
     }
 
     // Dynamic timer update interval:
+    // Every 1s if under 1 minute remaining to capture exact expiry boundary
     // Every 10s if under 1 hour remaining, otherwise every 30s
-    const updateIntervalMs = currentStatus.remainingMs < 60 * 60 * 1000 ? 10000 : 30000;
+    const updateIntervalMs =
+      currentStatus.remainingMs < 60 * 1000
+        ? 1000
+        : currentStatus.remainingMs < 60 * 60 * 1000
+        ? 10000
+        : 30000;
 
     const timer = setInterval(() => {
       const nextStatus = getFileExpiryStatus(effectiveExpiresAt, isDeletedCombined);
@@ -75,7 +81,7 @@ export const FileExpiryIndicator: React.FC<FileExpiryIndicatorProps> = ({
     return null;
   }
 
-  const { displayText, urgency, isExpired } = expiryStatus;
+  const { displayText, subtext, urgency, isExpired } = expiryStatus;
 
   if (!displayText) {
     return null;
@@ -100,6 +106,8 @@ export const FileExpiryIndicator: React.FC<FileExpiryIndicatorProps> = ({
     borderColor = 'rgba(239, 68, 68, 0.3)';
   }
 
+  const tooltipText = subtext || displayText;
+
   if (inline) {
     return (
       <span
@@ -115,6 +123,7 @@ export const FileExpiryIndicator: React.FC<FileExpiryIndicatorProps> = ({
         }}
         role="status"
         aria-live="polite"
+        title={tooltipText}
       >
         <span aria-hidden="true">•</span>
         <span>{displayText}</span>
@@ -142,6 +151,7 @@ export const FileExpiryIndicator: React.FC<FileExpiryIndicatorProps> = ({
       }}
       role="status"
       aria-live="polite"
+      title={tooltipText}
     >
       <svg
         width="11"
