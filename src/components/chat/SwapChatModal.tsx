@@ -527,7 +527,7 @@ export function SwapChatModal({
         <div className="chat-modal-header">
           <div className="chat-user-header-info">
             <img src={displayAvatar} alt={`Profile photo of ${displayName}`} className="chat-avatar swap-avatar-ring" />
-            <div>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                 <h3 className="chat-title" style={{ margin: 0 }}>
                   Swap Workspace with {displayName}
