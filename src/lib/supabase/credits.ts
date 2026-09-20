@@ -413,25 +413,56 @@ export function formatAcceptSwapErrorMessage(
   return formatFriendlyErrorMessage(error);
 }
 
+/**
+ * Validates a chat attachment file before uploading.
+ * Checks file size and file extension support.
+ */
+export function validateChatAttachmentFile(file: File): { valid: boolean; error?: string } {
+  if (!file) {
+    return { valid: false, error: 'Attachment upload failed. Please try again.' };
+  }
+  if (file.size > 25 * 1024 * 1024) {
+    return { valid: false, error: 'File is too large. Maximum size is 25 MB.' };
+  }
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  const UNSUPPORTED_EXTENSIONS = new Set([
+    'exe', 'dll', 'so', 'dylib', 'bat', 'cmd', 'vbs', 'scr', 'msi', 'com', 'gadget',
+    'pif', 'application', 'hta', 'cpl', 'msc', 'jar', 'vb', 'vbe', 'js', 'jse', 'ws', 'wsf', 'wsc', 'wsh'
+  ]);
+  if (UNSUPPORTED_EXTENSIONS.has(ext)) {
+    return { valid: false, error: "This file type isn't supported." };
+  }
+  return { valid: true };
+}
+
 export function formatChatMessageErrorMessage(error: unknown): string {
-  if (!error) return 'Failed to send message.';
+  if (!error) return 'Attachment upload failed. Please try again.';
   logger.error('[Chat Technical Error Details]:', error);
 
-  const errObj = error as { message?: string; details?: string; code?: string; status?: number };
-  const rawMsg = typeof error === 'string' ? error : errObj.message || errObj.details || '';
+  const errObj = error as { message?: string; details?: string; code?: string; status?: number; statusCode?: number; error?: string };
+  const rawMsg = typeof error === 'string' ? error : errObj.message || errObj.details || errObj.error || '';
   const lower = rawMsg.toLowerCase();
   const code = errObj.code || '';
+  const status = errObj.status || errObj.statusCode;
 
-  if (lower.includes('jwt') || lower.includes('unauthorized') || lower.includes('not authenticated') || lower.includes('session expired')) {
-    return 'Your session has expired. Please sign in again.';
+  if (lower.includes('size exceeds') || lower.includes('too large') || lower.includes('max_size') || lower.includes('25mb')) {
+    return 'File is too large. Maximum size is 25 MB.';
   }
 
-  if (lower.includes('failed to fetch') || lower.includes('networkerror') || lower.includes('network error') || lower.includes('connection lost')) {
-    return 'Network connection error. Please check your internet connection and try again.';
+  if (lower.includes('unsupported') || lower.includes('restricted file extension') || lower.includes('invalid file extension') || lower.includes('mime_type_not_allowed')) {
+    return "This file type isn't supported.";
   }
 
-  if (code === '42501' || lower.includes('row-level security') || lower.includes('permission denied') || lower.includes('not a participant') || lower.includes('not authorized')) {
-    return 'You do not have permission to send messages in this swap.';
+  if (lower.includes('jwt') || lower.includes('unauthorized') || lower.includes('not authenticated') || lower.includes('session expired') || status === 401) {
+    return 'Your session expired. Please sign in again.';
+  }
+
+  if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('connection lost')) {
+    return 'Upload failed because of a connection problem. Please try again.';
+  }
+
+  if (status === 403 || code === '42501' || lower.includes('row-level security') || lower.includes('permission denied') || lower.includes('upload permission') || lower.includes('not authorized')) {
+    return 'Upload permission was denied for this file.';
   }
 
   return formatFriendlyErrorMessage(error);
@@ -439,29 +470,44 @@ export function formatChatMessageErrorMessage(error: unknown): string {
 
 export function formatSubmissionErrorMessage(error: unknown, fileName?: string): string {
   if (!error) {
-    return fileName ? `We couldn’t upload "${fileName}". Please try again.` : 'We couldn’t save your submission right now. Please try again.';
+    return fileName ? `We couldn’t upload "${fileName}". Please try again.` : 'Attachment upload failed. Please try again.';
   }
 
   // Preserve technical details in developer logs
   logger.error('[Submission Technical Error Details]:', error);
 
-  const errObj = error as { message?: string; details?: string; status?: number; statusCode?: number; error?: string; name?: string };
+  const errObj = error as { message?: string; details?: string; status?: number; statusCode?: number; error?: string; name?: string; code?: string };
   const rawMsg = typeof error === 'string' ? error : errObj.message || errObj.details || errObj.error || '';
   const lower = rawMsg.toLowerCase();
   const status = errObj.status || errObj.statusCode;
+  const code = errObj.code || '';
 
-  if (status === 400 || lower.includes('400') || lower.includes('bad request') || lower.includes('mime') || lower.includes('not allowed')) {
-    return fileName
-      ? `The file "${fileName}" could not be accepted. Check that the file is valid and under 25MB, then try again.`
-      : 'This file upload could not be accepted. Check that your files are valid and under 25MB, then try again.';
+  if (lower.includes('size exceeds') || lower.includes('too large') || lower.includes('25mb')) {
+    return 'File is too large. Maximum size is 25 MB.';
   }
 
-  if (lower.includes('jwt') || lower.includes('unauthorized') || lower.includes('not authenticated')) {
-    return 'Your session has expired. Please sign in again with your account to retry.';
+  if (lower.includes('unsupported') || lower.includes('restricted file extension') || lower.includes('mime_type_not_allowed') || lower.includes('invalid extension')) {
+    return "This file type isn't supported.";
+  }
+
+  if (lower.includes('jwt') || lower.includes('unauthorized') || lower.includes('not authenticated') || status === 401) {
+    return 'Your session expired. Please sign in again.';
+  }
+
+  if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('connection lost')) {
+    return 'Upload failed because of a connection problem. Please try again.';
+  }
+
+  if (status === 403 || code === '42501' || lower.includes('row-level security') || lower.includes('permission denied') || lower.includes('not authorized')) {
+    return 'Upload permission was denied for this file.';
   }
 
   if (lower.includes('duplicate') || lower.includes('already submitted')) {
     return 'Work has already been submitted for this swap. Check the active swap workspace for details.';
+  }
+
+  if (status === 400 || lower.includes('400') || lower.includes('bad request')) {
+    return "This file type isn't supported.";
   }
 
   return formatFriendlyErrorMessage(error);
@@ -956,11 +1002,12 @@ export async function sendSwapMessageWithAttachments(
 
   if (files && files.length > 0) {
     for (const file of files) {
-      if (file.size > 25 * 1024 * 1024) {
+      const validation = validateChatAttachmentFile(file);
+      if (!validation.valid) {
         if (uploadedPaths.length > 0) {
           await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
         }
-        return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
+        return { success: false, error: validation.error || 'Attachment upload failed. Please try again.' };
       }
 
       const storedFileName = sanitizeFileName(file.name);
@@ -979,7 +1026,7 @@ export async function sendSwapMessageWithAttachments(
         if (uploadedPaths.length > 0) {
           await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
         }
-        return { success: false, error: formatSubmissionErrorMessage(uploadErr, file.name) };
+        return { success: false, error: formatChatMessageErrorMessage(uploadErr) };
       }
 
       uploadedPaths.push(storagePath);

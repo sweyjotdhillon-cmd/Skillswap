@@ -95,8 +95,8 @@ export function runErrorRecoveryUnitTests() {
   console.log('Test 8: File upload failure recovery formatting...');
   const upload400Err = formatSubmissionErrorMessage({ status: 400 }, 'deliverable.png');
   assert(
-    upload400Err === 'The file "deliverable.png" could not be accepted. Check that the file is valid and under 25MB, then try again.',
-    'File upload error includes filename and file size guidance'
+    upload400Err === "This file type isn't supported.",
+    'File upload error with status 400 returns type error'
   );
 
   // =========================================================================
