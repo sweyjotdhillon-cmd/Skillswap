@@ -35,6 +35,9 @@ export function CreditHistoryModal({ isOpen, onClose }: CreditHistoryModalProps)
   useEffect(() => {
     if (!isOpen) return;
 
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     let isMounted = true;
     setLoadingTx(true);
     setErrorTx(null);
@@ -56,6 +59,7 @@ export function CreditHistoryModal({ isOpen, onClose }: CreditHistoryModalProps)
       });
 
     return () => {
+      document.body.style.overflow = originalOverflow;
       isMounted = false;
     };
   }, [isOpen, refreshAccount]);
