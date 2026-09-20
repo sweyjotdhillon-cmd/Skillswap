@@ -650,62 +650,46 @@ export function SwapChatModal({
                     hour: '2-digit',
                     minute: '2-digit',
                   });
+
+                  // Suppress redundant placeholder text when message has structured attachments
+                  const hasAttachments = Boolean(msg.attachments && msg.attachments.length > 0);
+                  const showMessageText = Boolean(msg.body && msg.body.trim() !== '[File Attachment]');
+
                   return (
                     <div
                       key={msg.id}
                       className={`chat-message-bubble ${isUser ? 'chat-message--user' : 'chat-message--other'}`}
                     >
-                      <p className="chat-message-text">{msg.body}</p>
+                      {showMessageText && <p className="chat-message-text">{msg.body}</p>}
 
                       {/* CHAT ATTACHMENTS DISPLAY */}
-                      {msg.attachments && msg.attachments.length > 0 && (
-                        <div className="chat-message-attachments" style={{ marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                          {msg.attachments.map((att) => {
+                      {hasAttachments && (
+                        <div className="chat-message-attachments">
+                          {msg.attachments!.map((att) => {
                             const expiryStatus = getFileExpiryStatus(att.deleteAfter ?? att.expiresAt, att.deletedAt ?? att.deleteStatus);
                             const isExpired = expiryStatus.isExpired;
                             const isOwner = user && att.uploadedBy === user.id;
                             const sizeKb = att.fileSize ? Math.round(att.fileSize / 1024) : 0;
 
                             return (
-                              <div
-                                key={att.id}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  background: 'rgba(0,0,0,0.18)',
-                                  padding: '0.35rem 0.6rem',
-                                  borderRadius: '8px',
-                                  fontSize: '0.8rem',
-                                  gap: '0.5rem',
-                                  minWidth: 0,
-                                  maxWidth: '100%',
-                                }}
-                              >
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', minWidth: 0, overflow: 'hidden' }}>
-                                    📎 <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', maxWidth: '100%' }}>{att.fileName}</strong> {sizeKb > 0 ? <span style={{ flexShrink: 0 }}>({sizeKb} KB)</span> : ''}
+                              <div key={att.id} className="chat-attachment-item">
+                                <div className="chat-attachment-info">
+                                  <span className="chat-attachment-filename-row">
+                                    <span className="chat-attachment-icon" aria-hidden="true">📎</span>
+                                    <strong className="chat-attachment-name">{att.fileName}</strong>
+                                    {sizeKb > 0 && <span className="chat-attachment-size">({sizeKb} KB)</span>}
                                   </span>
                                   <FileExpiryIndicator
                                     lifecycle={att}
                                     inline
                                   />
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                                <div className="chat-attachment-actions">
                                   {isExpired ? (
                                     <button
                                       type="button"
                                       disabled
-                                      style={{
-                                        background: 'transparent',
-                                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                                        color: 'var(--color-error, #ef4444)',
-                                        borderRadius: '4px',
-                                        padding: '0.15rem 0.45rem',
-                                        fontSize: '0.75rem',
-                                        cursor: 'not-allowed',
-                                        opacity: 0.7,
-                                      }}
+                                      className="chat-attachment-btn chat-attachment-btn--unavailable"
                                     >
                                       Unavailable
                                     </button>
@@ -713,15 +697,7 @@ export function SwapChatModal({
                                     <>
                                       <button
                                         type="button"
-                                        style={{
-                                          background: 'transparent',
-                                          border: '1px solid currentColor',
-                                          color: 'inherit',
-                                          borderRadius: '4px',
-                                          padding: '0.15rem 0.45rem',
-                                          fontSize: '0.75rem',
-                                          cursor: 'pointer',
-                                        }}
+                                        className="chat-attachment-btn chat-attachment-btn--download"
                                         disabled={downloadingFileId === att.id}
                                         onClick={() => handleDownloadChatAttachment(att.storagePath, att.fileName, att.id, att.deleteAfter ?? att.expiresAt, att.deletedAt ?? att.deleteStatus)}
                                       >
@@ -730,15 +706,9 @@ export function SwapChatModal({
                                       {isOwner && (
                                         <button
                                           type="button"
+                                          className="chat-attachment-btn chat-attachment-btn--delete"
                                           title="Delete attachment (6-hour window)"
-                                          style={{
-                                            background: 'transparent',
-                                            border: 'none',
-                                            color: 'var(--color-error, #ef4444)',
-                                            fontSize: '0.85rem',
-                                            cursor: 'pointer',
-                                            padding: '0 0.2rem',
-                                          }}
+                                          aria-label={`Delete ${att.fileName}`}
                                           onClick={() => handleDeleteChatAttachment(att.id)}
                                         >
                                           🗑️
