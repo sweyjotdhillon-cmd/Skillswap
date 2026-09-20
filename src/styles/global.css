@@ -149,9 +149,16 @@
   background: rgba(239, 68, 68, 0.08);
 }
 
-* { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; background: var(--bg-color); color: var(--text-color); transition: background-color 0.3s ease, color 0.3s ease; }
+
+/* Global Typography & Layout Resilience Rules */
+p, .lede, .support, .description, .chat-message-text {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
 a { color: inherit; text-decoration: none; }
 a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--color-structure) !important; outline-offset: 2px !important; }
 
@@ -2770,12 +2777,13 @@ h1 span { color: #a8781d; }
   font-weight: 600;
   cursor: pointer;
   padding: 0 0 0 0.35rem;
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 .ws-toggle-btn:hover,
 .ws-toggle-btn:focus-visible {
   color: var(--color-transactional, #d6a64a);
+  text-decoration: underline;
 }
 
 .ws-submission-notes {
@@ -4070,13 +4078,15 @@ h1 span { color: #a8781d; }
   color: #d97706;
   font-size: 0.85rem;
   font-weight: 600;
-  text-decoration: underline;
+  text-decoration: none;
   cursor: pointer;
   padding: 0;
 }
 
-.as-view-profile-link:hover {
+.as-view-profile-link:hover,
+.as-view-profile-link:focus-visible {
   color: #b45309;
+  text-decoration: underline;
 }
 
 .as-detail-user-location {
@@ -5289,12 +5299,14 @@ h1 span { color: #a8781d; }
   background: transparent;
   border: none;
   color: rgba(17, 22, 28, 0.65);
-  text-decoration: underline;
+  text-decoration: none;
   padding: 0.4rem 0.5rem;
 }
 
-.sr-btn--link:hover {
+.sr-btn--link:hover,
+.sr-btn--link:focus-visible {
   color: #d97706;
+  text-decoration: underline;
 }
 
 .sr-btn--secondary {
