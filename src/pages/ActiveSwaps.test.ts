@@ -323,6 +323,29 @@ export function runActiveSwapsInformationArchitectureUnitTests() {
   const needsActionActive = activeList.filter((s) => s.needsAction);
   assert(needsActionActive.length === 2, 'Test 7: Sub-filter "Needs Action" returns both action-required items');
 
+  // Test 8: ID-based chat selection model resolves latest item from active, listings, or history
+  const activeChatSwapId = 'swap-accepted-as-provider';
+  const resolveActiveChatItem = (id: string | null, active: CategorizedSwapItem[], listings: CategorizedSwapItem[], history: CategorizedSwapItem[]) => {
+    if (!id) return null;
+    return active.find((s) => s.swap.id === id) || listings.find((s) => s.swap.id === id) || history.find((s) => s.swap.id === id) || null;
+  };
+
+  const resolvedItem = resolveActiveChatItem(activeChatSwapId, activeList, listingsList, historyList);
+  assert(resolvedItem !== null, 'Test 8: ID-based chat selection finds matching item');
+  assert(resolvedItem?.swap.id === activeChatSwapId, 'Test 8: Resolved item matches target ID');
+
+  // Test 9: ID-based chat selection updates cleanly on realtime/list refresh without retaining stale object
+  const updatedSwaps: Swap[] = mockSwaps.map((s) =>
+    s.id === 'swap-accepted-as-provider' ? { ...s, status: 'submitted', submittedAt: '2026-03-04T10:00:00Z' } : s
+  );
+  const { activeList: updatedActiveList } = categorizeSwaps(updatedSwaps, currentUserId);
+  const refreshedResolvedItem = resolveActiveChatItem(activeChatSwapId, updatedActiveList, listingsList, historyList);
+  assert(refreshedResolvedItem?.swap.status === 'submitted', 'Test 9: ID-based chat lookup reflects updated swap status from fresh list');
+
+  // Test 10: Selected ID disappearing from all collections resolves to null (clean closure)
+  const missingResolvedItem = resolveActiveChatItem('non-existent-swap-id', activeList, listingsList, historyList);
+  assert(missingResolvedItem === null, 'Test 10: Non-existent or disappeared swap ID resolves to null');
+
   console.log('✓ All Active Swaps Information Architecture unit tests passed perfectly!');
 }
 
