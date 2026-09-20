@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getSupabaseBrowserClient } from '../../lib/supabase/client';
 import {
   getSwapMessages,
+  getSwapById,
   sendSwapMessageWithAttachments,
   getSwapSubmission,
   getSwapAttachments,
@@ -13,7 +14,7 @@ import {
   deleteChatAttachmentManual,
   type SwapAttachment,
 } from '../../lib/supabase/credits';
-import type { Swap, SwapMessage, SwapSubmission } from '../../types/swap';
+import { mapSwapRecordToSwap, type Swap, type SwapMessage, type SwapSubmission } from '../../types/swap';
 import { getTagLabel } from '../../constants/tags';
 import { TransactionProgress } from '../transaction/TransactionProgress';
 import { PendingTransactionVault } from '../transaction/PendingTransactionVault';
@@ -62,7 +63,7 @@ function mergeAndDeduplicate(existing: SwapMessage[], incoming: SwapMessage[]): 
 }
 
 export function SwapChatModal({
-  swap,
+  swap: initialSwap,
   partnerName,
   partnerAvatar,
   onClose,
@@ -71,11 +72,34 @@ export function SwapChatModal({
   isApproving = false,
 }: SwapChatModalProps) {
   const { user } = useAuth();
+  const [currentSwap, setCurrentSwap] = useState<Swap>(initialSwap);
   const [messages, setMessages] = useState<SwapMessage[]>([]);
   const [input, setInput] = useState<string>('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [sending, setSending] = useState<boolean>(false);
   const [chatError, setChatError] = useState<string | null>(null);
+
+  // Keep currentSwap synchronized if initialSwap changes
+  useEffect(() => {
+    setCurrentSwap(initialSwap);
+  }, [initialSwap]);
+
+  // Fetch fresh database-backed swap object upon mount or when initialSwap.id changes
+  useEffect(() => {
+    let active = true;
+    const fetchFreshSwap = async () => {
+      const { data } = await getSwapById(initialSwap.id);
+      if (active && data) {
+        setCurrentSwap(mapSwapRecordToSwap(data));
+      }
+    };
+    void fetchFreshSwap();
+    return () => {
+      active = false;
+    };
+  }, [initialSwap.id]);
+
+  const swap = currentSwap;
 
   // Mobile active view tab state (for responsive breakpoints <= 768px)
   const [mobileActiveTab, setMobileActiveTab] = useState<'chat' | 'workspace'>('chat');
@@ -107,6 +131,13 @@ export function SwapChatModal({
   let recipientId: string | null = null;
   if (isRequester) {
     recipientId = swap.participantId;
+    // Fallback for open swaps: if participantId is not yet assigned, derive applicant recipient from messages
+    if (!recipientId && swap.status === 'open' && messages.length > 0) {
+      const applicantMsg = messages.find((m) => m.senderId !== currentUserId);
+      if (applicantMsg) {
+        recipientId = applicantMsg.senderId;
+      }
+    }
   } else if (isParticipant) {
     recipientId = swap.requesterId;
   } else if (isOpenSwapApplicant) {
@@ -172,9 +203,9 @@ export function SwapChatModal({
 
     if (!canChat || !recipientId) {
       if (['cancelled', 'declined', 'withdrawn', 'expired'].includes(swap.status)) {
-        setChatError('This swap is no longer active.');
+        setChatError('This chat is no longer available because the swap has closed.');
       } else if (!isRequester && !isParticipant && !isOpenSwapApplicant) {
-        setChatError('This account is not a participant in this swap.');
+        setChatError('You are not a participant in this swap.');
       } else if (isRequester && swap.status !== 'open' && !swap.participantId) {
         setChatError('This swap does not have an active participant.');
       }
@@ -270,9 +301,11 @@ export function SwapChatModal({
       .subscribe((status, err) => {
         if (!isMounted) return;
         if (status === 'SUBSCRIBED') {
+          setChatError((prev) => (prev === 'Connection lost. Reconnecting…' ? null : prev));
           void fetchPersistedMessages();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.error(`[Realtime Chat] Channel subscription status: ${status}`, err);
+          setChatError('Connection lost. Reconnecting…');
         }
       });
 
@@ -329,11 +362,11 @@ export function SwapChatModal({
 
     if (!canChat || !recipientId) {
       if (['cancelled', 'declined', 'withdrawn', 'expired'].includes(swap.status)) {
-        setChatError('This swap is no longer active.');
+        setChatError('This chat is no longer available because the swap has closed.');
       } else if (!isRequester && !isParticipant && !isOpenSwapApplicant) {
-        setChatError('This account is not a participant in this swap.');
+        setChatError('You are not a participant in this swap.');
       } else {
-        setChatError('You’re not authorized to send messages in this swap.');
+        setChatError("We couldn't send your message. Please try again.");
       }
       return;
     }
