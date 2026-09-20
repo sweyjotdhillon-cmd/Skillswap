@@ -7,6 +7,15 @@ export interface FileExpiryStatus {
   subtext: string;
   remainingMs: number;
   urgency: 'normal' | 'soon' | 'very_soon' | 'expired';
+  isPreAcceptance?: boolean;
+}
+
+/**
+ * Checks whether an attachment is in the explicit temporary pre-acceptance state
+ * where storage_expires_at is NULL prior to swap acceptance.
+ */
+export function isPreAcceptanceAttachment(expiresAtTimestamp?: string | null): boolean {
+  return !expiresAtTimestamp;
 }
 
 /**
@@ -78,15 +87,17 @@ export function getFileExpiryStatus(
         subtext: 'This file is no longer available.',
         remainingMs: 0,
         urgency: 'expired',
+        isPreAcceptance: false,
       };
     }
     return {
       isExpired: false,
       isDeleted: false,
       displayText: '',
-      subtext: '',
+      subtext: 'Available upon swap acceptance',
       remainingMs: Infinity,
       urgency: 'normal',
+      isPreAcceptance: true,
     };
   }
 
@@ -99,6 +110,7 @@ export function getFileExpiryStatus(
       subtext: isDeleted ? 'This file is no longer available.' : '',
       remainingMs: isDeleted ? 0 : Infinity,
       urgency: isDeleted ? 'expired' : 'normal',
+      isPreAcceptance: false,
     };
   }
 
@@ -113,6 +125,7 @@ export function getFileExpiryStatus(
       subtext: 'This file is no longer available.',
       remainingMs: Math.max(0, remainingMs),
       urgency: 'expired',
+      isPreAcceptance: false,
     };
   }
 
@@ -125,6 +138,7 @@ export function getFileExpiryStatus(
     subtext: '',
     remainingMs,
     urgency,
+    isPreAcceptance: false,
   };
 }
 
