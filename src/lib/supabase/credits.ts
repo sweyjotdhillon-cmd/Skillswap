@@ -193,7 +193,7 @@ export async function acceptCreditSwap(swapId: string): Promise<{ success: boole
     p_swap_id: swapId,
   });
   if (error || !data) return { success: false, error: formatFriendlyErrorMessage(error ?? new Error('Failed to accept swap.')) };
-  return { success: true, swap: data as SwapRecord };
+  return { success: true, swap: data as unknown as SwapRecord };
 }
 
 export interface SubmitSwapWorkInput {
@@ -1143,12 +1143,17 @@ export async function deleteChatAttachmentManual(attachmentId: string): Promise<
   if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
 
   try {
-    const { error } = await supabase.rpc('delete_chat_attachment_manual', {
+    const { error } = await supabase.rpc('delete_swap_message_attachment', {
       p_attachment_id: attachmentId,
     });
 
     if (error) {
-      return { success: false, error: formatFriendlyErrorMessage(error) };
+      const { error: fallbackErr } = await supabase.rpc('delete_chat_attachment_manual', {
+        p_attachment_id: attachmentId,
+      });
+      if (fallbackErr) {
+        return { success: false, error: formatFriendlyErrorMessage(fallbackErr) };
+      }
     }
 
     return { success: true };
@@ -1507,7 +1512,7 @@ export async function getUserAccount(): Promise<Account | null> {
       return selectData as Account;
     }
 
-    return data as Account;
+    return data as unknown as Account;
   } catch (err) {
     console.error('Unexpected error fetching user account:', err);
     return null;
@@ -1545,7 +1550,7 @@ export async function getCreditTransactions(
       return (selectData || []) as CreditTransaction[];
     }
 
-    return (data || []) as CreditTransaction[];
+    return (data || []) as unknown as CreditTransaction[];
   } catch (err) {
     console.error('Unexpected error fetching transaction history:', err);
     return [];
@@ -1574,8 +1579,9 @@ export async function submitSwapReview(
       return { success: false, error: formatFriendlyErrorMessage(error) };
     }
 
-    if (!data || data.success !== true) {
-      return { success: false, error: data?.error || 'Failed to submit review.' };
+    const res = data as unknown as { success?: boolean; error?: string } | null;
+    if (!res || res.success !== true) {
+      return { success: false, error: res?.error || 'Failed to submit review.' };
     }
 
     return { success: true };
