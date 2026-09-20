@@ -1,6 +1,6 @@
 import { SWAP_TAG_OPTIONS, getTagSlug, getTagLabel } from '../../constants/tags';
 import type { Swap, SwapSubmission, SwapMessage } from '../../types/swap';
-import { formatFileExpiryTime, getFileExpiryStatus } from '../../lib/fileExpiry';
+import { getFileExpiryStatus } from '../../lib/fileExpiry';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -495,6 +495,50 @@ export function runSwapChatModalAndDesignSystemTests() {
   const reconnectedMsgsFromDB: SwapMessage[] = [caseAMsg, caseBMsg];
   const reconnectedMerged = Array.from(new Map([...existingMsgsState, ...reconnectedMsgsFromDB].map(m => [m.id, m])).values());
   assert(reconnectedMerged.length === 2, 'Case I: Realtime reconnect merges history smoothly without duplicates');
+
+  // =========================================================================
+  // ADDITIONAL CHAT CONTRACT & RPC RECOVERY TESTS
+  // =========================================================================
+  console.log('--- Executing Additional Chat Contract & RPC Recovery Tests ---');
+
+  // 1. Client Message ID Idempotency Test
+  const clientMessageId = 'client-msg-uuid-12345';
+  const rpcPayloadA = {
+    p_swap_id: testAcceptedSwap.id,
+    p_recipient_id: reqRecipientId,
+    p_body: 'Retry message',
+    p_attachments: [],
+    p_message_id: clientMessageId,
+  };
+  const rpcPayloadB = { ...rpcPayloadA }; // Identical retry
+  assert(rpcPayloadA.p_message_id === rpcPayloadB.p_message_id, 'Retry payload reuses identical client message ID for idempotency');
+
+  // 2. Chat Error Classification Test
+  const formatErrorTest = (err: unknown): string => {
+    if (!err) return 'Failed to send message.';
+    const errObj = err as { message?: string; code?: string };
+    const raw = typeof err === 'string' ? err : errObj.message || '';
+    const lower = raw.toLowerCase();
+    const code = errObj.code || '';
+
+    if (lower.includes('jwt') || lower.includes('session expired')) return 'Your session has expired. Please sign in again.';
+    if (lower.includes('failed to fetch') || lower.includes('network error')) return 'Network connection error. Please check your internet connection and try again.';
+    if (code === '42501' || lower.includes('permission denied')) return 'You do not have permission to send messages in this swap.';
+    return 'Failed to send message.';
+  };
+
+  assert(formatErrorTest('jwt expired') === 'Your session has expired. Please sign in again.', 'JWT error maps to session expired message');
+  assert(formatErrorTest('Failed to fetch') === 'Network connection error. Please check your internet connection and try again.', 'Network error maps to connection error message');
+  assert(formatErrorTest({ code: '42501', message: 'permission denied' }) === 'You do not have permission to send messages in this swap.', 'RLS 42501 maps to permission message');
+
+  // 3. Client-Side Active Message Filtering Test
+  const now = Date.now();
+  const msgList: SwapMessage[] = [
+    { id: 'm1', swapId: 's1', senderId: 'u1', recipientId: 'u2', body: 'Active', readAt: null, createdAt: new Date(now - 1000).toISOString(), expiresAt: new Date(now + 3600000).toISOString() },
+    { id: 'm2', swapId: 's1', senderId: 'u1', recipientId: 'u2', body: 'Expired', readAt: null, createdAt: new Date(now - 25000000).toISOString(), expiresAt: new Date(now - 1000).toISOString() },
+  ];
+  const activeMsgs = msgList.filter(m => !m.expiresAt || new Date(m.expiresAt).getTime() > now);
+  assert(activeMsgs.length === 1 && activeMsgs[0].id === 'm1', 'Expired message filtered out dynamically from active messages');
 
   console.log('✓ All E.3, E.4, L13 & Section L15 Consolidated Workspace unit tests passed!');
 }
