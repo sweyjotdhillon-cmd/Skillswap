@@ -354,7 +354,8 @@ export async function runCreatorAttachmentLifecycleTests() {
   const deletedUiStatus = getFileExpiryStatus(deletedAtt.storage_expires_at, deletedAtt.storage_delete_status);
   assert.strictEqual(deletedUiStatus.isExpired, true, 'UI identifies item as expired');
   assert.strictEqual(deletedUiStatus.isDeleted, true, 'UI identifies item as deleted');
-  assert.strictEqual(deletedUiStatus.displayText, 'Unavailable', 'UI displayText is explicit "Unavailable"');
+  assert.strictEqual(deletedUiStatus.displayText, 'File expired', 'UI displayText is explicit "File expired"');
+  assert.strictEqual(deletedUiStatus.subtext, 'This file is no longer available.', 'UI subtext explains unavailability');
   console.log('  -> Invariant 10 verified.');
 
   // =========================================================================

@@ -13,35 +13,35 @@ describe('File Expiry System Tests', () => {
     const ONE_DAY = 24 * ONE_HOUR;
 
     // 3 days
-    assert.strictEqual(formatFileExpiryTime(3 * ONE_DAY).text, '3 days left');
+    assert.strictEqual(formatFileExpiryTime(3 * ONE_DAY).text, 'Expires in 3 days');
     assert.strictEqual(formatFileExpiryTime(3 * ONE_DAY).urgency, 'normal');
 
     // 1 day
-    assert.strictEqual(formatFileExpiryTime(1.5 * ONE_DAY).text, '1 day left');
+    assert.strictEqual(formatFileExpiryTime(1.5 * ONE_DAY).text, 'Expires in 1 day');
 
     // 7 hours
-    assert.strictEqual(formatFileExpiryTime(7 * ONE_HOUR).text, '7 hours left');
+    assert.strictEqual(formatFileExpiryTime(7 * ONE_HOUR).text, 'Expires in 7 hours');
     assert.strictEqual(formatFileExpiryTime(7 * ONE_HOUR).urgency, 'normal');
 
     // 2 hours
-    assert.strictEqual(formatFileExpiryTime(2 * ONE_HOUR).text, '2 hours left');
+    assert.strictEqual(formatFileExpiryTime(2 * ONE_HOUR).text, 'Expires in 2 hours');
     assert.strictEqual(formatFileExpiryTime(2 * ONE_HOUR).urgency, 'soon');
 
     // 1 hour
-    assert.strictEqual(formatFileExpiryTime(1 * ONE_HOUR).text, '1 hour left');
+    assert.strictEqual(formatFileExpiryTime(1 * ONE_HOUR).text, 'Expires in 1 hour');
     assert.strictEqual(formatFileExpiryTime(1 * ONE_HOUR).urgency, 'soon');
 
     // 45 minutes
-    assert.strictEqual(formatFileExpiryTime(45 * ONE_MIN).text, '45 minutes left');
+    assert.strictEqual(formatFileExpiryTime(45 * ONE_MIN).text, 'Expires in 45 minutes');
     assert.strictEqual(formatFileExpiryTime(45 * ONE_MIN).urgency, 'very_soon');
 
     // 1 minute
-    assert.strictEqual(formatFileExpiryTime(1 * ONE_MIN).text, '1 minute left');
+    assert.strictEqual(formatFileExpiryTime(1 * ONE_MIN).text, 'Expires in 1 minute');
     assert.strictEqual(formatFileExpiryTime(1 * ONE_MIN).urgency, 'very_soon');
 
     // Already expired (<= 0)
-    assert.strictEqual(formatFileExpiryTime(0).text, 'Expired');
-    assert.strictEqual(formatFileExpiryTime(-1000).text, 'Expired');
+    assert.strictEqual(formatFileExpiryTime(0).text, 'File expired');
+    assert.strictEqual(formatFileExpiryTime(-1000).text, 'File expired');
   });
 
   test('getFileExpiryStatus evaluates timestamps and deletion flags accurately', () => {
@@ -54,18 +54,20 @@ describe('File Expiry System Tests', () => {
     const activeStatus = getFileExpiryStatus(inTwoHours, null);
     assert.strictEqual(activeStatus.isExpired, false);
     assert.strictEqual(activeStatus.isDeleted, false);
-    assert.strictEqual(activeStatus.displayText, '2 hours left');
+    assert.strictEqual(activeStatus.displayText, 'Expires in 2 hours');
 
     // Past file
     const pastStatus = getFileExpiryStatus(pastOneHour, null);
     assert.strictEqual(pastStatus.isExpired, true);
-    assert.strictEqual(pastStatus.displayText, 'Expired');
+    assert.strictEqual(pastStatus.displayText, 'File expired');
+    assert.strictEqual(pastStatus.subtext, 'This file is no longer available.');
 
     // Deleted file
     const deletedStatus = getFileExpiryStatus(inTwoHours, 'deleted');
     assert.strictEqual(deletedStatus.isExpired, true);
     assert.strictEqual(deletedStatus.isDeleted, true);
-    assert.strictEqual(deletedStatus.displayText, 'Unavailable');
+    assert.strictEqual(deletedStatus.displayText, 'File expired');
+    assert.strictEqual(deletedStatus.subtext, 'This file is no longer available.');
   });
 
   test('Data Model Mapping preserves authoritative expiry fields across file types', () => {

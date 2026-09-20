@@ -16,6 +16,7 @@ import {
 } from '../../lib/supabase/credits';
 import { mapSwapRecordToSwap, type Swap, type SwapMessage, type SwapSubmission } from '../../types/swap';
 import { getTagLabel } from '../../constants/tags';
+import { getFileExpiryStatus } from '../../lib/fileExpiry';
 import { TransactionProgress } from '../transaction/TransactionProgress';
 import { PendingTransactionVault } from '../transaction/PendingTransactionVault';
 import { VerificationBadge } from '../ui/VerificationBadge';
@@ -404,31 +405,71 @@ export function SwapChatModal({
     setSending(false);
   };
 
-  const handleDownloadFile = async (storagePath: string, fileName: string, fileId: string, isSubmission: boolean = true) => {
+  const handleDownloadFile = async (
+    storagePath: string,
+    fileName: string,
+    fileId: string,
+    isSubmission: boolean = true,
+    expiresAt?: string | null,
+    deleteStatus?: string | null
+  ) => {
+    const status = getFileExpiryStatus(expiresAt, deleteStatus);
+    if (status.isExpired) {
+      setChatError(`"${fileName}" is no longer available.`);
+      return;
+    }
+
     setDownloadingFileId(fileId);
     try {
       const signedUrl = isSubmission
         ? await getSubmissionFileSignedUrl(storagePath)
         : await getSwapAttachmentSignedUrl(storagePath);
-      if (signedUrl) {
-        await downloadFileFromSignedUrl(signedUrl, fileName);
+
+      if (!signedUrl) {
+        setChatError(`"${fileName}" is no longer available.`);
+        return;
+      }
+
+      const res = await downloadFileFromSignedUrl(signedUrl, fileName);
+      if (!res.success) {
+        setChatError(`"${fileName}" is no longer available.`);
       }
     } catch (err) {
       console.error('Workspace download error:', err);
+      setChatError(`"${fileName}" is no longer available.`);
     } finally {
       setDownloadingFileId(null);
     }
   };
 
-  const handleDownloadChatAttachment = async (storagePath: string, fileName: string, fileId: string) => {
+  const handleDownloadChatAttachment = async (
+    storagePath: string,
+    fileName: string,
+    fileId: string,
+    expiresAt?: string | null,
+    deleteStatus?: string | null
+  ) => {
+    const status = getFileExpiryStatus(expiresAt, deleteStatus);
+    if (status.isExpired) {
+      setChatError(`"${fileName}" is no longer available.`);
+      return;
+    }
+
     setDownloadingFileId(fileId);
     try {
       const signedUrl = await getSwapMessageAttachmentSignedUrl(storagePath);
-      if (signedUrl) {
-        await downloadFileFromSignedUrl(signedUrl, fileName);
+      if (!signedUrl) {
+        setChatError(`"${fileName}" is no longer available.`);
+        return;
+      }
+
+      const res = await downloadFileFromSignedUrl(signedUrl, fileName);
+      if (!res.success) {
+        setChatError(`"${fileName}" is no longer available.`);
       }
     } catch (err) {
       console.error('Chat attachment download error:', err);
+      setChatError(`"${fileName}" is no longer available.`);
     } finally {
       setDownloadingFileId(null);
     }
@@ -587,7 +628,8 @@ export function SwapChatModal({
                       {msg.attachments && msg.attachments.length > 0 && (
                         <div className="chat-message-attachments" style={{ marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                           {msg.attachments.map((att) => {
-                            const isExpired = att.deleteStatus === 'deleted' || att.deleteStatus === 'pending_deletion' || (att.deleteAfter && new Date(att.deleteAfter).getTime() <= Date.now());
+                            const expiryStatus = getFileExpiryStatus(att.deleteAfter ?? att.expiresAt, att.deletedAt ?? att.deleteStatus);
+                            const isExpired = expiryStatus.isExpired;
                             const isOwner = user && att.uploadedBy === user.id;
                             const sizeKb = att.fileSize ? Math.round(att.fileSize / 1024) : 0;
 
@@ -616,9 +658,22 @@ export function SwapChatModal({
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
                                   {isExpired ? (
-                                    <span style={{ fontSize: '0.75rem', opacity: 0.7, fontStyle: 'italic' }}>
-                                      {att.deleteStatus === 'deleted' ? 'Deleted' : 'Expired'}
-                                    </span>
+                                    <button
+                                      type="button"
+                                      disabled
+                                      style={{
+                                        background: 'transparent',
+                                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                                        color: 'var(--color-error, #ef4444)',
+                                        borderRadius: '4px',
+                                        padding: '0.15rem 0.45rem',
+                                        fontSize: '0.75rem',
+                                        cursor: 'not-allowed',
+                                        opacity: 0.7,
+                                      }}
+                                    >
+                                      Unavailable
+                                    </button>
                                   ) : (
                                     <>
                                       <button
@@ -633,7 +688,7 @@ export function SwapChatModal({
                                           cursor: 'pointer',
                                         }}
                                         disabled={downloadingFileId === att.id}
-                                        onClick={() => handleDownloadChatAttachment(att.storagePath, att.fileName, att.id)}
+                                        onClick={() => handleDownloadChatAttachment(att.storagePath, att.fileName, att.id, att.deleteAfter ?? att.expiresAt, att.deletedAt ?? att.deleteStatus)}
                                       >
                                         {downloadingFileId === att.id ? '...' : 'Download'}
                                       </button>
@@ -677,7 +732,7 @@ export function SwapChatModal({
                   isRequester={isRequester}
                   onApproveSwap={onApproveSwap}
                   isApproving={isApproving}
-                  onDownloadFile={(path, name, id) => handleDownloadFile(path, name, id, true)}
+                  onDownloadFile={(path, name, id, expiresAt, deleteStatus) => handleDownloadFile(path, name, id, true, expiresAt, deleteStatus)}
                   downloadingFileId={downloadingFileId}
                 />
               )}
@@ -1011,11 +1066,10 @@ export function SwapChatModal({
                 {submission.files && submission.files.length > 0 && (
                   <div className="ws-files-list">
                     {submission.files.map((file) => {
-                      const isFileExpired = Boolean(
-                        file.storageDeletedAt ||
-                        (file.storageDeleteStatus && file.storageDeleteStatus !== 'active' && file.storageDeleteStatus !== 'failed') ||
-                        (file.storageExpiresAt && new Date(file.storageExpiresAt).getTime() <= Date.now())
-                      );
+                      const isFileExpired = getFileExpiryStatus(
+                        file.expiresAt ?? file.storageExpiresAt,
+                        file.deletedAt ?? file.storageDeletedAt ?? file.deleteStatus ?? file.storageDeleteStatus
+                      ).isExpired;
 
                       return (
                         <div key={file.id} className="ws-file-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.35rem' }}>
@@ -1025,7 +1079,7 @@ export function SwapChatModal({
                               type="button"
                               className="as-btn as-btn--secondary ws-file-dl-btn"
                               disabled={downloadingFileId === file.id || isFileExpired}
-                              onClick={() => handleDownloadFile(file.storagePath, file.fileName, file.id, true)}
+                              onClick={() => handleDownloadFile(file.storagePath, file.fileName, file.id, true, file.expiresAt ?? file.storageExpiresAt, file.deletedAt ?? file.storageDeletedAt ?? file.deleteStatus ?? file.storageDeleteStatus)}
                             >
                               {isFileExpired ? 'Unavailable' : downloadingFileId === file.id ? '...' : 'Download'}
                             </button>
@@ -1048,11 +1102,10 @@ export function SwapChatModal({
                 <h4 className="ws-section-title">Creator Resources ({creatorAttachments.length})</h4>
                 <div className="ws-files-list">
                   {creatorAttachments.map((att) => {
-                    const isAttExpired = Boolean(
-                      att.storageDeletedAt ||
-                      (att.storageDeleteStatus && att.storageDeleteStatus !== 'active' && att.storageDeleteStatus !== 'failed') ||
-                      (att.storageExpiresAt && new Date(att.storageExpiresAt).getTime() <= Date.now())
-                    );
+                    const isAttExpired = getFileExpiryStatus(
+                      att.expiresAt ?? att.storageExpiresAt,
+                      att.deletedAt ?? att.storageDeletedAt ?? att.deleteStatus ?? att.storageDeleteStatus
+                    ).isExpired;
 
                     return (
                       <div key={att.id} className="ws-file-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.35rem' }}>
@@ -1062,7 +1115,7 @@ export function SwapChatModal({
                             type="button"
                             className="as-btn as-btn--secondary ws-file-dl-btn"
                             disabled={downloadingFileId === att.id || isAttExpired}
-                            onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false)}
+                            onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false, att.expiresAt ?? att.storageExpiresAt, att.deletedAt ?? att.storageDeletedAt ?? att.deleteStatus ?? att.storageDeleteStatus)}
                           >
                             {isAttExpired ? 'Unavailable' : downloadingFileId === att.id ? '...' : 'Download'}
                           </button>

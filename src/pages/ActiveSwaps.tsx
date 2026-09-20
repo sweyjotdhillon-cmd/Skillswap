@@ -21,6 +21,7 @@ import {
 } from '../lib/supabase/credits';
 import { PerfTracker } from '../lib/perf';
 import { getTagLabel } from '../constants/tags';
+import { getFileExpiryStatus } from '../lib/fileExpiry';
 import { mapSwapRecordToSwap, type Swap, type SwapSubmission } from '../types/swap';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
 import { TransactionProgress } from '../components/transaction/TransactionProgress';
@@ -496,8 +497,16 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     storagePath: string,
     fileName: string,
     fileId: string,
-    isSubmission: boolean = true
+    isSubmission: boolean = true,
+    expiresAt?: string | null,
+    deleteStatus?: string | null
   ) => {
+    const status = getFileExpiryStatus(expiresAt, deleteStatus);
+    if (status.isExpired) {
+      setDownloadError(`"${fileName}" is no longer available.`);
+      return;
+    }
+
     setDownloadingFileId(fileId);
     setDownloadError(null);
 
@@ -507,18 +516,18 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         : await getSwapAttachmentSignedUrl(storagePath);
 
       if (!signedUrl) {
-        setDownloadError(`Unable to generate secure download link for "${fileName}".`);
+        setDownloadError(`"${fileName}" is no longer available.`);
         setDownloadingFileId(null);
         return;
       }
 
       const res = await downloadFileFromSignedUrl(signedUrl, fileName);
       if (!res.success) {
-        setDownloadError(res.error || `Failed to download "${fileName}".`);
+        setDownloadError(`"${fileName}" is no longer available.`);
       }
     } catch (err) {
       console.error('Download exception:', err);
-      setDownloadError(`Error downloading "${fileName}".`);
+      setDownloadError(`"${fileName}" is no longer available.`);
     } finally {
       setDownloadingFileId(null);
     }
@@ -1389,11 +1398,10 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                       <div className="attachment-list" style={{ marginTop: '0.5rem' }}>
                         {creatorAttachments.map((att) => {
                           const isDownloading = downloadingFileId === att.id;
-                          const isAttExpired = Boolean(
-                            att.storageDeletedAt ||
-                            (att.storageDeleteStatus && att.storageDeleteStatus !== 'active' && att.storageDeleteStatus !== 'failed') ||
-                            (att.storageExpiresAt && new Date(att.storageExpiresAt).getTime() <= Date.now())
-                          );
+                          const isAttExpired = getFileExpiryStatus(
+                            att.expiresAt ?? att.storageExpiresAt,
+                            att.deletedAt ?? att.storageDeletedAt ?? att.deleteStatus ?? att.storageDeleteStatus
+                          ).isExpired;
 
                           return (
                             <div key={att.id} className="attachment-card" style={{ flexWrap: 'wrap' }}>
@@ -1417,7 +1425,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                                 className="as-btn as-btn--secondary"
                                 style={{ padding: '0.35rem 0.85rem', fontSize: '0.825rem' }}
                                 disabled={isDownloading || isAttExpired}
-                                onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false)}
+                                onClick={() => handleDownloadFile(att.storagePath, att.fileName, att.id, false, att.expiresAt ?? att.storageExpiresAt, att.deletedAt ?? att.storageDeletedAt ?? att.deleteStatus ?? att.storageDeleteStatus)}
                               >
                                 {isAttExpired ? 'Unavailable' : isDownloading ? 'Downloading...' : 'Download'}
                               </button>
@@ -1458,11 +1466,10 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                             <div className="attachment-list">
                               {currentSubmission.files.map((file) => {
                                 const isDownloading = downloadingFileId === file.id;
-                                const isFileExpired = Boolean(
-                                  file.storageDeletedAt ||
-                                  (file.storageDeleteStatus && file.storageDeleteStatus !== 'active' && file.storageDeleteStatus !== 'failed') ||
-                                  (file.storageExpiresAt && new Date(file.storageExpiresAt).getTime() <= Date.now())
-                                );
+                                const isFileExpired = getFileExpiryStatus(
+                                  file.expiresAt ?? file.storageExpiresAt,
+                                  file.deletedAt ?? file.storageDeletedAt ?? file.deleteStatus ?? file.storageDeleteStatus
+                                ).isExpired;
 
                                 return (
                                   <div key={file.id} className="attachment-card" style={{ flexWrap: 'wrap' }}>
@@ -1486,7 +1493,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                                       className="as-btn as-btn--secondary"
                                       style={{ padding: '0.35rem 0.85rem', fontSize: '0.825rem' }}
                                       disabled={isDownloading || isFileExpired}
-                                      onClick={() => handleDownloadFile(file.storagePath, file.fileName, file.id, true)}
+                                      onClick={() => handleDownloadFile(file.storagePath, file.fileName, file.id, true, file.expiresAt ?? file.storageExpiresAt, file.deletedAt ?? file.storageDeletedAt ?? file.deleteStatus ?? file.storageDeleteStatus)}
                                     >
                                       {isFileExpired ? 'Unavailable' : isDownloading ? 'Downloading...' : 'Download'}
                                     </button>

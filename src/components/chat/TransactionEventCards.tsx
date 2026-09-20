@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { Swap, SwapSubmission } from '../../types/swap';
 import { calculateRemainingAutoReleaseMs, formatRemainingTime } from '../transaction/transactionUtils';
 import { FileExpiryIndicator } from '../ui/FileExpiryIndicator';
+import { getFileExpiryStatus } from '../../lib/fileExpiry';
 
 export type TransactionEventType =
   | 'SUBMISSION'
@@ -19,7 +20,7 @@ export interface TransactionEventProps {
   isRequester?: boolean;
   onApproveSwap?: () => Promise<void>;
   isApproving?: boolean;
-  onDownloadFile?: (storagePath: string, fileName: string, fileId: string) => Promise<void>;
+  onDownloadFile?: (storagePath: string, fileName: string, fileId: string, expiresAt?: string | null, deleteStatus?: string | null) => Promise<void>;
   downloadingFileId?: string | null;
 }
 
@@ -33,7 +34,7 @@ export const SubmissionEventCard: React.FC<{
   isRequester?: boolean;
   onApproveSwap?: () => Promise<void>;
   isApproving?: boolean;
-  onDownloadFile?: (storagePath: string, fileName: string, fileId: string) => Promise<void>;
+  onDownloadFile?: (storagePath: string, fileName: string, fileId: string, expiresAt?: string | null, deleteStatus?: string | null) => Promise<void>;
   downloadingFileId?: string | null;
 }> = ({
   swap,
@@ -113,11 +114,10 @@ export const SubmissionEventCard: React.FC<{
                   : `${Math.round(file.fileSize / 1024)} KB`
                 : '';
 
-              const isFileExpired = Boolean(
-                file.storageDeletedAt ||
-                (file.storageDeleteStatus && file.storageDeleteStatus !== 'active' && file.storageDeleteStatus !== 'failed') ||
-                (file.storageExpiresAt && new Date(file.storageExpiresAt).getTime() <= Date.now())
-              );
+              const isFileExpired = getFileExpiryStatus(
+                file.expiresAt ?? file.storageExpiresAt,
+                file.deletedAt ?? file.storageDeletedAt ?? file.deleteStatus ?? file.storageDeleteStatus
+              ).isExpired;
 
               return (
                 <div
@@ -163,7 +163,7 @@ export const SubmissionEventCard: React.FC<{
                       type="button"
                       className="px-2.5 py-1 text-xs font-bold text-[var(--color-text-primary)] bg-[var(--color-surface)] hover:bg-[var(--color-canvas-elevated)] border border-[var(--color-border)] rounded transition-colors duration-150 flex-shrink-0 disabled:opacity-50"
                       disabled={downloadingFileId === file.id || isFileExpired}
-                      onClick={() => onDownloadFile(file.storagePath, file.fileName, file.id)}
+                      onClick={() => onDownloadFile(file.storagePath, file.fileName, file.id, file.expiresAt ?? file.storageExpiresAt, file.deletedAt ?? file.storageDeletedAt ?? file.deleteStatus ?? file.storageDeleteStatus)}
                     >
                       {isFileExpired ? 'Unavailable' : downloadingFileId === file.id ? '...' : 'Download'}
                     </button>
