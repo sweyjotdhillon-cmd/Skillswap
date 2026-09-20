@@ -193,7 +193,7 @@ export async function acceptCreditSwap(swapId: string): Promise<{ success: boole
     p_swap_id: swapId,
   });
   if (error || !data) return { success: false, error: formatFriendlyErrorMessage(error ?? new Error('Failed to accept swap.')) };
-  return { success: true, swap: data as SwapRecord };
+  return { success: true, swap: data as unknown as SwapRecord };
 }
 
 export interface SubmitSwapWorkInput {
@@ -1143,7 +1143,7 @@ export async function deleteChatAttachmentManual(attachmentId: string): Promise<
   if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
 
   try {
-    const { error } = await supabase.rpc('delete_chat_attachment_manual', {
+    const { error } = await supabase.rpc('delete_swap_message_attachment', {
       p_attachment_id: attachmentId,
     });
 
@@ -1507,7 +1507,7 @@ export async function getUserAccount(): Promise<Account | null> {
       return selectData as Account;
     }
 
-    return data as Account;
+    return data as unknown as Account;
   } catch (err) {
     console.error('Unexpected error fetching user account:', err);
     return null;
@@ -1545,7 +1545,7 @@ export async function getCreditTransactions(
       return (selectData || []) as CreditTransaction[];
     }
 
-    return (data || []) as CreditTransaction[];
+    return (data || []) as unknown as CreditTransaction[];
   } catch (err) {
     console.error('Unexpected error fetching transaction history:', err);
     return [];
@@ -1563,19 +1563,58 @@ export async function submitSwapReview(
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
 
-  try {
-    const { data, error } = await supabase.rpc('submit_swap_review', {
-      p_swap_id: swapId,
-      p_rating: rating,
-      p_review_text: reviewText?.trim() || null,
-    });
+  const cleanReviewText = reviewText?.trim() || null;
 
-    if (error) {
-      return { success: false, error: formatFriendlyErrorMessage(error) };
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData?.user;
+    if (!user) return { success: false, error: 'You must be logged in to submit a review.' };
+
+    if (rating < 1 || rating > 5) {
+      return { success: false, error: 'Rating must be between 1 and 5.' };
     }
 
-    if (!data || data.success !== true) {
-      return { success: false, error: data?.error || 'Failed to submit review.' };
+    const { data: swap, error: swapErr } = await supabase
+      .from('swaps')
+      .select('id, status, requester_id, participant_id')
+      .eq('id', swapId)
+      .maybeSingle();
+
+    if (swapErr || !swap) {
+      return { success: false, error: 'Swap not found.' };
+    }
+
+    if (swap.status !== 'completed') {
+      return { success: false, error: 'Reviews can only be submitted for completed swaps.' };
+    }
+
+    if (swap.requester_id !== user.id) {
+      return { success: false, error: 'Only the swap requester can submit a review for the participant.' };
+    }
+
+    if (!swap.participant_id) {
+      return { success: false, error: 'Swap participant unavailable.' };
+    }
+
+    if (swap.requester_id === swap.participant_id) {
+      return { success: false, error: 'Cannot review yourself.' };
+    }
+
+    const { error: insertErr } = await supabase
+      .from('swap_reviews')
+      .insert({
+        swap_id: swapId,
+        reviewer_id: user.id,
+        reviewee_id: swap.participant_id,
+        rating,
+        review_text: cleanReviewText,
+      });
+
+    if (insertErr) {
+      if (insertErr.code === '23505' || insertErr.message?.includes('unique constraint') || insertErr.message?.includes('duplicate')) {
+        return { success: false, error: 'You have already submitted a review for this swap.' };
+      }
+      return { success: false, error: formatFriendlyErrorMessage(insertErr) };
     }
 
     return { success: true };

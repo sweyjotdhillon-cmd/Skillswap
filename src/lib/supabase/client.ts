@@ -1,10 +1,11 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '../../types/database.types';
 
-let browserClient: SupabaseClient | null = null;
+let browserClient: SupabaseClient<Database> | null = null;
 
 const DEFAULT_SUPABASE_URL = 'https://czpcaffwtmlxvplpanon.supabase.co';
 
-export function getSupabaseBrowserClient(): SupabaseClient | null {
+export function getSupabaseBrowserClient(): SupabaseClient<Database> | null {
   if (browserClient) return browserClient;
 
   const env = (import.meta as unknown as { env?: Record<string, string> })?.env || {};
@@ -29,7 +30,7 @@ export function getSupabaseBrowserClient(): SupabaseClient | null {
   }
 
   try {
-    browserClient = createClient(rawUrl, rawKey, {
+
       auth: {
         persistSession: true,
         autoRefreshToken: true,
