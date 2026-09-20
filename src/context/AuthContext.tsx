@@ -21,6 +21,7 @@ interface AuthContextType {
   refreshSession: () => Promise<Session | null>;
   refreshProfile: () => Promise<Profile | null>;
   refreshAccount: () => Promise<Account | null>;
+  updateAccountState: (partial: Partial<Account>) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -40,6 +41,7 @@ const AuthContext = createContext<AuthContextType>({
   refreshSession: async () => null,
   refreshProfile: async () => null,
   refreshAccount: async () => null,
+  updateAccountState: () => {},
 });
 
 /* eslint-disable react-refresh/only-export-components */
@@ -88,14 +90,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshProfile = useCallback(async (): Promise<Profile | null> => {
     if (!user) {
-      currentFetchUserIdRef.current = null;
       setProfile(null);
       setProfileLoading(false);
       return null;
     }
-    const { profile } = await fetchUserProfileAndAccount(user.id);
-    return profile;
-  }, [user, fetchUserProfileAndAccount]);
+    setProfileLoading(true);
+    try {
+      const userProfile = await getProfile(user.id);
+      setProfile(userProfile);
+      return userProfile;
+    } catch (err) {
+      console.error('Error refreshing profile:', err);
+      return null;
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [user]);
 
   const refreshAccount = useCallback(async (): Promise<Account | null> => {
     if (!user) {
@@ -115,6 +125,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAccountLoading(false);
     }
   }, [user]);
+
+  const updateAccountState = useCallback((partial: Partial<Account>) => {
+    setAccount((prev) => (prev ? { ...prev, ...partial } : null));
+  }, []);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -304,6 +318,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshSession,
         refreshProfile,
         refreshAccount,
+        updateAccountState,
       }}
     >
       {children}

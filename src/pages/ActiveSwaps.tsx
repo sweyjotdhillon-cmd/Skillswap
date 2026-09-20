@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import {
   getUserSwaps,
+  getSwapById,
   getSwapSubmission,
   getSwapAttachments,
   submitSwapWorkWithFiles,
@@ -18,6 +19,7 @@ import {
   type SwapRecord,
   type SwapAttachment,
 } from '../lib/supabase/credits';
+import { PerfTracker } from '../lib/perf';
 import { getTagLabel } from '../constants/tags';
 import { mapSwapRecordToSwap, type Swap, type SwapSubmission } from '../types/swap';
 import { SwapChatModal } from '../components/chat/SwapChatModal';
@@ -65,7 +67,7 @@ type ActiveSwapsPageProps = {
 };
 
 export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
-  const { user, account, refreshAccount } = useAuth();
+  const { user, account, refreshAccount, updateAccountState } = useAuth();
   const journeyScaffold = useScaffolding('active_swaps_journey');
 
   // Primary Information Architecture Navigation
@@ -124,6 +126,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   const isMountedRef = useRef(true);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const lastMutationTimestampRef = useRef<number>(0);
 
   const loadRealActiveSwaps = useCallback(async () => {
     if (!user) return;
@@ -331,29 +334,80 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     }
   }, [user, loadRealActiveSwaps]);
 
-  // Realtime subscription for Swaps & Submissions updates
+  // Realtime subscription with payload filtering and event deduplication
   useEffect(() => {
     if (!user) return;
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
 
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const triggerTargetedRefresh = (swapId?: string) => {
+      // Ignore realtime events triggered within 3s of user's own optimistic mutation
+      if (Date.now() - lastMutationTimestampRef.current < 3000) return;
+
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(async () => {
+        if (!swapId) {
+          void loadRealActiveSwaps();
+          return;
+        }
+
+        // Targeted fetch for affected swap ID
+        const { data: updatedRecord } = await getSwapById(swapId);
+        if (!updatedRecord) {
+          void loadRealActiveSwaps();
+          return;
+        }
+
+        const updatedSwap = mapSwapRecordToSwap(updatedRecord);
+        const isRequester = updatedSwap.requesterId === user.id;
+        const isParticipant = updatedSwap.participantId === user.id;
+
+        if (!isRequester && !isParticipant) return;
+
+        // Update single swap in local state without full reload
+        setActiveSwaps((prev) =>
+          prev.map((item) => (item.swap.id === swapId ? { ...item, swap: updatedSwap } : item))
+        );
+        setMyListings((prev) =>
+          prev.map((item) => (item.swap.id === swapId ? { ...item, swap: updatedSwap } : item))
+        );
+        setSwapHistory((prev) =>
+          prev.map((item) => (item.swap.id === swapId ? { ...item, swap: updatedSwap } : item))
+        );
+      }, 300);
+    };
+
     const channel = supabase
       .channel(`active_swaps_realtime_${user.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'swaps' }, () => {
-        void loadRealActiveSwaps();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'swaps' }, (payload) => {
+        const swapId = (payload.new as { id?: string })?.id || (payload.old as { id?: string })?.id;
+        triggerTargetedRefresh(swapId);
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'swap_submissions' }, () => {
-        void loadRealActiveSwaps();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'swap_submissions' }, (payload) => {
+        const swapId = (payload.new as { swap_id?: string })?.swap_id || (payload.old as { swap_id?: string })?.swap_id;
+        if (swapId && swapId === selectedActiveId) {
+          void getSwapSubmission(swapId).then((res) => {
+            if (res.data) setCurrentSubmission(res.data);
+          });
+        }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'swap_attachment_files' }, () => {
-        void loadRealActiveSwaps();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'swap_attachment_files' }, (payload) => {
+        const swapId = (payload.new as { swap_id?: string })?.swap_id || (payload.old as { swap_id?: string })?.swap_id;
+        if (swapId && swapId === selectedActiveId) {
+          void getSwapAttachments(swapId).then((res) => {
+            if (res.data) setCreatorAttachments(res.data);
+          });
+        }
       })
       .subscribe();
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       void supabase.removeChannel(channel);
     };
-  }, [user, loadRealActiveSwaps]);
+  }, [user, loadRealActiveSwaps, selectedActiveId]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -539,7 +593,8 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     setSubmitError(null);
     setIsMutating(true);
 
-    let submitSuccess = false;
+    const tracker = new PerfTracker('submit_work');
+
     try {
       const res = await submitSwapWorkWithFiles({
         swapId: currentActiveItem.swap.id,
@@ -547,54 +602,66 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         files: submitWorkFiles,
       });
 
+      tracker.logPhase('rpc');
+
       if (!res.success) {
         setSubmitError(res.error || 'Failed to submit work.');
+        setIsMutating(false);
         return;
       }
 
-      submitSuccess = true;
+      lastMutationTimestampRef.current = Date.now();
 
+      // Immediately update local state from accepted -> submitted
+      const nowIso = new Date().toISOString();
+      setActiveSwaps((prev) =>
+        prev.map((item) => {
+          if (item.swap.id !== currentActiveItem.swap.id) return item;
+          const updatedSwap: Swap = {
+            ...item.swap,
+            status: 'submitted',
+            submittedAt: nowIso,
+          };
+          return {
+            ...item,
+            swap: updatedSwap,
+            humanStatus: item.isRequester ? 'Awaiting Your Review' : 'Submitted (Under Review)',
+            statusCategory: item.isRequester ? 'action_required' : 'awaiting_partner',
+            nextAction: item.isRequester ? 'Review submitted work & transfer credits' : `Waiting for ${item.partner.name} to review & approve`,
+            formattedTimeLabel: `Submitted on ${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
+            needsAction: item.isRequester,
+          };
+        })
+      );
+
+      // Immediately close modal & show success toast
       setIsSubmitWorkModalOpen(false);
       setSubmitWorkNotes('');
       setSubmitWorkFiles([]);
       setSubmitError(null);
+      setIsMutating(false);
 
       setSubmitSuccessToast(`Work submitted for "${currentActiveItem.swap.topic}"! Your contribution is ready for requester review.`);
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
       toastTimerRef.current = setTimeout(() => {
         if (isMountedRef.current) setSubmitSuccessToast(null);
       }, 5000);
+
+      tracker.logPhase('ui_commit');
+
+      // Un-awaited background reconciliation
+      void Promise.all([refreshAccount(), loadRealActiveSwaps()]).then(() => {
+        tracker.logPhase('reconcile');
+      });
     } catch (err) {
       console.error('[SUBMISSION] unexpected error in handleSubmitWork', err);
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred while submitting work.';
       setSubmitError(errorMessage);
-    } finally {
       setIsMutating(false);
-    }
-
-    if (submitSuccess) {
-      try {
-        await refreshAccount();
-        await loadRealActiveSwaps();
-      } catch (refreshErr) {
-        console.warn('[SUBMISSION] Best-effort post-submission UI refresh failed:', refreshErr);
-      }
     }
   };
 
-  // Section L2 5-second Reversible Release Credits Confirmation State
-  const [pendingReleaseSwap, setPendingReleaseSwap] = useState<{ item: CategorizedSwapItem; seconds: number } | null>(null);
-  const pendingReleaseTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isExecutingReleaseRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    return () => {
-      if (pendingReleaseTimerRef.current) {
-        clearInterval(pendingReleaseTimerRef.current);
-        pendingReleaseTimerRef.current = null;
-      }
-    };
-  }, []);
 
   const commitReleaseSwap = useCallback(
     async (item: CategorizedSwapItem) => {
@@ -602,17 +669,52 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
       isExecutingReleaseRef.current = true;
       setIsMutating(true);
 
+      const tracker = new PerfTracker('complete_swap');
+
       try {
         const res = await completeCreditSwap(item.swap.id);
-        setIsMutating(false);
+        tracker.logPhase('rpc');
 
         if (!res.success) {
+          setIsMutating(false);
           setSubmitSuccessToast(res.error || 'Failed to complete swap and settle credits.');
           return;
         }
 
-        await refreshAccount();
-        await loadRealActiveSwaps();
+        lastMutationTimestampRef.current = Date.now();
+
+        // Immediately update local state to completed
+        const completedDate = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        const completedItem: CategorizedSwapItem = {
+          ...item,
+          swap: {
+            ...item.swap,
+            status: 'completed',
+            completedAt: new Date().toISOString(),
+          },
+          humanStatus: 'Completed',
+          statusCategory: 'completed',
+          nextAction: 'Exchange finished',
+          formattedTimeLabel: `Completed on ${completedDate}`,
+          needsAction: false,
+        };
+
+        setActiveSwaps((prev) => prev.filter((s) => s.swap.id !== item.swap.id));
+        setSwapHistory((prev) => [completedItem, ...prev]);
+
+        // Immediately update credit balance from returned RPC response
+        if (item.isRequester && typeof res.payer_credits_balance === 'number') {
+          updateAccountState({
+            credits_balance: res.payer_credits_balance,
+            credits_reserved: res.payer_credits_reserved ?? 0,
+          });
+        } else if (item.isParticipant && typeof res.recipient_credits_balance === 'number') {
+          updateAccountState({
+            credits_balance: res.recipient_credits_balance,
+          });
+        }
+
+        setIsMutating(false);
         setSubmitSuccessToast(
           `Swap completed! You exchanged expertise on "${item.swap.topic}" with ${item.partner.name} and settled ${item.swap.creditAmount} SkillCredits.`
         );
@@ -621,6 +723,13 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         toastTimerRef.current = setTimeout(() => {
           if (isMountedRef.current) setSubmitSuccessToast(null);
         }, 5000);
+
+        tracker.logPhase('ui_commit');
+
+        // Un-awaited background reconciliation
+        void Promise.all([refreshAccount(), loadRealActiveSwaps()]).then(() => {
+          tracker.logPhase('reconcile');
+        });
       } catch (err) {
         setIsMutating(false);
         setSubmitSuccessToast(err instanceof Error ? err.message : 'An error occurred while settling credits.');
@@ -628,55 +737,12 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         isExecutingReleaseRef.current = false;
       }
     },
-    [refreshAccount, loadRealActiveSwaps]
+    [refreshAccount, loadRealActiveSwaps, updateAccountState]
   );
-
-  const startPendingRelease = useCallback(
-    (item: CategorizedSwapItem) => {
-      if (pendingReleaseTimerRef.current) {
-        clearInterval(pendingReleaseTimerRef.current);
-        pendingReleaseTimerRef.current = null;
-      }
-
-      setPendingReleaseSwap({ item, seconds: 5 });
-
-      pendingReleaseTimerRef.current = setInterval(() => {
-        setPendingReleaseSwap((prev) => {
-          if (!prev) {
-            if (pendingReleaseTimerRef.current) {
-              clearInterval(pendingReleaseTimerRef.current);
-              pendingReleaseTimerRef.current = null;
-            }
-            return null;
-          }
-
-          if (prev.seconds <= 1) {
-            if (pendingReleaseTimerRef.current) {
-              clearInterval(pendingReleaseTimerRef.current);
-              pendingReleaseTimerRef.current = null;
-            }
-            commitReleaseSwap(prev.item);
-            return null;
-          }
-
-          return { ...prev, seconds: prev.seconds - 1 };
-        });
-      }, 1000);
-    },
-    [commitReleaseSwap]
-  );
-
-  const handleUndoPendingRelease = useCallback(() => {
-    if (pendingReleaseTimerRef.current) {
-      clearInterval(pendingReleaseTimerRef.current);
-      pendingReleaseTimerRef.current = null;
-    }
-    setPendingReleaseSwap(null);
-  }, []);
 
   const handleApproveGivenSwap = (item: CategorizedSwapItem) => {
     if (isMutating || isExecutingReleaseRef.current) return;
-    startPendingRelease(item);
+    void commitReleaseSwap(item);
   };
 
   // Undo state for listing cancellation
@@ -687,28 +753,68 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     if (isMutating) return;
 
     setIsMutating(true);
-    const res = await cancelCreditSwap(item.swap.id);
-    setIsMutating(false);
+    const tracker = new PerfTracker('cancel_swap');
 
-    if (!res.success) {
-      setSubmitSuccessToast(res.error || 'Failed to cancel swap listing.');
-      return;
-    }
+    try {
+      const res = await cancelCreditSwap(item.swap.id);
+      tracker.logPhase('rpc');
 
-    await refreshAccount();
-    await loadRealActiveSwaps();
+      if (!res.success) {
+        setIsMutating(false);
+        setSubmitSuccessToast(res.error || 'Failed to cancel swap listing.');
+        return;
+      }
 
-    setUndoCancelItem({ item, seconds: 5 });
-    if (undoCancelTimerRef.current) clearInterval(undoCancelTimerRef.current);
-    undoCancelTimerRef.current = setInterval(() => {
-      setUndoCancelItem((prev) => {
-        if (!prev || prev.seconds <= 1) {
-          if (undoCancelTimerRef.current) clearInterval(undoCancelTimerRef.current);
-          return null;
-        }
-        return { ...prev, seconds: prev.seconds - 1 };
+      lastMutationTimestampRef.current = Date.now();
+
+      // Immediately reflect closed status in local state
+      const cancelledItem: CategorizedSwapItem = {
+        ...item,
+        swap: {
+          ...item.swap,
+          status: 'cancelled',
+          cancelledAt: new Date().toISOString(),
+        },
+        humanStatus: 'Cancelled',
+        statusCategory: 'cancelled_expired',
+        nextAction: 'Swap closed',
+        needsAction: false,
+      };
+
+      setMyListings((prev) => prev.filter((l) => l.swap.id !== item.swap.id));
+      setSwapHistory((prev) => [cancelledItem, ...prev]);
+
+      // Immediately reflect returned requester balance/reserved state
+      if (typeof res.credits_balance === 'number') {
+        updateAccountState({
+          credits_balance: res.credits_balance,
+          credits_reserved: res.credits_reserved ?? 0,
+        });
+      }
+
+      setIsMutating(false);
+      tracker.logPhase('ui_commit');
+
+      // Un-awaited background reconciliation
+      void Promise.all([refreshAccount(), loadRealActiveSwaps()]).then(() => {
+        tracker.logPhase('reconcile');
       });
-    }, 1000);
+
+      setUndoCancelItem({ item, seconds: 5 });
+      if (undoCancelTimerRef.current) clearInterval(undoCancelTimerRef.current);
+      undoCancelTimerRef.current = setInterval(() => {
+        setUndoCancelItem((prev) => {
+          if (!prev || prev.seconds <= 1) {
+            if (undoCancelTimerRef.current) clearInterval(undoCancelTimerRef.current);
+            return null;
+          }
+          return { ...prev, seconds: prev.seconds - 1 };
+        });
+      }, 1000);
+    } catch (err) {
+      setIsMutating(false);
+      setSubmitSuccessToast(err instanceof Error ? err.message : 'An error occurred while cancelling listing.');
+    }
   };
 
   // Helper for rendering status badge with icon and semantic styling
@@ -801,54 +907,6 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
           </div>
         )}
 
-        {/* Section L2 5-SECOND TRANSACTIONAL UNDO TOAST FOR RELEASE CREDITS */}
-        {pendingReleaseSwap && (
-          <div
-            className="as-toast-banner"
-            role="status"
-            aria-live="polite"
-            style={{
-              background: 'rgba(214, 166, 74, 0.15)',
-              borderLeft: '4px solid #d6a64a',
-              marginBottom: '1rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '1rem',
-              padding: '0.85rem 1.1rem',
-              borderRadius: '10px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-              <span style={{ fontSize: '1.2rem' }} aria-hidden="true">⚡</span>
-              <div>
-                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-color)' }}>
-                  Releasing {pendingReleaseSwap.item.swap.creditAmount} SkillCredits...
-                </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  "{pendingReleaseSwap.item.swap.topic}" • Releasing in {pendingReleaseSwap.seconds} second{pendingReleaseSwap.seconds !== 1 ? 's' : ''}...
-                </div>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="as-btn as-btn--secondary"
-              style={{
-                padding: '0.35rem 0.9rem',
-                fontSize: '0.825rem',
-                fontWeight: 700,
-                background: '#d6a64a',
-                color: '#0f172a',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-              }}
-              onClick={handleUndoPendingRelease}
-            >
-              Undo ({pendingReleaseSwap.seconds}s)
-            </button>
-          </div>
-        )}
 
         {/* TOAST NOTIFICATION */}
         {submitSuccessToast && (

@@ -5,9 +5,9 @@ import { useAuth } from '../context/AuthContext';
 import {
   getOpenSwaps,
   acceptCreditSwap,
-  getUserCompletedSwapsCount,
   formatAcceptSwapErrorMessage,
 } from '../lib/supabase/credits';
+import { PerfTracker } from '../lib/perf';
 import { getSkillsCatalog } from '../lib/supabase/profile';
 import { mapSwapRecordToSwap, type Swap } from '../types/swap';
 import { getTagLabel, getTagSlug } from '../constants/tags';
@@ -50,7 +50,6 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   const [categories, setCategories] = useState<string[]>(['All', ...SEEDED_19_CATEGORIES]);
 
   const [swaps, setSwaps] = useState<Swap[]>([]);
-  const [completedSwapsMap, setCompletedSwapsMap] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
@@ -59,9 +58,6 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   const [selectedSwapForAccept, setSelectedSwapForAccept] = useState<Swap | null>(null);
   const [acceptError, setAcceptError] = useState<string | null>(null);
 
-  // Section H.2 Reversible Acceptance Confirmation Window State
-  const [pendingAcceptSwap, setPendingAcceptSwap] = useState<{ swap: Swap; seconds: number } | null>(null);
-  const pendingAcceptTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isExecutingAcceptRef = useRef<boolean>(false);
   const [acceptSuccessToast, setAcceptSuccessToast] = useState<{ swapTopic: string } | null>(null);
   const [acceptErrorMessage, setAcceptErrorMessage] = useState<string | null>(null);
@@ -79,19 +75,6 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
       } else if (res.data && res.data.length > 0) {
         const mappedReal: Swap[] = res.data.map(mapSwapRecordToSwap);
         setSwaps(mappedReal);
-
-        // Fetch completed swaps counts for all unique requesters
-        const requesterIds = Array.from(new Set(mappedReal.map((s) => s.requesterId)));
-        const countsPromises = requesterIds.map(async (id) => {
-          const count = await getUserCompletedSwapsCount(id);
-          return { id, count };
-        });
-        const countsResults = await Promise.all(countsPromises);
-        const map: Record<string, number> = {};
-        countsResults.forEach(({ id, count }) => {
-          map[id] = count;
-        });
-        setCompletedSwapsMap(map);
       } else {
         setSwaps([]);
       }
@@ -132,41 +115,46 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
     };
   }, []);
 
-  // Clean up pending accept timer on unmount to prevent stale execution
-  useEffect(() => {
-    return () => {
-      if (pendingAcceptTimerRef.current) {
-        clearInterval(pendingAcceptTimerRef.current);
-        pendingAcceptTimerRef.current = null;
-      }
-    };
-  }, []);
-
   const commitAcceptSwap = useCallback(
     async (targetSwap: Swap) => {
       if (isExecutingAcceptRef.current) return;
       isExecutingAcceptRef.current = true;
       setIsAccepting(true);
       setAcceptErrorMessage(null);
+      setAcceptSuccessToast(null);
+
+      const tracker = new PerfTracker('accept_swap');
+
+      // Optimistically remove listing from marketplace view immediately
+      setSwaps((prev) => prev.filter((s) => s.id !== targetSwap.id));
+      tracker.logPhase('ui_commit');
 
       try {
         const res = await acceptCreditSwap(targetSwap.id);
-        setIsAccepting(false);
+        tracker.logPhase('rpc');
 
         if (res.success) {
-          setSwaps((prev) => prev.filter((s) => s.id !== targetSwap.id));
-          await refreshAccount();
-          await loadRealOpenSwaps();
+          setIsAccepting(false);
           setAcceptSuccessToast({ swapTopic: targetSwap.topic });
           setTimeout(() => {
             setAcceptSuccessToast(null);
           }, 6000);
+
+          // Background reconciliation (un-awaited by UI button)
+          void Promise.all([refreshAccount(), loadRealOpenSwaps()]).then(() => {
+            tracker.logPhase('reconcile');
+          });
         } else {
+          // Restore listing on failure
+          setSwaps((prev) => (prev.some((s) => s.id === targetSwap.id) ? prev : [targetSwap, ...prev]));
+          setIsAccepting(false);
           const userBal = account?.credits_balance;
           const formattedErr = formatAcceptSwapErrorMessage(res.error, targetSwap.creditAmount, userBal);
           setAcceptErrorMessage(formattedErr);
         }
       } catch (err) {
+        // Restore listing on exception
+        setSwaps((prev) => (prev.some((s) => s.id === targetSwap.id) ? prev : [targetSwap, ...prev]));
         setIsAccepting(false);
         const userBal = account?.credits_balance;
         const formattedErr = formatAcceptSwapErrorMessage(err, targetSwap.creditAmount, userBal);
@@ -177,53 +165,6 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
     },
     [account?.credits_balance, loadRealOpenSwaps, refreshAccount]
   );
-
-  const startPendingAccept = useCallback(
-    (swap: Swap) => {
-      // Clear any existing timer to prevent duplicate timers / simultaneous accepts
-      if (pendingAcceptTimerRef.current) {
-        clearInterval(pendingAcceptTimerRef.current);
-        pendingAcceptTimerRef.current = null;
-      }
-
-      setAcceptErrorMessage(null);
-      setAcceptSuccessToast(null);
-
-      setPendingAcceptSwap({ swap, seconds: 5 });
-
-      pendingAcceptTimerRef.current = setInterval(() => {
-        setPendingAcceptSwap((prev) => {
-          if (!prev) {
-            if (pendingAcceptTimerRef.current) {
-              clearInterval(pendingAcceptTimerRef.current);
-              pendingAcceptTimerRef.current = null;
-            }
-            return null;
-          }
-
-          if (prev.seconds <= 1) {
-            if (pendingAcceptTimerRef.current) {
-              clearInterval(pendingAcceptTimerRef.current);
-              pendingAcceptTimerRef.current = null;
-            }
-            commitAcceptSwap(prev.swap);
-            return null;
-          }
-
-          return { ...prev, seconds: prev.seconds - 1 };
-        });
-      }, 1000);
-    },
-    [commitAcceptSwap]
-  );
-
-  const handleUndoPendingAccept = useCallback(() => {
-    if (pendingAcceptTimerRef.current) {
-      clearInterval(pendingAcceptTimerRef.current);
-      pendingAcceptTimerRef.current = null;
-    }
-    setPendingAcceptSwap(null);
-  }, []);
 
   /**
    * Reputation-Based Ranking Strategy for Explore Swaps:
@@ -247,12 +188,12 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
     const C = 4.0;
 
     const bayesianRating = v > 0 ? (v * R + m * C) / (v + m) : C * 0.85; // 3.4 baseline for new creators
-    const completedCount = swap.requesterProfile?.completedSwapsCount ?? completedSwapsMap[swap.requesterId] ?? 0;
+    const completedCount = swap.requesterProfile?.completedSwapsCount ?? 0;
     const completedBonus = Math.min(completedCount * 0.02, 0.30);
     const verifiedBonus = swap.requesterProfile?.isVerified ? 0.20 : 0.0;
 
     return bayesianRating + completedBonus + verifiedBonus;
-  }, [completedSwapsMap]);
+  }, []);
 
   const filteredSwaps = swaps
     .filter((swap) => {
@@ -460,54 +401,6 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
             </div>
           )}
 
-          {/* Section L2 / H.2 Reversible Acceptance 5-second Undo Banner */}
-          {pendingAcceptSwap && (
-            <div
-              className="as-toast-banner"
-              role="status"
-              aria-live="polite"
-              style={{
-                background: 'rgba(214, 166, 74, 0.15)',
-                borderLeft: '4px solid #d6a64a',
-                marginBottom: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '1rem',
-                padding: '0.85rem 1.1rem',
-                borderRadius: '10px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <span style={{ fontSize: '1.2rem' }} aria-hidden="true">⚡</span>
-                <div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-color)' }}>
-                    Accepting this swap...
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    "{pendingAcceptSwap.swap.topic}" • Accepting in {pendingAcceptSwap.seconds} second{pendingAcceptSwap.seconds !== 1 ? 's' : ''}...
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="as-btn as-btn--secondary"
-                style={{
-                  padding: '0.35rem 0.9rem',
-                  fontSize: '0.825rem',
-                  fontWeight: 700,
-                  background: '#d6a64a',
-                  color: '#0f172a',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                }}
-                onClick={handleUndoPendingAccept}
-              >
-                Undo ({pendingAcceptSwap.seconds}s)
-              </button>
-            </div>
-          )}
 
           {/* Acceptance Success Toast */}
           {acceptSuccessToast && (
@@ -606,7 +499,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
           ) : filteredSwaps.length > 0 ? (
             <div id="swaps-results-grid" className="swaps-grid" role="region" aria-label="Available Swaps Results">
               {filteredSwaps.map((swap) => {
-                const completedCount = swap.requesterProfile?.completedSwapsCount ?? completedSwapsMap[swap.requesterId] ?? 0;
+                const completedCount = swap.requesterProfile?.completedSwapsCount ?? 0;
 
                 return (
                   <MarketplaceCard
@@ -718,7 +611,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                     </span>
                     <span style={{ margin: '0 0.35rem', opacity: 0.5 }}>•</span>
                     <span>
-                      {selectedSwapForAccept.requesterProfile?.completedSwapsCount ?? completedSwapsMap[selectedSwapForAccept.requesterId] ?? 0} swaps completed
+                      {selectedSwapForAccept.requesterProfile?.completedSwapsCount ?? 0} swaps completed
                     </span>
                   </div>
                 </div>
@@ -738,7 +631,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
             </div>
 
             <div className="modal-next-step-note" style={{ margin: '0.75rem 0 1rem', fontSize: '0.825rem', color: 'var(--text-secondary)', background: 'var(--card-bg, rgba(255, 255, 255, 0.04))', padding: '0.6rem 0.85rem', borderRadius: '8px', borderLeft: '3px solid #d6a64a' }}>
-              <strong>Next step:</strong> You will have 5 seconds to undo before this swap is confirmed and moved to your Active Swaps.
+              <strong>Next step:</strong> Upon confirmation, this swap will be accepted immediately and moved to your Active Swaps workspace.
             </div>
 
             {acceptError && (
@@ -771,7 +664,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                   }
                   const targetSwap = selectedSwapForAccept;
                   setSelectedSwapForAccept(null);
-                  startPendingAccept(targetSwap);
+                  void commitAcceptSwap(targetSwap);
                 }}
               >
                 {isAccepting ? 'Accepting Swap...' : 'Accept Swap & Start Exchange'}
