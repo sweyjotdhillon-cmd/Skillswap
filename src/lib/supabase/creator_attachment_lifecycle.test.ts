@@ -204,6 +204,7 @@ export async function runCreatorAttachmentLifecycleTests() {
   const uiStatus1 = getFileExpiryStatus(att1Res.rows[0].storage_expires_at);
   assert.strictEqual(uiStatus1.isExpired, false, 'UI status is not expired');
   assert.strictEqual(uiStatus1.displayText, '', 'UI displays no countdown text for NULL expiry');
+  assert.strictEqual(uiStatus1.isPreAcceptance, true, 'UI status correctly identifies NULL expiry as pre-acceptance state');
   console.log('  -> Invariant 1 verified.');
 
   // =========================================================================
@@ -273,9 +274,9 @@ export async function runCreatorAttachmentLifecycleTests() {
   console.log('  -> Invariant 3 & 4 verified.');
 
   // =========================================================================
-  // Invariant 6: If swap is never accepted, creator attachment NEVER expires
+  // Requirement 7 Coverage: Creator attachment with NULL expiry & Unaccepted Open Swap
   // =========================================================================
-  console.log('Invariant 6: Unaccepted swap attachments do not expire 48h after creation...');
+  console.log('Requirement 7: Creator attachment with NULL expiry is pre-acceptance and NOT claimed by worker...');
   const swapNeverRes = await db.query<{ id: string }>(`
     INSERT INTO public.swaps (requester_id, topic, description, requirements, credit_amount, status, created_at)
     VALUES ('${userA}', 'Never Accepted Swap', 'Desc', 'Reqs', 20, 'open', NOW() - INTERVAL '10 days')
@@ -289,12 +290,97 @@ export async function runCreatorAttachmentLifecycleTests() {
     RETURNING id;
   `);
 
-  // Run cleanup worker
+  // Run cleanup worker while swap is open -> attachment is NOT claimed
   const claimedNever = await db.query<{ file_id: string }>(`
     SELECT * FROM public.claim_expired_file_cleanup(500);
   `);
-  assert.strictEqual(claimedNever.rows.some((r) => r.file_id === attNeverRes.rows[0].id), false, 'Unaccepted open swap creator attachment MUST NOT be claimed for cleanup');
-  console.log('  -> Invariant 6 verified.');
+  assert.strictEqual(claimedNever.rows.some((r) => r.file_id === attNeverRes.rows[0].id), false, 'Unaccepted open swap creator attachment with NULL expiry MUST NOT be claimed for cleanup while open');
+  console.log('  -> Creator attachment with NULL expiry verified.');
+
+  // =========================================================================
+  // Requirement 7 Coverage: Retry after failed physical deletion
+  // =========================================================================
+  console.log('Requirement 7: Retry after failed physical deletion for creator attachment...');
+  const failAttRes = await db.query<{ id: string }>(`
+    INSERT INTO public.swap_attachment_files (swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, storage_expires_at)
+    VALUES ('${swap1Id}', '${userA}', 'swap-attachments/${swap1Id}/${userA}/55555555-5555-5555-5555-555555555555-retry.pdf', 'retry.pdf', 'application/pdf', 1024, NOW() - INTERVAL '2 hours')
+    RETURNING id;
+  `);
+  const failAttId = failAttRes.rows[0].id;
+
+  // Claim
+  await db.query(`SELECT * FROM public.claim_expired_file_cleanup(500);`);
+
+  // Mark failed
+  const failRes = await db.query<{ mark_file_storage_failed: boolean }>(`
+    SELECT public.mark_file_storage_failed('creator_attachment', '${failAttId}'::uuid, 'Simulated storage network failure');
+  `);
+  assert.strictEqual(failRes.rows[0].mark_file_storage_failed, true, 'mark_file_storage_failed returns true for creator_attachment');
+
+  const failedAttRecord = (await db.query<{ storage_delete_status: string; storage_delete_claimed_at: string | null }>(`
+    SELECT storage_delete_status, storage_delete_claimed_at FROM public.swap_attachment_files WHERE id = '${failAttId}';
+  `)).rows[0];
+  assert.strictEqual(failedAttRecord.storage_delete_status, 'failed', 'Status is failed');
+  assert.strictEqual(failedAttRecord.storage_delete_claimed_at, null, 'Claim timestamp is reset to null');
+
+  // Re-claim on next worker run
+  const reclaimedFail = await db.query<{ file_id: string }>(`
+    SELECT * FROM public.claim_expired_file_cleanup(500);
+  `);
+  assert.strictEqual(reclaimedFail.rows.some((r) => r.file_id === failAttId), true, 'Failed creator attachment is successfully reclaimed on next cleanup worker run');
+  console.log('  -> Retry after failed physical deletion verified.');
+
+  // =========================================================================
+  // Requirement 7 Coverage: Already-missing physical Storage object (404)
+  // =========================================================================
+  console.log('Requirement 7: Already-missing physical Storage object (404) handling for creator attachment...');
+  const missingAttRes = await db.query<{ id: string }>(`
+    INSERT INTO public.swap_attachment_files (swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, storage_expires_at)
+    VALUES ('${swap1Id}', '${userA}', 'swap-attachments/${swap1Id}/${userA}/66666666-6666-6666-6666-666666666666-missing404.pdf', 'missing404.pdf', 'application/pdf', 1024, NOW() - INTERVAL '2 hours')
+    RETURNING id;
+  `);
+  const missingAttId = missingAttRes.rows[0].id;
+
+  // Claim
+  await db.query(`SELECT * FROM public.claim_expired_file_cleanup(500);`);
+
+  // Mark deleted directly as worker does when Storage API returns 404 Object Not Found
+  const markMissingRes = await db.query<{ mark_file_storage_deleted: boolean }>(`
+    SELECT public.mark_file_storage_deleted('creator_attachment', '${missingAttId}'::uuid);
+  `);
+  assert.strictEqual(markMissingRes.rows[0].mark_file_storage_deleted, true, 'mark_file_storage_deleted returns true for 404 missing object');
+
+  const missingAttRecord = (await db.query<{ storage_delete_status: string; storage_deleted_at: string | null }>(`
+    SELECT storage_delete_status, storage_deleted_at FROM public.swap_attachment_files WHERE id = '${missingAttId}';
+  `)).rows[0];
+  assert.strictEqual(missingAttRecord.storage_delete_status, 'deleted', '404 missing creator attachment is finalized as deleted');
+  assert.notStrictEqual(missingAttRecord.storage_deleted_at, null, 'storage_deleted_at timestamp is populated');
+  console.log('  -> Already-missing physical Storage object (404) verified.');
+
+  // =========================================================================
+  // Requirement 7 Coverage: Duplicate / Stale Cleanup Claims (15m lease timeout recovery)
+  // =========================================================================
+  console.log('Requirement 7: Duplicate / stale cleanup claims (15m lease recovery) for creator attachment...');
+  const staleAttRes = await db.query<{ id: string }>(`
+    INSERT INTO public.swap_attachment_files (swap_id, uploaded_by, storage_path, file_name, mime_type, file_size, storage_expires_at)
+    VALUES ('${swap1Id}', '${userA}', 'swap-attachments/${swap1Id}/${userA}/77777777-7777-7777-7777-777777777777-stale.pdf', 'stale.pdf', 'application/pdf', 1024, NOW() - INTERVAL '2 hours')
+    RETURNING id;
+  `);
+  const staleAttId = staleAttRes.rows[0].id;
+
+  // Simulate worker crash leaving row in pending status with claim timestamp 20 minutes ago
+  await db.query(`
+    UPDATE public.swap_attachment_files
+    SET storage_delete_status = 'pending',
+        storage_delete_claimed_at = NOW() - INTERVAL '20 minutes'
+    WHERE id = '${staleAttId}';
+  `);
+
+  const reclaimStale = await db.query<{ file_id: string }>(`
+    SELECT * FROM public.claim_expired_file_cleanup(500);
+  `);
+  assert.strictEqual(reclaimStale.rows.some((r) => r.file_id === staleAttId), true, 'Stale lease (>15m) creator attachment is successfully reclaimed');
+  console.log('  -> Duplicate / stale cleanup claims verified.');
 
   // =========================================================================
   // Invariant 7: Displayed expiry time matches accepted_at + 48 hours

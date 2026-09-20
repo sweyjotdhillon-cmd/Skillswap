@@ -685,6 +685,7 @@ export async function completeCreditSwap(swapId: string): Promise<CreditOperatio
 export async function cancelCreditSwap(swapId: string): Promise<CreditOperationResult> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
+
   const { data, error } = await supabase.rpc('cancel_credit_swap', {
     p_swap_id: swapId,
   });
