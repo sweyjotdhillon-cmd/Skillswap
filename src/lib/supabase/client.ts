@@ -8,22 +8,28 @@ export function getSupabaseBrowserClient(): SupabaseClient | null {
   if (browserClient) return browserClient;
 
   const env = (import.meta as unknown as { env?: Record<string, string> })?.env || {};
-  const rawUrl = env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
-  const supabaseAnonKey =
-    env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_anon_key';
+  const rawUrl = (env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL)?.trim();
+  const rawKey = (env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY)?.trim();
 
-  if (!rawUrl || !supabaseAnonKey) {
+  if (!rawUrl) {
+    console.error('Supabase initialization failed: Supabase URL is missing.');
     return null;
   }
 
-  const supabaseUrl = rawUrl.trim();
-  if (!supabaseUrl.startsWith('http://') && !supabaseUrl.startsWith('https://')) {
-    console.error('Invalid Supabase URL format:', supabaseUrl);
+  if (!rawKey) {
+    console.error(
+      'Supabase initialization failed: Missing Supabase key. Please configure VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY.'
+    );
+    return null;
+  }
+
+  if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
+    console.error('Supabase initialization failed: Invalid Supabase URL format.');
     return null;
   }
 
   try {
-    browserClient = createClient(supabaseUrl, supabaseAnonKey, {
+    browserClient = createClient(rawUrl, rawKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
