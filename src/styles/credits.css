@@ -171,8 +171,10 @@
 .credit-modal-close-btn {
   background: transparent;
   border: 1px solid var(--shell-border, rgba(17, 22, 28, 0.12));
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 50%;
   display: grid;
   place-items: center;

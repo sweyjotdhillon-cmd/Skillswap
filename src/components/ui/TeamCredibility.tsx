@@ -35,9 +35,9 @@ export function TeamCredibility({
       aria-labelledby="team-credibility-heading"
       style={{
         padding: '3rem 1.5rem',
-        background: 'var(--color-surface, #1e293b)',
+        background: 'var(--color-surface, #ffffff)',
         borderRadius: '1rem',
-        border: '1px solid var(--border-color, rgba(148, 163, 184, 0.15))',
+        border: '1px solid var(--border-color, rgba(15, 23, 42, 0.12))',
         margin: '2rem 0',
       }}
     >
@@ -62,7 +62,7 @@ export function TeamCredibility({
           style={{
             fontSize: 'clamp(1.5rem, 2.5vw, 2.1rem)',
             fontWeight: 800,
-            color: 'var(--text-color, #f8fafc)',
+            color: 'var(--text-color, #0f172a)',
             margin: '0 0 0.5rem',
           }}
         >
@@ -71,7 +71,7 @@ export function TeamCredibility({
         <p
           className="section-description"
           style={{
-            color: 'var(--text-muted, #94a3b8)',
+            color: 'var(--text-muted, #64748b)',
             fontSize: '0.95rem',
             maxWidth: '640px',
             margin: '0 auto',
@@ -104,10 +104,10 @@ export function TeamCredibility({
                 key={founder.id}
                 className="founder-card"
                 style={{
-                  background: 'var(--color-canvas, #0f172a)',
+                  background: 'var(--color-canvas, #f8fafc)',
                   padding: '1.5rem',
                   borderRadius: '0.75rem',
-                  border: '1px solid var(--border-color, rgba(148, 163, 184, 0.15))',
+                  border: '1px solid var(--border-color, rgba(15, 23, 42, 0.12))',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '1rem',
@@ -258,10 +258,10 @@ export function TeamCredibility({
       <div
         className="contact-paths-box"
         style={{
-          background: 'var(--color-canvas, #0f172a)',
+          background: 'var(--color-canvas, #f8fafc)',
           borderRadius: '0.75rem',
           padding: '1.5rem',
-          border: '1px solid var(--border-color, rgba(148, 163, 184, 0.15))',
+          border: '1px solid var(--border-color, rgba(15, 23, 42, 0.12))',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -274,7 +274,7 @@ export function TeamCredibility({
             fontSize: '1rem',
             fontWeight: 700,
             margin: 0,
-            color: 'var(--text-color, #f8fafc)',
+            color: 'var(--text-color, #0f172a)',
           }}
         >
           Symmetric &amp; Direct Support Channels
@@ -283,7 +283,7 @@ export function TeamCredibility({
           style={{
             margin: 0,
             fontSize: '0.875rem',
-            color: 'var(--text-muted, #94a3b8)',
+            color: 'var(--text-muted, #64748b)',
             maxWidth: '520px',
             lineHeight: 1.45,
           }}

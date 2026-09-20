@@ -919,6 +919,10 @@ h1 span { color: #a8781d; }
   border: 1px solid rgba(17, 22, 28, 0.12);
   border-radius: 999px;
   padding: 0.6rem 1.25rem;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: #ffffff;
   font-size: 0.9rem;
   font-weight: 600;
@@ -2363,6 +2367,10 @@ h1 span { color: #a8781d; }
 
 .reset-filter-btn {
   padding: 0.6rem 1.25rem;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
   background: #11161c;
   color: #ffffff;
@@ -3208,10 +3216,10 @@ h1 span { color: #a8781d; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  min-height: 36px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.05);
   border: 1px solid rgba(0, 0, 0, 0.08);
