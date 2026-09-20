@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { getCorsHeaders, handleCors } from '../../../supabase/functions/_shared/cors.ts';
+import { getCorsHeaders, handleCors } from '../../../supabase/functions/_shared/cors';
 
 // Polyfill global Deno if not present in Node.js test environment
 if (typeof (globalThis as any).Deno === 'undefined') {
