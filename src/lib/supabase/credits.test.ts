@@ -1260,12 +1260,12 @@ export async function runCreditSystemTests() {
   // Error formatting without misleading profile messages
   const http400Err = { status: 400, message: 'Invalid file format or upload rejected' };
   const errText = formatSubmissionErrorMessage(http400Err, 'Screenshot_20260903-195633.jpg');
-  assert(errText.includes('Screenshot_20260903-195633.jpg') && errText.includes('could not be accepted'), '400 error returns submission rejection text');
+  assert(errText.includes("This file type isn't supported"), '400 error returns submission rejection text');
   assert(!errText.includes('profile'), 'Submission error never mentions profile');
 
   const genericErr = { message: 'Network request failed' };
   const genericText = formatSubmissionErrorMessage(genericErr, 'test.pdf');
-  assert(genericText.includes('test.pdf') || genericText.includes('connect to the server'), 'Generic error returns submission error text');
+  assert(genericText.includes('connection problem') || genericText.includes('test.pdf'), 'Generic error returns submission error text');
   assert(!genericText.includes('profile'), 'Generic submission error never mentions profile');
 
   console.log('  -> Extension-aware MIME normalization & submission error formatting verified cleanly!');

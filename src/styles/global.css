@@ -745,6 +745,10 @@ h1 span { color: #a8781d; }
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .preview-badge {
@@ -3311,6 +3315,10 @@ h1 span { color: #a8781d; }
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .chat-message--other {

@@ -12,6 +12,7 @@ import {
   getSwapMessageAttachmentSignedUrl,
   downloadFileFromSignedUrl,
   deleteChatAttachmentManual,
+  validateChatAttachmentFile,
   type SwapAttachment,
 } from '../../lib/supabase/credits';
 import { mapSwapRecordToSwap, type Swap, type SwapMessage, type SwapSubmission } from '../../types/swap';
@@ -344,8 +345,9 @@ export function SwapChatModal({
 
     const validFiles: File[] = [];
     for (const f of newFiles) {
-      if (f.size > 25 * 1024 * 1024) {
-        setChatError(`File "${f.name}" exceeds maximum allowed size of 25MB.`);
+      const validation = validateChatAttachmentFile(f);
+      if (!validation.valid) {
+        setChatError(validation.error || 'Attachment upload failed. Please try again.');
         return;
       }
       validFiles.push(f);
@@ -676,11 +678,13 @@ export function SwapChatModal({
                                   borderRadius: '8px',
                                   fontSize: '0.8rem',
                                   gap: '0.5rem',
+                                  minWidth: 0,
+                                  maxWidth: '100%',
                                 }}
                               >
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                    📎 <strong>{att.fileName}</strong> {sizeKb > 0 ? `(${sizeKb} KB)` : ''}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', minWidth: 0, overflow: 'hidden' }}>
+                                    📎 <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', maxWidth: '100%' }}>{att.fileName}</strong> {sizeKb > 0 ? <span style={{ flexShrink: 0 }}>({sizeKb} KB)</span> : ''}
                                   </span>
                                   <FileExpiryIndicator
                                     lifecycle={att}
@@ -787,7 +791,7 @@ export function SwapChatModal({
 
             {/* SELECTED FILES PREVIEW CHIPS */}
             {selectedFiles.length > 0 && (
-              <div style={{ padding: '0.5rem 1rem', display: 'flex', gap: '0.4rem', flexWrap: 'wrap', background: 'var(--color-surface-muted, rgba(0,0,0,0.1))' }}>
+              <div style={{ padding: '0.5rem 1rem', display: 'flex', gap: '0.4rem', flexWrap: 'wrap', background: 'var(--color-surface-muted, rgba(0,0,0,0.1))', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}>
                 {selectedFiles.map((file, idx) => (
                   <span
                     key={`${file.name}-${idx}`}
@@ -797,15 +801,22 @@ export function SwapChatModal({
                       gap: '0.35rem',
                       background: 'var(--color-surface, #1e293b)',
                       border: '1px solid var(--border-color, rgba(255,255,255,0.15))',
-                      padding: '0.2rem 0.5rem',
+                      padding: '0.25rem 0.6rem',
                       borderRadius: '999px',
                       fontSize: '0.75rem',
+                      maxWidth: '100%',
+                      boxSizing: 'border-box',
+                      minWidth: 0,
                     }}
                   >
-                    📎 {file.name} ({Math.round(file.size / 1024)} KB)
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 'min(200px, 50vw)' }}>
+                      📎 {file.name}
+                    </span>
+                    <span style={{ flexShrink: 0, opacity: 0.8 }}>({Math.round(file.size / 1024)} KB)</span>
                     <button
                       type="button"
-                      style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, marginLeft: '0.2rem' }}
+                      aria-label={`Remove file ${file.name}`}
+                      style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, marginLeft: '0.2rem', flexShrink: 0, fontSize: '0.9rem', lineHeight: 1 }}
                       onClick={() => handleRemoveFile(idx)}
                     >
                       ×
