@@ -121,13 +121,8 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewedSwaps, setReviewedSwaps] = useState<Record<string, boolean>>({});
 
-  // Chat Modal state - stored strictly by ID to prevent stale item snapshots
-  const [activeChatSwapId, setActiveChatSwapId] = useState<string | null>(null);
-
-  // Close chat cleanly when main section changes
-  useEffect(() => {
-    setActiveChatSwapId(null);
-  }, [mainSection]);
+  // Chat Modal state
+  const [activeChatSwap, setActiveChatSwap] = useState<CategorizedSwapItem | null>(null);
 
   const isMountedRef = useRef(true);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -490,22 +485,8 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     };
   }, [currentSelectedSwapId, currentSelectedSwapStatus]);
 
-  // Dynamically derive current chat item from latest canonical collections using activeChatSwapId
-  const activeChatItem = activeChatSwapId
-    ? activeSwaps.find((s) => s.swap.id === activeChatSwapId) ||
-      myListings.find((s) => s.swap.id === activeChatSwapId) ||
-      swapHistory.find((s) => s.swap.id === activeChatSwapId) || null
-    : null;
-
-  // Close chat cleanly if the selected swap ID disappears from all collections
-  useEffect(() => {
-    if (activeChatSwapId && !activeChatItem) {
-      setActiveChatSwapId(null);
-    }
-  }, [activeChatSwapId, activeChatItem]);
-
   const handleOpenChat = (item: CategorizedSwapItem) => {
-    setActiveChatSwapId(item.swap.id);
+    setActiveChatSwap(item);
   };
 
   // ==========================================
@@ -1778,22 +1759,19 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
       )}
 
       {/* CHAT MODAL / CONSOLIDATED WORKSPACE */}
-      {activeChatSwapId && activeChatItem && (
+      {activeChatSwap && (
         <SwapChatModal
-          key={activeChatSwapId}
-          swap={activeChatItem.swap}
-          partnerName={activeChatItem.partner.name}
-          partnerAvatar={activeChatItem.partner.avatar}
-          onClose={() => setActiveChatSwapId(null)}
+          swap={activeChatSwap.swap}
+          partnerName={activeChatSwap.partner.name}
+          partnerAvatar={activeChatSwap.partner.avatar}
+          onClose={() => setActiveChatSwap(null)}
           onOpenSubmitWork={() => {
-            setActiveChatSwapId(null);
+            setActiveChatSwap(null);
             setSubmitError(null);
             setIsSubmitWorkModalOpen(true);
           }}
           onApproveSwap={async () => {
-            if (activeChatItem) {
-              await handleApproveGivenSwap(activeChatItem);
-            }
+            await handleApproveGivenSwap(activeChatSwap);
           }}
           isApproving={isMutating}
         />

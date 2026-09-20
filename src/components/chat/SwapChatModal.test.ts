@@ -626,68 +626,6 @@ export function runSwapChatModalAndDesignSystemTests() {
   mockRemoveChannel();
   assert(channelRemoved, 'Requirement 18: Unmounting cleans up Realtime channels and timers');
 
-  // =========================================================================
-  // SWAP-IDENTITY STATE Isolation & REGRESSION TESTS
-  // =========================================================================
-  console.log('--- Executing Swap Identity State Isolation & Regression Tests ---');
-
-  // Regression Test 1: ID-Authoritative Identity Resolution
-  const swapA: Swap = { ...mockSwap, id: 'swap-A', topic: 'Topic A' };
-  const swapB: Swap = { ...mockSwap, id: 'swap-B', topic: 'Topic B' };
-
-  // Helper simulating SwapChatModal's authoritative identity derivation
-  const deriveAuthoritativeSwap = (initialProp: Swap, freshState: Swap | null): Swap => {
-    return (freshState && freshState.id === initialProp.id) ? freshState : initialProp;
-  };
-
-  // When initialProp switches to B, but freshState is still A (from previous render/fetch)
-  const derivedWhenPropIsB = deriveAuthoritativeSwap(swapB, swapA);
-  assert(derivedWhenPropIsB.id === 'swap-B', 'Regression Test 1: Canonical swap ID evaluates to swap B immediately when prop is swap B');
-  assert(derivedWhenPropIsB.topic === 'Topic B', 'Regression Test 1: Topic evaluates to Topic B, never rendering Topic A');
-
-  // Regression Test 2: Message Isolation Across Swap Switching
-  const msgsSwapA: SwapMessage[] = [
-    { id: 'msg-a1', swapId: 'swap-A', senderId: 'user-req-1', recipientId: 'user-part-2', body: 'Msg for A', readAt: null, createdAt: new Date().toISOString() },
-  ];
-  const msgsSwapB: SwapMessage[] = [
-    { id: 'msg-b1', swapId: 'swap-B', senderId: 'user-req-1', recipientId: 'user-part-2', body: 'Msg for B', readAt: null, createdAt: new Date().toISOString() },
-  ];
-
-  // Helper simulating state reset and targetSwapId filtering on swap change
-  const filterMessagesForSwap = (targetSwapId: string, msgs: SwapMessage[]): SwapMessage[] => {
-    return msgs.filter((m) => m.swapId === targetSwapId);
-  };
-
-  const visibleForSwapB = filterMessagesForSwap('swap-B', msgsSwapA);
-  assert(visibleForSwapB.length === 0, 'Regression Test 2: Swap A messages do not remain visible after switching to swap B');
-
-  const visibleValidSwapB = filterMessagesForSwap('swap-B', msgsSwapB);
-  assert(visibleValidSwapB.length === 1 && visibleValidSwapB[0].id === 'msg-b1', 'Regression Test 2: Only swap B messages render for swap B');
-
-  // Regression Test 3: Realtime Channel Name Scoping
-  const getChannelName = (swapId: string): string => `skillswap-chat:${swapId}`;
-  assert(getChannelName(swapB.id) === 'skillswap-chat:swap-B', 'Regression Test 3: Swap B creates realtime channel scoped to swap-B');
-  assert(getChannelName(swapB.id) !== 'skillswap-chat:swap-A', 'Regression Test 3: Swap B channel is never scoped to swap-A');
-
-  // Regression Test 4: Async Response Guard Against Stale Completion
-  const currentTargetSwapId = 'swap-B';
-  let stateForSwapB = 'Initial B State';
-
-  const handleAsyncResponse = (responseSwapId: string, responseData: string) => {
-    // Effect guard: only update state if response matches current targetSwapId
-    if (responseSwapId === currentTargetSwapId) {
-      stateForSwapB = responseData;
-    }
-  };
-
-  // Simulate stale async response arriving from swap A after target changed to B
-  handleAsyncResponse('swap-A', 'Stale Data From Swap A');
-  assert(stateForSwapB === 'Initial B State', 'Regression Test 4: Stale async response from swap A cannot overwrite state for swap B');
-
-  // Simulate valid async response arriving for swap B
-  handleAsyncResponse('swap-B', 'Fresh Data For Swap B');
-  assert(stateForSwapB === 'Fresh Data For Swap B', 'Regression Test 4: Valid async response for swap B updates state correctly');
-
   console.log('✓ All E.3, E.4, L13 & Section L15 Consolidated Workspace unit tests passed!');
 }
 

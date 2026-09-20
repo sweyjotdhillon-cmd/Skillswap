@@ -1,16 +1,16 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '../../types/database.types';
 
-let browserClient: SupabaseClient<Database> | null = null;
+let browserClient: SupabaseClient | null = null;
 
 const DEFAULT_SUPABASE_URL = 'https://czpcaffwtmlxvplpanon.supabase.co';
 
-export function getSupabaseBrowserClient(): SupabaseClient<Database> | null {
+export function getSupabaseBrowserClient(): SupabaseClient | null {
   if (browserClient) return browserClient;
 
-  const env = (import.meta as unknown as { env?: Record<string, string> })?.env || {};
-  const rawUrl = (env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL)?.trim();
-  const rawKey = (env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY)?.trim();
+  const rawUrl = (import.meta.env?.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL)?.trim();
+  const rawKey = (
+    import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env?.VITE_SUPABASE_ANON_KEY
+  )?.trim();
 
   if (!rawUrl) {
     console.error('Supabase initialization failed: Supabase URL is missing.');
@@ -30,7 +30,7 @@ export function getSupabaseBrowserClient(): SupabaseClient<Database> | null {
   }
 
   try {
-
+    browserClient = createClient(rawUrl, rawKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
