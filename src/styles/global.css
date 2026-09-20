@@ -2306,7 +2306,10 @@ h1 span { color: #a8781d; }
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.3;
+  text-align: center;
 }
 
 .swap-btn--primary {
@@ -2822,7 +2825,8 @@ h1 span { color: #a8781d; }
 .embedded-transaction-card {
   align-self: center;
   width: 100%;
-  max-width: 520px;
+  max-width: min(520px, 100%);
+  box-sizing: border-box;
   padding: 1rem 1.15rem;
   border-radius: 16px;
   margin: 0.5rem 0 0.85rem;
@@ -2833,6 +2837,7 @@ h1 span { color: #a8781d; }
   flex-direction: column;
   gap: 0.75rem;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  overflow-wrap: break-word;
 }
 
 
@@ -2986,7 +2991,10 @@ h1 span { color: #a8781d; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.3;
+  text-align: center;
 }
 
 .embedded-tx-action-btn--primary {
@@ -3744,7 +3752,9 @@ h1 span { color: #a8781d; }
 .as-action-text {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .as-card-header-row {
@@ -3759,6 +3769,7 @@ h1 span { color: #a8781d; }
   align-items: center;
   gap: 0.65rem;
   min-width: 0;
+  max-width: 100%;
 }
 
 .as-card-avatar {
@@ -3779,9 +3790,9 @@ h1 span { color: #a8781d; }
   font-size: 0.925rem;
   font-weight: 700;
   color: #11161c;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .as-card-time {
@@ -3798,7 +3809,10 @@ h1 span { color: #a8781d; }
   padding: 0.25rem 0.65rem;
   font-size: 0.75rem;
   font-weight: 700;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.3;
+  text-align: center;
 }
 
 .as-status-badge--in-progress,
@@ -4148,7 +4162,10 @@ h1 span { color: #a8781d; }
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.3;
+  text-align: center;
 }
 
 .as-btn--primary {
@@ -4273,7 +4290,21 @@ h1 span { color: #a8781d; }
 
   .as-btn {
     width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
     text-align: center;
+  }
+
+  .swap-btn,
+  .sr-btn,
+  .onboarding-btn {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .as-status-badge {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
   }
 }
 
@@ -5106,7 +5137,10 @@ h1 span { color: #a8781d; }
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.3;
+  text-align: center;
 }
 
 .sr-btn-icon {
@@ -8394,7 +8428,10 @@ input.username-input:-webkit-autofill:active,
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.3;
+  text-align: center;
 }
 
 .onboarding-btn--secondary {
