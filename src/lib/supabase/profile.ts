@@ -46,7 +46,10 @@ export interface Account {
 
 export interface UserPrivateContact {
   user_id: string;
-  phone_number: string | null;
+  email?: string;
+  phone: string | null;
+  phone_number?: string | null;
+  created_at?: string;
   updated_at: string;
 }
 
@@ -58,9 +61,10 @@ export interface Skill {
 }
 
 export interface UserSkill {
-  id: string;
+  id?: string;
   user_id: string;
   skill_id: string;
+  skill_type?: 'offered' | 'wanted';
   created_at: string;
   skills?: Skill;
 }
@@ -68,7 +72,9 @@ export interface UserSkill {
 export interface UserCustomSkill {
   id: string;
   user_id: string;
-  skill_name: string;
+  name?: string;
+  skill_name?: string;
+  skill_type?: 'offered' | 'wanted';
   created_at: string;
 }
 
@@ -392,7 +398,7 @@ export async function saveCurrentUserPrivateContact(phoneNumber: string | null |
   const cleanPhone = typeof phoneNumber === 'string' && phoneNumber.trim() !== '' ? phoneNumber.trim() : null;
 
   const { error } = await supabase.from('user_private_contacts').upsert(
-    { user_id: authData.user.id, phone_number: cleanPhone },
+    { user_id: authData.user.id, email: authData.user.email || '', phone: cleanPhone },
     { onConflict: 'user_id' },
   );
   if (error) throw new Error(formatFriendlyErrorMessage(error));
@@ -575,8 +581,8 @@ export async function getUserSkills(userId: string): Promise<{ predefined: UserS
     ]);
 
     return {
-      predefined: (predefinedRes.data || []) as UserSkill[],
-      custom: (customRes.data || []) as UserCustomSkill[],
+      predefined: (predefinedRes.data || []) as unknown as UserSkill[],
+      custom: (customRes.data || []) as unknown as UserCustomSkill[],
     };
   } catch (err) {
     console.error('Error fetching user skills:', err);
@@ -589,15 +595,18 @@ export async function getUserSkills(userId: string): Promise<{ predefined: UserS
  * Enforces maximum 10 skills combined limit server-side with concurrency advisory locks.
  */
 export async function addUserSkill(
-  params: { skillId?: string; customSkillName?: string }
+  params: { skillName?: string; skillType?: string; skillId?: string; customSkillName?: string }
 ): Promise<{ success: boolean; type?: string; id?: string; error?: string }> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { success: false, error: 'We couldn’t save your profile right now. Please try again.' };
 
   try {
+    const skillName = params.skillName || params.customSkillName || params.skillId || '';
+    const skillType = params.skillType || 'offered';
+
     const { data, error } = await supabase.rpc('add_user_skill', {
-      p_skill_id: params.skillId || null,
-      p_custom_skill_name: params.customSkillName || null,
+      p_skill_name: skillName,
+      p_skill_type: skillType,
     });
 
     if (error) {
@@ -605,10 +614,15 @@ export async function addUserSkill(
       return { success: false, error: formatFriendlyErrorMessage(error) };
     }
 
-    if (!data || data.success !== true) {
-      return { success: false, error: 'We couldn’t save your profile right now. Please try again.' };
+    const res = data as unknown as { success?: boolean; type?: string; id?: string; error?: string } | null;
+    if (!res || res.success !== true) {
+      return { success: false, error: res?.error || 'We couldn’t save your profile right now. Please try again.' };
     }
-    return data;
+    return {
+      success: true,
+      type: res.type,
+      id: res.id,
+    };
   } catch (err: unknown) {
     console.error('[addUserSkill] Exception:', err);
     return { success: false, error: formatFriendlyErrorMessage(err) };
@@ -644,10 +658,13 @@ export async function removeUserSkill(skillType: 'predefined' | 'custom', skillI
   if (!supabase || !skillId) return false;
 
   try {
-    const table = skillType === 'predefined' ? 'user_skills' : 'user_custom_skills';
-    const { error } = await supabase.from(table).delete().eq('id', skillId);
-
-    return !error;
+    if (skillType === 'predefined') {
+      const { error } = await supabase.from('user_skills').delete().eq('skill_id', skillId);
+      return !error;
+    } else {
+      const { error } = await supabase.from('user_custom_skills').delete().eq('id', skillId);
+      return !error;
+    }
   } catch (err) {
     console.error('Error removing user skill:', err);
     return false;
@@ -698,10 +715,14 @@ export async function completeProfile(): Promise<{ success: boolean; profile_com
       return { success: false, error: formatFriendlyErrorMessage(error) };
     }
 
-    if (!data || data.success !== true || data.profile_completed !== true) {
-      return { success: false, error: 'We couldn’t complete your profile right now. Please try again.' };
+    const res = data as unknown as { success?: boolean; profile_completed?: boolean; error?: string } | null;
+    if (!res || res.success !== true || res.profile_completed !== true) {
+      return { success: false, error: res?.error || 'We couldn’t complete your profile right now. Please try again.' };
     }
-    return data;
+    return {
+      success: true,
+      profile_completed: true,
+    };
   } catch (err: unknown) {
     return { success: false, error: formatFriendlyErrorMessage(err) };
   }
