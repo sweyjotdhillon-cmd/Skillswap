@@ -193,129 +193,143 @@ export function SwapChatModal({
     };
   }, [onClose]);
 
+  // Client-side expiry timer: re-evaluates message/attachment expiry every 10 seconds to update local UI state
+  const [, setExpiryTick] = useState<number>(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setExpiryTick(Date.now());
+    }, 10000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Primary effect: Manage Realtime postgres_changes + Broadcast subscription & database initial fetch / reconnect catch-up
   useEffect(() => {
     setChatError(null);
-
-    if (!user) {
-      setChatError('Your session has expired. Please sign in again.');
-      return;
-    }
-
-    if (!canChat || !recipientId) {
-      if (['cancelled', 'declined', 'withdrawn', 'expired'].includes(swap.status)) {
-        setChatError('This chat is no longer available because the swap has closed.');
-      } else if (!isRequester && !isParticipant && !isOpenSwapApplicant) {
-        setChatError('You are not a participant in this swap.');
-      } else if (isRequester && swap.status !== 'open' && !swap.participantId) {
-        setChatError('This swap does not have an active participant.');
-      }
-    }
 
     const supabase = getSupabaseBrowserClient();
     if (!supabase || !swap.id) return;
 
     let isMounted = true;
 
-    // Helper to fetch latest persisted messages from PostgreSQL
-    const fetchPersistedMessages = async () => {
-      const res = await getSwapMessages(swap.id);
+    const initChat = async () => {
+      // Direct session check from client to prevent stale React state issues
+      const { data: { user: authedUser }, error: sessionErr } = await supabase.auth.getUser();
       if (!isMounted) return;
 
-      if (res.error) {
-        setChatError(res.error);
-      } else {
-        setMessages((prev) => mergeAndDeduplicate(prev, res.data));
+      if (sessionErr || !authedUser) {
+        setChatError('Your session has expired. Please sign in again.');
+        return;
       }
-    };
 
-    // 1. Initial database SELECT
-    void fetchPersistedMessages();
+      if (!canChat || !recipientId) {
+        if (['cancelled', 'declined', 'withdrawn', 'expired'].includes(swap.status)) {
+          setChatError('This chat is no longer available because the swap has closed.');
+        } else if (!isRequester && !isParticipant && !isOpenSwapApplicant) {
+          setChatError('You are not a participant in this swap.');
+        } else if (isRequester && swap.status !== 'open' && !swap.participantId) {
+          setChatError('This swap does not have an active participant.');
+        }
+      }
 
-    // 2. Setup Realtime subscription ONLY if user is an active swap member (requester or participant)
-    const isMember = isRequester || isParticipant;
-    if (!isMember) {
-      // For open-swap visitors, avoid subscribing to Realtime since they are not swap members.
-      // Persisted DB message insertion and optimistic timeline updates are relied upon instead.
-      return () => {
-        isMounted = false;
-      };
-    }
-
-    const channelName = `skillswap-chat:${swap.id}`;
-    const channel = supabase.channel(channelName, {
-      config: {
-        broadcast: { self: true },
-      },
-    });
-
-    channelRef.current = channel;
-
-    channel
-      .on('broadcast', { event: 'chat_message' }, (payload) => {
+      // Helper to fetch latest persisted messages from PostgreSQL
+      const fetchPersistedMessages = async () => {
+        const res = await getSwapMessages(swap.id);
         if (!isMounted) return;
-        const msg = payload.payload as SwapMessage;
-        if (!msg || !msg.id || msg.swapId !== swap.id) return;
 
-        setMessages((prev) => mergeAndDeduplicate(prev, [msg]));
-      })
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'swap_messages',
-          filter: `swap_id=eq.${swap.id}`,
+        if (res.error) {
+          setChatError(res.error);
+        } else {
+          setMessages((prev) => mergeAndDeduplicate(prev, res.data));
+        }
+      };
+
+      // 1. Initial database SELECT
+      await fetchPersistedMessages();
+
+      // 2. Setup Realtime subscription ONLY if user is an active swap member (requester or participant)
+      const isMember = isRequester || isParticipant;
+      if (!isMember) {
+        return;
+      }
+
+      const channelName = `skillswap-chat:${swap.id}`;
+      const channel = supabase.channel(channelName, {
+        config: {
+          broadcast: { self: true },
         },
-        (payload) => {
-          if (!isMounted) return;
-          const raw = payload.new as {
-            id: string;
-            swap_id: string;
-            sender_id: string;
-            recipient_id: string;
-            body: string;
-            read_at?: string | null;
-            created_at: string;
-            expires_at?: string;
-          };
+      });
 
-          if (raw && raw.id && raw.swap_id === swap.id) {
-            const incomingMsg: SwapMessage = {
-              id: raw.id,
-              swapId: raw.swap_id,
-              senderId: raw.sender_id,
-              recipientId: raw.recipient_id,
-              body: raw.body,
-              readAt: raw.read_at ?? null,
-              createdAt: raw.created_at,
-              expiresAt: raw.expires_at,
-              attachments: [],
+      channelRef.current = channel;
+
+      channel
+        .on('broadcast', { event: 'chat_message' }, (payload) => {
+          if (!isMounted) return;
+          const msg = payload.payload as SwapMessage;
+          if (!msg || !msg.id || msg.swapId !== swap.id) return;
+
+          setMessages((prev) => mergeAndDeduplicate(prev, [msg]));
+        })
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'swap_messages',
+            filter: `swap_id=eq.${swap.id}`,
+          },
+          (payload) => {
+            if (!isMounted) return;
+            const raw = payload.new as {
+              id: string;
+              swap_id: string;
+              sender_id: string;
+              recipient_id: string;
+              body: string;
+              read_at?: string | null;
+              created_at: string;
+              expires_at?: string;
             };
 
-            setMessages((prev) => mergeAndDeduplicate(prev, [incomingMsg]));
-            // Refresh to load attachments if any
-            void fetchPersistedMessages();
+            if (raw && raw.id && raw.swap_id === swap.id) {
+              const incomingMsg: SwapMessage = {
+                id: raw.id,
+                swapId: raw.swap_id,
+                senderId: raw.sender_id,
+                recipientId: raw.recipient_id,
+                body: raw.body,
+                readAt: raw.read_at ?? null,
+                createdAt: raw.created_at,
+                expiresAt: raw.expires_at,
+                attachments: [],
+              };
+
+              setMessages((prev) => mergeAndDeduplicate(prev, [incomingMsg]));
+              void fetchPersistedMessages();
+            }
           }
-        }
-      )
-      .subscribe((status, err) => {
-        if (!isMounted) return;
-        if (status === 'SUBSCRIBED') {
-          setChatError((prev) => (prev === 'Connection lost. Reconnecting…' ? null : prev));
-          void fetchPersistedMessages();
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.error(`[Realtime Chat] Channel subscription status: ${status}`, err);
-          setChatError('Connection lost. Reconnecting…');
-        }
-      });
+        )
+        .subscribe((status, err) => {
+          if (!isMounted) return;
+          if (status === 'SUBSCRIBED') {
+            setChatError((prev) => (prev === 'Connection lost. Reconnecting…' ? null : prev));
+            void fetchPersistedMessages();
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error(`[Realtime Chat] Channel subscription status: ${status}`, err);
+            setChatError('Connection lost. Reconnecting…');
+          }
+        });
+    };
+
+    void initChat();
 
     return () => {
       isMounted = false;
-      channelRef.current = null;
-      void supabase.removeChannel(channel);
+      if (channelRef.current) {
+        void supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
-  }, [swap.id, user, isRequester, isParticipant]);
+  }, [swap.id, swap.status, swap.participantId, user, canChat, recipientId, isRequester, isParticipant, isOpenSwapApplicant]);
 
   // Auto-scroll to bottom on message list update
   useEffect(() => {
@@ -356,7 +370,14 @@ export function SwapChatModal({
     const cleanText = input.trim();
     if ((!cleanText && selectedFiles.length === 0) || sending) return;
 
-    if (!user) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setChatError('Supabase client is unavailable.');
+      return;
+    }
+
+    const { data: { user: currentUser }, error: sessionErr } = await supabase.auth.getUser();
+    if (sessionErr || !currentUser) {
       setChatError('Your session has expired. Please sign in again.');
       return;
     }
@@ -606,12 +627,22 @@ export function SwapChatModal({
               )}
 
               {/* MESSAGES & INTERLEAVED EVENTS */}
-              {messages.length === 0 && !submission && !isCompleted ? (
-                <p style={{ textAlign: 'center', color: 'var(--text-secondary)', margin: '1.5rem 0' }}>
-                  No messages yet. Use this space to discuss exchange terms and deliverables.
-                </p>
-              ) : (
-                messages.map((msg) => {
+              {(() => {
+                const nowMs = Date.now();
+                const activeMessages = messages.filter((m) => {
+                  if (!m.expiresAt) return true;
+                  return new Date(m.expiresAt).getTime() > nowMs;
+                });
+
+                if (activeMessages.length === 0 && !submission && !isCompleted) {
+                  return (
+                    <p style={{ textAlign: 'center', color: 'var(--text-secondary)', margin: '1.5rem 0' }}>
+                      No messages yet. Use this space to discuss exchange terms and deliverables.
+                    </p>
+                  );
+                }
+
+                return activeMessages.map((msg) => {
                   const isUser = user && msg.senderId === user.id;
                   const timeFormatted = new Date(msg.createdAt).toLocaleTimeString([], {
                     hour: '2-digit',
@@ -721,8 +752,8 @@ export function SwapChatModal({
                       <span className="chat-message-time">{timeFormatted}</span>
                     </div>
                   );
-                })
-              )}
+                });
+              })()}
 
               {/* SUBMISSION EVENT CARD (Spatially Contiguous in Chat Timeline) */}
               {submission && (

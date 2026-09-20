@@ -413,6 +413,30 @@ export function formatAcceptSwapErrorMessage(
   return formatFriendlyErrorMessage(error);
 }
 
+export function formatChatMessageErrorMessage(error: unknown): string {
+  if (!error) return 'Failed to send message.';
+  logger.error('[Chat Technical Error Details]:', error);
+
+  const errObj = error as { message?: string; details?: string; code?: string; status?: number };
+  const rawMsg = typeof error === 'string' ? error : errObj.message || errObj.details || '';
+  const lower = rawMsg.toLowerCase();
+  const code = errObj.code || '';
+
+  if (lower.includes('jwt') || lower.includes('unauthorized') || lower.includes('not authenticated') || lower.includes('session expired')) {
+    return 'Your session has expired. Please sign in again.';
+  }
+
+  if (lower.includes('failed to fetch') || lower.includes('networkerror') || lower.includes('network error') || lower.includes('connection lost')) {
+    return 'Network connection error. Please check your internet connection and try again.';
+  }
+
+  if (code === '42501' || lower.includes('row-level security') || lower.includes('permission denied') || lower.includes('not a participant') || lower.includes('not authorized')) {
+    return 'You do not have permission to send messages in this swap.';
+  }
+
+  return formatFriendlyErrorMessage(error);
+}
+
 export function formatSubmissionErrorMessage(error: unknown, fileName?: string): string {
   if (!error) {
     return fileName ? `We couldn’t upload "${fileName}". Please try again.` : 'We couldn’t save your submission right now. Please try again.';
@@ -890,69 +914,30 @@ export async function getSwapMessages(swapId: string): Promise<{ data: SwapMessa
 export async function sendSwapMessage(
   swapId: string,
   recipientId: string,
-  body: string
+  body: string,
+  clientMessageId?: string
 ): Promise<{ success: boolean; message?: SwapMessage; error?: string }> {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Your session has expired. Please sign in again.' };
-
-  const cleanBody = body.trim();
-  if (!cleanBody) return { success: false, error: 'Message cannot be empty.' };
-
-  try {
-    const { data, error } = await supabase
-      .from('swap_messages')
-      .insert({
-        swap_id: swapId,
-        sender_id: user.id,
-        recipient_id: recipientId,
-        body: cleanBody,
-      })
-      .select()
-      .single();
-
-    if (error || !data) {
-      console.error('Error sending message:', error);
-      return { success: false, error: formatFriendlyErrorMessage(error ?? new Error('Failed to send message.')) };
-    }
-
-    const message: SwapMessage = {
-      id: data.id,
-      swapId: data.swap_id,
-      senderId: data.sender_id,
-      recipientId: data.recipient_id,
-      body: data.body,
-      readAt: data.read_at,
-      createdAt: data.created_at,
-      expiresAt: data.expires_at,
-      attachments: [],
-    };
-
-    return { success: true, message };
-  } catch (err) {
-    console.error('Unexpected error sending message:', err);
-    return { success: false, error: formatFriendlyErrorMessage(err) };
-  }
+  return sendSwapMessageWithAttachments(swapId, recipientId, body, [], clientMessageId);
 }
 
 /**
  * Sends a chat message with optional file attachments uploaded to swap-chat-attachments bucket.
- * Atomic design: if upload or RPC registration fails, uploaded files are cleaned up from Storage
+ * Atomic design: executes send_chat_message_with_attachments RPC as the canonical send path.
+ * If upload or RPC registration fails, uploaded files are cleaned up from Storage
  * and NO orphan messages or metadata remain in the database.
  */
 export async function sendSwapMessageWithAttachments(
   swapId: string,
   recipientId: string,
   body: string,
-  files?: File[]
+  files?: File[],
+  clientMessageId?: string
 ): Promise<{ success: boolean; message?: SwapMessage; error?: string }> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'You must be logged in to send messages.' };
+  if (!user) return { success: false, error: 'Your session has expired. Please sign in again.' };
 
   const cleanBody = body.trim();
   const fileCount = files?.length || 0;
@@ -965,52 +950,48 @@ export async function sendSwapMessageWithAttachments(
     return { success: false, error: 'Maximum 5 attachments allowed per message.' };
   }
 
-  // 1. TEXT ONLY case
-  if (!files || files.length === 0) {
-    return sendSwapMessage(swapId, recipientId, cleanBody);
-  }
-
-  // 2. TEXT + ATTACHMENT or ATTACHMENT ONLY case
-  const messageId = generateUUID();
+  const messageId = clientMessageId || generateUUID();
   const uploadedPaths: string[] = [];
   const filePayloads: Array<{ storage_path: string; file_name: string; file_size: number }> = [];
 
-  for (const file of files) {
-    if (file.size > 25 * 1024 * 1024) {
-      if (uploadedPaths.length > 0) {
-        await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
+  if (files && files.length > 0) {
+    for (const file of files) {
+      if (file.size > 25 * 1024 * 1024) {
+        if (uploadedPaths.length > 0) {
+          await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
+        }
+        return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
       }
-      return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
-    }
 
-    const storedFileName = sanitizeFileName(file.name);
-    const normalizedMime = getNormalizedMimeType(storedFileName, file.type);
-    const storagePath = `swap-chat-attachments/${swapId}/${user.id}/${generateUUID()}-${storedFileName}`;
+      const storedFileName = sanitizeFileName(file.name);
+      const normalizedMime = getNormalizedMimeType(storedFileName, file.type);
+      const storagePath = `swap-chat-attachments/${swapId}/${user.id}/${generateUUID()}-${storedFileName}`;
 
-    const { error: uploadErr } = await supabase.storage
-      .from('swap-chat-attachments')
-      .upload(storagePath, file, {
-        contentType: normalizedMime,
-        upsert: false,
+      const { error: uploadErr } = await supabase.storage
+        .from('swap-chat-attachments')
+        .upload(storagePath, file, {
+          contentType: normalizedMime,
+          upsert: false,
+        });
+
+      if (uploadErr) {
+        console.error('Chat attachment upload failed:', uploadErr);
+        if (uploadedPaths.length > 0) {
+          await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
+        }
+        return { success: false, error: formatSubmissionErrorMessage(uploadErr, file.name) };
+      }
+
+      uploadedPaths.push(storagePath);
+      filePayloads.push({
+        storage_path: storagePath,
+        file_name: storedFileName,
+        file_size: file.size,
       });
-
-    if (uploadErr) {
-      console.error('Chat attachment upload failed:', uploadErr);
-      if (uploadedPaths.length > 0) {
-        await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
-      }
-      return { success: false, error: formatSubmissionErrorMessage(uploadErr, file.name) };
     }
-
-    uploadedPaths.push(storagePath);
-    filePayloads.push({
-      storage_path: storagePath,
-      file_name: storedFileName,
-      file_size: file.size,
-    });
   }
 
-  // Execute atomic send_chat_message_with_attachments RPC
+  // Execute atomic send_chat_message_with_attachments RPC as canonical send path
   const { data: rpcData, error: rpcErr } = await supabase.rpc('send_chat_message_with_attachments', {
     p_swap_id: swapId,
     p_recipient_id: recipientId,
@@ -1024,7 +1005,7 @@ export async function sendSwapMessageWithAttachments(
     if (uploadedPaths.length > 0) {
       await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
     }
-    return { success: false, error: formatSubmissionErrorMessage(rpcErr ?? new Error('Failed to send message with attachments.')) };
+    return { success: false, error: formatChatMessageErrorMessage(rpcErr ?? new Error('Failed to send message.')) };
   }
 
   const resObj = rpcData as {
@@ -1046,25 +1027,25 @@ export async function sendSwapMessageWithAttachments(
     if (uploadedPaths.length > 0) {
       await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
     }
-    return { success: false, error: resObj.error || 'Failed to send message with attachments.' };
+    return { success: false, error: formatChatMessageErrorMessage(resObj.error || 'Failed to send message.') };
   }
 
   const rawMsg = resObj.message;
   const attachments = Array.isArray(rawMsg.attachments)
     ? rawMsg.attachments.map((att) => {
-        const expiresAt = (att.delete_after as string) || null;
+        const expiresAt = (att.delete_after as string) || (att.expires_at as string) || null;
         const deletedAt = (att.deleted_at as string) || null;
         const deleteStatus = (att.delete_status as string) || 'active';
         return {
           id: att.id as string,
-          messageId: att.message_id as string,
-          swapId: att.swap_id as string,
-          uploadedBy: att.uploaded_by as string,
+          messageId: (att.message_id as string) || rawMsg.id,
+          swapId: (att.swap_id as string) || rawMsg.swap_id,
+          uploadedBy: (att.uploaded_by as string) || rawMsg.sender_id,
           storagePath: att.storage_path as string,
           fileName: att.file_name as string,
-          mimeType: att.mime_type as string | null,
+          mimeType: (att.mime_type as string) || null,
           fileSize: typeof att.file_size === 'number' ? att.file_size : Number(att.file_size || 0),
-          createdAt: att.created_at as string,
+          createdAt: (att.created_at as string) || rawMsg.created_at,
           expiresAt,
           deletedAt,
           deleteStatus,
