@@ -142,6 +142,7 @@ export async function runCreatorAttachmentLifecycleTests() {
     '045_lifecycle_contract_synchronization_final.sql',
     '048_file_lifecycle_contract_repair.sql',
     '049_fix_chat_permissions_and_lifecycle_rls.sql',
+    '050_fix_platform_trust_metric_settlement_trigger.sql',
   ];
 
   for (const file of migrationFiles) {
