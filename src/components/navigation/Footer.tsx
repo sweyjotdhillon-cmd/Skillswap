@@ -11,7 +11,7 @@ export function Footer({ onNavigate }: FooterProps) {
   };
 
   return (
-    <footer className="site-footer" style={{ borderTop: '1px solid var(--border-color, rgba(148, 163, 184, 0.15))', background: 'var(--color-canvas, #0f172a)', padding: '3rem 1.5rem 2rem', color: 'var(--text-color, #f8fafc)', marginTop: 'auto' }}>
+    <footer className="site-footer" style={{ borderTop: '1px solid var(--border-color, rgba(15, 23, 42, 0.12))', background: 'var(--color-canvas, #f8fafc)', padding: '3rem 1.5rem 2rem', color: 'var(--text-color, #0f172a)', marginTop: 'auto' }}>
       <div className="footer-container" style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '2.5rem' }}>
 
         {/* COL 1: Brand & Philosophy */}
@@ -20,10 +20,10 @@ export function Footer({ onNavigate }: FooterProps) {
             <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-color)' }}>SkillSwap</span>
             <span className="verification-badge" style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem' }}>✓ Peer Exchange</span>
           </div>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted, #94a3b8)', lineHeight: 1.55, maxWidth: '300px' }}>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted, #64748b)', lineHeight: 1.55, maxWidth: '300px' }}>
             Skills are your currency. Share what you know, learn what you need, and exchange expertise through mutual growth.
           </p>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, #94a3b8)', marginTop: '0.25rem' }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, #64748b)', marginTop: '0.25rem' }}>
             <span>© {new Date().getFullYear()} SkillSwap Ecosystem. All rights reserved.</span>
           </div>
         </div>

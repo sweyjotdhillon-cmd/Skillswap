@@ -241,8 +241,9 @@ export const MultiModalChat: React.FC = () => {
                       </span>
                     </div>
                     <button
+                      type="button"
                       onClick={handleReleaseCredits}
-                      className="px-3 py-1.5 text-xs font-extrabold bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-md transition-all duration-150"
+                      className="px-3 py-1.5 text-xs font-extrabold bg-amber-500 hover:bg-amber-400 text-[#11161c] rounded-md transition-all duration-150"
                     >
                       Release 30 Credits
                     </button>
@@ -433,7 +434,7 @@ export const OnboardingProgressBar: React.FC<OnboardingProgressBarProps> = ({
             ✓
           </div>
           <span
-            className="text-sm font-semibold line-through decoration-slate-400"
+            className="text-sm font-semibold line-through decoration-[var(--color-text-muted)]"
             style={{ color: 'var(--color-text-secondary, #475569)' }}
           >
             Account Created & {creditsBalance} Credits Granted (Endowed)
@@ -471,7 +472,7 @@ export const OnboardingProgressBar: React.FC<OnboardingProgressBarProps> = ({
           <span
             className={`text-sm ${
               isStep2Done
-                ? 'font-semibold line-through decoration-slate-400'
+                ? 'font-semibold line-through decoration-[var(--color-text-muted)]'
                 : isStep2Active
                   ? 'font-bold'
                   : 'font-semibold'

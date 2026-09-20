@@ -65,16 +65,16 @@ export const SubmissionEventCard: React.FC<{
 
   return (
     <div
-      className="chat-system-card chat-system-card--submission border-l-4 border-amber-500 bg-slate-900/90 text-slate-100 p-4 rounded-xl my-2 shadow-md w-full max-w-lg"
+      className="chat-system-card chat-system-card--submission border-l-4 border-[var(--color-accent)] bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] p-4 rounded-xl my-2 shadow-md w-full max-w-lg"
       role="region"
       aria-label="Submission Event"
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
-        <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
+      <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2 mb-2">
+        <div className="flex items-center gap-2 text-[var(--color-accent)] font-bold text-sm">
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="w-5 h-5 text-amber-400 flex-shrink-0"
+            className="w-5 h-5 text-[var(--color-accent)] flex-shrink-0"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -89,12 +89,12 @@ export const SubmissionEventCard: React.FC<{
           </svg>
           <span className="tracking-tight">📄 Deliverables Submitted</span>
         </div>
-        <span className="text-xs text-slate-400 font-mono">{formattedTime}</span>
+        <span className="text-xs text-[var(--color-text-muted)] font-mono">{formattedTime}</span>
       </div>
 
       {/* Submission Notes */}
       {submission.notes ? (
-        <div className="mb-3 text-sm text-slate-300 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80 italic">
+        <div className="mb-3 text-sm text-[var(--color-text-secondary)] bg-[var(--color-surface-muted)] p-2.5 rounded-lg border border-[var(--color-border)] italic">
           &ldquo;{submission.notes}&rdquo;
         </div>
       ) : null}
@@ -102,7 +102,7 @@ export const SubmissionEventCard: React.FC<{
       {/* Submission Files */}
       {submission.files && submission.files.length > 0 ? (
         <div className="flex flex-col gap-2 mb-3">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
             Attachments ({submission.files.length})
           </span>
           <div className="flex flex-col gap-1.5">
@@ -122,12 +122,12 @@ export const SubmissionEventCard: React.FC<{
               return (
                 <div
                   key={file.id}
-                  className="flex items-center justify-between p-2 bg-slate-950/70 rounded-lg border border-slate-800 gap-2"
+                  className="flex items-center justify-between p-2 bg-[var(--color-surface-muted)] rounded-lg border border-[var(--color-border)] gap-2"
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="w-4 h-4 text-slate-400 flex-shrink-0"
+                      className="w-4 h-4 text-[var(--color-text-muted)] flex-shrink-0"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -142,11 +142,11 @@ export const SubmissionEventCard: React.FC<{
                     </svg>
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-xs font-semibold text-slate-200 truncate">
+                        <span className="text-xs font-semibold text-[var(--color-text-primary)] truncate">
                           {file.fileName}
                         </span>
                         {formattedSize ? (
-                          <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">
+                          <span className="text-[10px] font-mono text-[var(--color-text-muted)] flex-shrink-0">
                             ({formattedSize})
                           </span>
                         ) : null}
@@ -161,7 +161,7 @@ export const SubmissionEventCard: React.FC<{
                   {onDownloadFile ? (
                     <button
                       type="button"
-                      className="px-2.5 py-1 text-xs font-bold text-slate-900 bg-slate-200 hover:bg-white rounded transition-colors duration-150 flex-shrink-0 disabled:opacity-50"
+                      className="px-2.5 py-1 text-xs font-bold text-[var(--color-text-primary)] bg-[var(--color-surface)] hover:bg-[var(--color-canvas-elevated)] border border-[var(--color-border)] rounded transition-colors duration-150 flex-shrink-0 disabled:opacity-50"
                       disabled={downloadingFileId === file.id || isFileExpired}
                       onClick={() => onDownloadFile(file.storagePath, file.fileName, file.id)}
                     >
@@ -176,9 +176,9 @@ export const SubmissionEventCard: React.FC<{
       ) : null}
 
       {/* Auto-release Timer & Primary CTA */}
-      <div className="pt-2 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div className="text-xs text-slate-400 flex items-center gap-1.5">
-          <span className="font-mono font-bold text-amber-400">
+      <div className="pt-2 border-t border-[var(--color-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-1.5">
+          <span className="font-mono font-bold text-[var(--color-accent)]">
             {formatRemainingTime(secondsLeft * 1000)}
           </span>
         </div>
@@ -186,7 +186,7 @@ export const SubmissionEventCard: React.FC<{
         {isRequester && swap.status === 'submitted' && onApproveSwap ? (
           <button
             type="button"
-            className="w-full sm:w-auto px-4 py-1.5 text-xs font-extrabold text-slate-950 bg-[#d6a64a] hover:bg-[#e4af48] active:scale-95 rounded-lg shadow-sm transition-all duration-150 disabled:opacity-60"
+            className="w-full sm:w-auto px-4 py-1.5 text-xs font-extrabold text-[#11161c] bg-[var(--color-transactional,#d6a64a)] hover:bg-[var(--color-transactional-hover,#e4af48)] active:scale-95 rounded-lg shadow-sm transition-all duration-150 disabled:opacity-60"
             disabled={isApproving}
             onClick={onApproveSwap}
           >
@@ -214,12 +214,12 @@ export const SettlementEventCard: React.FC<{
 
   return (
     <div
-      className="chat-system-card chat-system-card--completed border-l-4 border-emerald-500 bg-emerald-950/20 text-slate-100 p-4 rounded-xl my-2 shadow-md w-full max-w-lg flex items-center justify-between gap-3"
+      className="chat-system-card chat-system-card--completed border-l-4 border-emerald-500 bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] p-4 rounded-xl my-2 shadow-md w-full max-w-lg flex items-center justify-between gap-3"
       role="region"
       aria-label="Settlement Event"
     >
       <div className="flex items-center gap-3">
-        <div className="p-2 bg-emerald-500/15 rounded-full text-emerald-400 flex-shrink-0">
+        <div className="p-2 bg-emerald-500/15 rounded-full text-emerald-600 flex-shrink-0">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className="w-5 h-5"
@@ -233,14 +233,14 @@ export const SettlementEventCard: React.FC<{
           </svg>
         </div>
         <div>
-          <h5 className="text-sm font-bold text-slate-100 tracking-tight">✓ Swap Completed</h5>
-          <p className="text-xs text-slate-400">Escrow settled successfully</p>
-          {formattedTime ? <span className="text-[10px] text-slate-500 font-mono">{formattedTime}</span> : null}
+          <h5 className="text-sm font-bold text-[var(--color-text-primary)] tracking-tight">✓ Swap Completed</h5>
+          <p className="text-xs text-[var(--color-text-secondary)]">Escrow settled successfully</p>
+          {formattedTime ? <span className="text-[10px] text-[var(--color-text-muted)] font-mono">{formattedTime}</span> : null}
         </div>
       </div>
 
       <div className="text-right flex-shrink-0">
-        <span className="inline-block px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 rounded-lg text-sm font-extrabold text-emerald-400">
+        <span className="inline-block px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 rounded-lg text-sm font-extrabold text-emerald-600">
           +{swap.creditAmount} SkillCredits
         </span>
       </div>
@@ -258,14 +258,14 @@ export const StatusChangeEventCard: React.FC<{
   timestamp?: string;
   iconType?: 'accepted' | 'cancelled' | 'open' | 'info';
 }> = ({ title, description, timestamp, iconType = 'info' }) => {
-  let badgeColor = 'text-sky-400 border-sky-500/30 bg-sky-500/10';
+  let badgeColor = 'text-[var(--color-structure)] border-[var(--color-structure-border)] bg-[var(--color-structure-muted)]';
   let icon = '⚡';
 
   if (iconType === 'accepted') {
-    badgeColor = 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
+    badgeColor = 'text-emerald-600 border-emerald-500/30 bg-emerald-500/10';
     icon = '✓';
   } else if (iconType === 'cancelled') {
-    badgeColor = 'text-red-400 border-red-500/30 bg-red-500/10';
+    badgeColor = 'text-red-600 border-red-500/30 bg-red-500/10';
     icon = '✕';
   }
 
@@ -275,7 +275,7 @@ export const StatusChangeEventCard: React.FC<{
 
   return (
     <div
-      className={`chat-system-card mx-auto p-3 rounded-lg border text-xs text-slate-300 flex items-center justify-between gap-2 max-w-md my-1.5 ${badgeColor}`}
+      className={`chat-system-card mx-auto p-3 rounded-lg border text-xs text-[var(--color-text-primary)] flex items-center justify-between gap-2 max-w-md my-1.5 ${badgeColor}`}
       role="status"
     >
       <div className="flex items-center gap-2">
@@ -305,23 +305,23 @@ export const CreditReleaseEventCard: React.FC<{
 
   return (
     <div
-      className="chat-system-card mx-auto p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-slate-200 flex items-center justify-between gap-2 max-w-md my-1.5"
+      className="chat-system-card mx-auto p-3 rounded-xl border border-[var(--color-accent)]/30 bg-[var(--color-accent-muted)] text-xs text-[var(--color-text-primary)] flex items-center justify-between gap-2 max-w-md my-1.5"
       role="status"
     >
       <div className="flex items-center gap-2">
-        <span className="text-amber-400 font-extrabold text-sm">⚡</span>
+        <span className="text-[var(--color-accent)] font-extrabold text-sm">⚡</span>
         <div>
-          <span className="font-bold text-amber-300">
+          <span className="font-bold text-[var(--color-accent)]">
             {amount} SkillCredits Released
           </span>
           {recipientName ? (
-            <span className="block text-[11px] text-slate-400">
+            <span className="block text-[11px] text-[var(--color-text-muted)]">
               Transferred to @{recipientName}
             </span>
           ) : null}
         </div>
       </div>
-      {formattedTime ? <span className="text-[10px] text-slate-500 font-mono">{formattedTime}</span> : null}
+      {formattedTime ? <span className="text-[10px] text-[var(--color-text-muted)] font-mono">{formattedTime}</span> : null}
     </div>
   );
 };
