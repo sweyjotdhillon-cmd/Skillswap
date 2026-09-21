@@ -2,7 +2,7 @@ import { getSupabaseBrowserClient } from './client';
 import { formatFriendlyErrorMessage } from './profile';
 import { generateUUID } from '../uuid';
 import { getTagSlug } from '../../constants/tags';
-import type { SwapMessage, SwapSubmission, SwapSubmissionFile, UpdateSwapMessageAttachmentInput } from '../../types/swap';
+import type { SwapMessage, SwapSubmission, SwapSubmissionFile, UpdateSwapMessageAttachmentInput, UpdateSwapSubmissionInput, UpdateSwapSubmissionFileInput } from '../../types/swap';
 import { logger } from '../logger';
 
 export interface Account {
@@ -967,6 +967,47 @@ export async function getUserCompletedSwapsCount(userId: string): Promise<number
 // CHAT API METHODS
 // ==========================================
 
+/**
+ * Canonical recipient derivation logic enforcing S4 database and authorization rules:
+ * - For OPEN swaps: visitor/applicant always targets the swap requester; swap requester
+ *   targets an applicant (if an applicant message exists) or null.
+ * - For ACCEPTED / SUBMITTED / COMPLETED swaps: requester targets participant; participant
+ *   targets requester; arbitrary third-party users target null.
+ * - Self-messaging is strictly prohibited (returns null).
+ */
+export function deriveSwapRecipientId(
+  swap: { status: string; requesterId: string; participantId?: string | null },
+  currentUserId: string | null,
+  applicantMessageSenderId?: string | null
+): string | null {
+  if (!currentUserId) return null;
+
+  const isRequester = currentUserId === swap.requesterId;
+  const isParticipant = Boolean(swap.participantId && currentUserId === swap.participantId);
+  const isOpenSwapApplicant = swap.status === 'open' && !isRequester;
+
+  let recipientId: string | null = null;
+  if (isRequester) {
+    recipientId = swap.participantId ?? null;
+    if (!recipientId && swap.status === 'open' && applicantMessageSenderId && applicantMessageSenderId !== currentUserId) {
+      recipientId = applicantMessageSenderId;
+    }
+  } else if (isParticipant) {
+    recipientId = swap.requesterId;
+  } else if (isOpenSwapApplicant) {
+    recipientId = swap.requesterId;
+  } else {
+    recipientId = null;
+  }
+
+  // Self-messaging protection
+  if (recipientId && recipientId === currentUserId) {
+    recipientId = null;
+  }
+
+  return recipientId;
+}
+
 export async function getSwapMessages(swapId: string): Promise<{ data: SwapMessage[]; error?: string }> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { data: [], error: 'Supabase client is unavailable.' };
@@ -1362,6 +1403,100 @@ export async function getSwapSubmission(swapId: string): Promise<{ data: SwapSub
   } catch (err) {
     console.error('Unexpected error fetching submission:', err);
     return { data: null, error: formatFriendlyErrorMessage(err) };
+  }
+}
+
+/**
+ * Safely updates swap submission metadata without mutating immutable relationship fields
+ * (swap_id, submitted_by).
+ */
+export async function updateSwapSubmissionMetadata(
+  submissionId: string,
+  updates: UpdateSwapSubmissionInput | Record<string, unknown>
+): Promise<{ success: boolean; error?: string }> {
+  if (!submissionId) {
+    return { success: false, error: 'Submission ID is required.' };
+  }
+
+  // Enforce runtime sanitization: strictly strip immutable relationship & identity fields
+  const cleanPayload = { ...updates };
+  delete (cleanPayload as Record<string, unknown>).id;
+  delete (cleanPayload as Record<string, unknown>).swap_id;
+  delete (cleanPayload as Record<string, unknown>).swapId;
+  delete (cleanPayload as Record<string, unknown>).submitted_by;
+  delete (cleanPayload as Record<string, unknown>).submittedBy;
+
+  if (Object.keys(cleanPayload).length === 0) {
+    return { success: false, error: 'No valid updatable metadata fields provided.' };
+  }
+
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) {
+    return { success: false, error: 'Supabase client is unavailable.' };
+  }
+
+  try {
+    const { error } = await supabase
+      .from('swap_submissions')
+      .update(cleanPayload)
+      .eq('id', submissionId);
+
+    if (error) {
+      logger.error('Failed to update swap_submissions metadata:', error);
+      return { success: false, error: formatFriendlyErrorMessage(error) };
+    }
+
+    return { success: true };
+  } catch (err) {
+    logger.error('Unexpected exception in updateSwapSubmissionMetadata:', err);
+    return { success: false, error: formatFriendlyErrorMessage(err) };
+  }
+}
+
+/**
+ * Safely updates swap submission file metadata without mutating immutable relationship fields
+ * (submission_id, storage_path).
+ */
+export async function updateSwapSubmissionFileMetadata(
+  fileId: string,
+  updates: UpdateSwapSubmissionFileInput | Record<string, unknown>
+): Promise<{ success: boolean; error?: string }> {
+  if (!fileId) {
+    return { success: false, error: 'File ID is required.' };
+  }
+
+  // Enforce runtime sanitization: strictly strip immutable relationship & identity fields
+  const cleanPayload = { ...updates };
+  delete (cleanPayload as Record<string, unknown>).id;
+  delete (cleanPayload as Record<string, unknown>).submission_id;
+  delete (cleanPayload as Record<string, unknown>).submissionId;
+  delete (cleanPayload as Record<string, unknown>).storage_path;
+  delete (cleanPayload as Record<string, unknown>).storagePath;
+
+  if (Object.keys(cleanPayload).length === 0) {
+    return { success: false, error: 'No valid updatable metadata fields provided.' };
+  }
+
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) {
+    return { success: false, error: 'Supabase client is unavailable.' };
+  }
+
+  try {
+    const { error } = await supabase
+      .from('swap_submission_files')
+      .update(cleanPayload)
+      .eq('id', fileId);
+
+    if (error) {
+      logger.error('Failed to update swap_submission_files metadata:', error);
+      return { success: false, error: formatFriendlyErrorMessage(error) };
+    }
+
+    return { success: true };
+  } catch (err) {
+    logger.error('Unexpected exception in updateSwapSubmissionFileMetadata:', err);
+    return { success: false, error: formatFriendlyErrorMessage(err) };
   }
 }
 

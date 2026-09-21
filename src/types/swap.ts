@@ -77,6 +77,24 @@ export interface UpdateSwapMessageAttachmentInput {
   storagePath?: string;
 }
 
+export interface UpdateSwapSubmissionInput {
+  notes?: string;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
+  updatedAt?: string;
+}
+
+export interface UpdateSwapSubmissionFileInput {
+  fileName?: string;
+  mimeType?: string | null;
+  fileSize?: number | null;
+  storageExpiresAt?: string | null;
+  storageDeletedAt?: string | null;
+  storageDeleteStatus?: string | null;
+  storageDeleteError?: string | null;
+  storageDeleteClaimedAt?: string | null;
+}
+
 export interface SwapMessage {
   id: string;
   swapId: string;

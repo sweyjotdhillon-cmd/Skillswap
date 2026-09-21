@@ -13,6 +13,7 @@ import {
   downloadFileFromSignedUrl,
   deleteChatAttachmentManual,
   validateChatAttachmentFile,
+  deriveSwapRecipientId,
   type SwapAttachment,
 } from '../../lib/supabase/credits';
 import { mapSwapRecordToSwap, type Swap, type SwapMessage, type SwapSubmission } from '../../types/swap';
@@ -130,23 +131,8 @@ export function SwapChatModal({
     ? Boolean(swap.participantId) || swap.status === 'open'
     : (isParticipant || isOpenSwapApplicant);
 
-  let recipientId: string | null = null;
-  if (isRequester) {
-    recipientId = swap.participantId;
-    // Fallback for open swaps: if participantId is not yet assigned, derive applicant recipient from messages
-    if (!recipientId && swap.status === 'open' && messages.length > 0) {
-      const applicantMsg = messages.find((m) => m.senderId !== currentUserId);
-      if (applicantMsg) {
-        recipientId = applicantMsg.senderId;
-      }
-    }
-  } else if (isParticipant) {
-    recipientId = swap.requesterId;
-  } else if (isOpenSwapApplicant) {
-    recipientId = swap.requesterId;
-  } else {
-    recipientId = null;
-  }
+  const applicantMsgSenderId = messages.find((m) => m.senderId && m.senderId !== currentUserId)?.senderId;
+  const recipientId = deriveSwapRecipientId(swap, currentUserId, applicantMsgSenderId);
 
   // Partner profile metadata
   const partnerProfile = isRequester ? swap.participantProfile : swap.requesterProfile;

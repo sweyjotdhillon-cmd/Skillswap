@@ -17,6 +17,8 @@ import { runMarketplaceCardUnitTests } from '../../components/credits/Marketplac
 import { runFileLifecycleUnitTests } from './file_lifecycle.test';
 import { runCreatorAttachmentLifecycleTests } from './creator_attachment_lifecycle.test';
 import { runChatAttachmentS2Tests } from './chat_attachment_s2.test';
+import { runSubmissionS3RegressionTests } from './submission_s3.test';
+import { runChatS4RegressionTests } from './chat_s4.test';
 import './credibility_verification.test';
 
 function assert(condition: boolean, message: string) {
@@ -50,6 +52,12 @@ export async function runCreditSystemTests() {
 
   // Run Security Item S2 Chat Attachment Relationship Tampering Regression Tests
   await runChatAttachmentS2Tests();
+
+  // Run Security Item S3 Submission Relationship & File Tampering Regression Tests
+  runSubmissionS3RegressionTests();
+
+  // Run Security Item S4 Open-Swap Recipient Authorization Regression Tests
+  runChatS4RegressionTests();
 
   // Run Section L.14 Template Gallery & Form Prefill Unit Tests
   runTemplateGalleryUnitTests();
