@@ -373,6 +373,10 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
       if (error) {
         setErrorMessage(formatFriendlyErrorMessage(error.message));
       } else {
+        setRecoveryToken(null);
+        setOtpDigits(['', '', '', '', '', '']);
+        setNewPassword('');
+        setConfirmPassword('');
         setStep('success');
       }
     } catch (err: unknown) {

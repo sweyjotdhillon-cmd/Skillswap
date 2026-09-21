@@ -157,6 +157,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
           const userBal = account?.credits_balance;
           const formattedErr = formatAcceptSwapErrorMessage(res.error, targetSwap.creditAmount, userBal);
           setAcceptErrorMessage(formattedErr);
+          void loadRealOpenSwaps();
         }
       } catch (err) {
         // Restore listing on exception
@@ -165,6 +166,7 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
         const userBal = account?.credits_balance;
         const formattedErr = formatAcceptSwapErrorMessage(err, targetSwap.creditAmount, userBal);
         setAcceptErrorMessage(formattedErr);
+        void loadRealOpenSwaps();
       } finally {
         isExecutingAcceptRef.current = false;
       }
