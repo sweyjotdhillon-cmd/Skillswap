@@ -417,21 +417,96 @@ export function formatAcceptSwapErrorMessage(
  * Validates a chat attachment file before uploading.
  * Checks file size and file extension support.
  */
-export function validateChatAttachmentFile(file: File): { valid: boolean; error?: string } {
+export const CANONICAL_CHAT_MIME_TYPES = new Set<string>([
+  'application/pdf',
+  'text/plain',
+  'text/csv',
+  'application/zip',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+]);
+
+export const CANONICAL_CHAT_EXTENSION_TO_MIME: Record<string, string> = {
+  pdf: 'application/pdf',
+  txt: 'text/plain',
+  csv: 'text/csv',
+  zip: 'application/zip',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  gif: 'image/gif',
+};
+
+/**
+ * Validates a chat attachment file before uploading.
+ * Enforces file size limit (25 MB), non-empty filename, no slashes, max 255 chars,
+ * canonical MIME type allowlist, and extension/MIME matching.
+ */
+export function validateChatAttachmentFile(file: { name: string; size: number; type?: string }): { valid: boolean; error?: string } {
   if (!file) {
     return { valid: false, error: 'Attachment upload failed. Please try again.' };
   }
-  if (file.size > 25 * 1024 * 1024) {
+
+  const rawName = file.name;
+  if (typeof rawName !== 'string' || rawName.trim() === '') {
+    return { valid: false, error: 'Filename cannot be empty.' };
+  }
+
+  if (rawName.length > 255) {
+    return { valid: false, error: 'Filename is too long.' };
+  }
+
+  if (rawName.includes('/') || rawName.includes('\\')) {
+    return { valid: false, error: 'Filename cannot contain slashes.' };
+  }
+
+  if (typeof file.size !== 'number' || file.size > 25 * 1024 * 1024) {
     return { valid: false, error: 'File is too large. Maximum size is 25 MB.' };
   }
-  const ext = file.name.split('.').pop()?.toLowerCase() || '';
-  const UNSUPPORTED_EXTENSIONS = new Set([
-    'exe', 'dll', 'so', 'dylib', 'bat', 'cmd', 'vbs', 'scr', 'msi', 'com', 'gadget',
-    'pif', 'application', 'hta', 'cpl', 'msc', 'jar', 'vb', 'vbe', 'js', 'jse', 'ws', 'wsf', 'wsc', 'wsh'
-  ]);
-  if (UNSUPPORTED_EXTENSIONS.has(ext)) {
+
+  const lastDot = rawName.lastIndexOf('.');
+  if (lastDot === -1 || lastDot === 0 || lastDot === rawName.length - 1) {
     return { valid: false, error: "This file type isn't supported." };
   }
+
+  const ext = rawName.slice(lastDot + 1).toLowerCase();
+  const expectedMime = CANONICAL_CHAT_EXTENSION_TO_MIME[ext];
+  if (!expectedMime) {
+    return { valid: false, error: "This file type isn't supported." };
+  }
+
+  const rawBrowserType = file.type ? file.type.trim().toLowerCase() : '';
+  if (rawBrowserType && rawBrowserType !== 'application/octet-stream') {
+    const MIME_ALIAS_MAP: Record<string, string> = {
+      'image/jpg': 'image/jpeg',
+      'image/pjpeg': 'image/jpeg',
+      'image/jfif': 'image/jpeg',
+      'image/x-citrix-jpeg': 'image/jpeg',
+      'text/jpg': 'image/jpeg',
+      'text/jpeg': 'image/jpeg',
+      'image/x-png': 'image/png',
+      'application/x-zip-compressed': 'application/zip',
+      'application/zip-compressed': 'application/zip',
+      'application/x-pdf': 'application/pdf',
+      'text/pdf': 'application/pdf',
+    };
+
+    const normalizedBrowserType = MIME_ALIAS_MAP[rawBrowserType] || rawBrowserType;
+
+    if (!CANONICAL_CHAT_MIME_TYPES.has(normalizedBrowserType) || normalizedBrowserType !== expectedMime) {
+      return { valid: false, error: 'File extension and MIME type do not match.' };
+    }
+  }
+
   return { valid: true };
 }
 
@@ -976,9 +1051,20 @@ export async function sendSwapMessageWithAttachments(
   swapId: string,
   recipientId: string,
   body: string,
-  files?: File[],
+  files?: Array<{ name: string; size: number; type?: string }>,
   clientMessageId?: string
 ): Promise<{ success: boolean; message?: SwapMessage; error?: string }> {
+  const fileCount = files?.length || 0;
+
+  if (files && files.length > 0) {
+    for (const file of files) {
+      const validation = validateChatAttachmentFile(file);
+      if (!validation.valid) {
+        return { success: false, error: validation.error || 'Attachment upload failed. Please try again.' };
+      }
+    }
+  }
+
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
 
@@ -986,7 +1072,6 @@ export async function sendSwapMessageWithAttachments(
   if (!user) return { success: false, error: 'Your session has expired. Please sign in again.' };
 
   const cleanBody = body.trim();
-  const fileCount = files?.length || 0;
 
   if (!cleanBody && fileCount === 0) {
     return { success: false, error: 'Message must contain text or at least one file attachment.' };
