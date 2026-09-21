@@ -3,6 +3,7 @@ import { Navbar } from '../components/navigation/Navbar';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { useAuth } from '../context/AuthContext';
 import { formatFriendlyErrorMessage } from '../lib/supabase/profile';
+import { getSafeRedirect } from '../lib/safeRedirect';
 
 type VerifyEmailPageProps = {
   onNavigate?: (path: string) => void;
@@ -13,7 +14,8 @@ type VerifyEmailPageProps = {
 export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email: propsEmail }: VerifyEmailPageProps) {
   const urlParams = new URLSearchParams(window.location.search);
   const initialEmail = propsEmail || urlParams.get('email') || '';
-  const redirectTo = propsRedirectTo || urlParams.get('redirectTo') || undefined;
+  const rawRedirectTo = propsRedirectTo || urlParams.get('redirectTo') || undefined;
+  const safeRedirect = getSafeRedirect(rawRedirectTo, '/explore');
 
   const { user, refreshSession } = useAuth();
   const [email, setEmail] = useState(initialEmail || (user?.email ?? ''));
@@ -84,12 +86,11 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
         setSuccessMessage('Email verified successfully!');
         await refreshSession();
 
-        const dest = redirectTo || '/explore';
         setTimeout(() => {
           if (onNavigate) {
-            onNavigate(dest);
+            onNavigate(safeRedirect);
           } else {
-            window.location.href = dest;
+            window.location.href = safeRedirect;
           }
         }, 1000);
       }
@@ -258,7 +259,7 @@ export function VerifyEmailPage({ onNavigate, redirectTo: propsRedirectTo, email
                 className="auth-link"
                 onClick={(e) => {
                   e.preventDefault();
-                  if (onNavigate) onNavigate(`/signup${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`);
+                  if (onNavigate) onNavigate(`/signup${rawRedirectTo ? `?redirectTo=${encodeURIComponent(safeRedirect)}` : ''}`);
                 }}
               >
                 Go back to signup

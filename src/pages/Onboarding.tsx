@@ -17,6 +17,7 @@ import {
   type Skill,
 } from '../lib/supabase/profile';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
+import { getSafeRedirect } from '../lib/safeRedirect';
 
 type OnboardingProps = {
   onNavigate?: (path: string) => void;
@@ -31,7 +32,8 @@ export interface SelectedSkill {
 }
 
 
-export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
+export function OnboardingPage({ onNavigate, redirectTo: propsRedirectTo }: OnboardingProps) {
+  const safeRedirect = getSafeRedirect(propsRedirectTo, '/explore');
   const { user, profile, account, refreshProfile } = useAuth();
   const bioHelpId = useId();
 
@@ -381,10 +383,9 @@ export function OnboardingPage({ onNavigate, redirectTo }: OnboardingProps) {
     }
 
     sessionStorage.removeItem('skillswap_pending_onboarding');
-    const targetPath = redirectTo || '/explore';
-    if (onNavigate) onNavigate(targetPath);
-    else window.location.href = targetPath;
-  }, [redirectTo, onNavigate, refreshProfile]);
+    if (onNavigate) onNavigate(safeRedirect);
+    else window.location.href = safeRedirect;
+  }, [safeRedirect, onNavigate, refreshProfile]);
 
   // Check for returning post-OAuth identity linking state
   useEffect(() => {

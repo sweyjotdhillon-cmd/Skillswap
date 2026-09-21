@@ -15,6 +15,7 @@ import { ChangePasswordPage } from './pages/ChangePassword';
 import { OnboardingPage } from './pages/Onboarding';
 import { ProfilePage } from './pages/Profile';
 import { PublicProfilePage } from './pages/PublicProfile';
+import { getSafeRedirect } from './lib/safeRedirect';
 import { FAQPage } from './pages/FAQ';
 import { WhatIsSkillExchangePage } from './pages/WhatIsSkillExchange';
 
@@ -78,21 +79,23 @@ function AppContent() {
     }
   }, [path]);
 
-  // Parse query params for login/signup redirection
+  // Parse query params for login/signup redirection and sanitize
   const urlParams = new URLSearchParams(window.location.search);
-  const redirectToParam = urlParams.get('redirectTo') || undefined;
+  const rawRedirectTo = urlParams.get('redirectTo');
+  const safePath = getSafeRedirect(path, '/explore');
+  const redirectToParam = rawRedirectTo ? getSafeRedirect(rawRedirectTo, safePath) : undefined;
 
   useEffect(() => {
     if (!loading && PROTECTED_ROUTES.some((route) => path === route || path.startsWith(route + '/'))) {
       if (!user) {
-        const loginUrl = `/login?redirectTo=${encodeURIComponent(path)}`;
+        const loginUrl = `/login?redirectTo=${encodeURIComponent(safePath)}`;
         window.history.replaceState({}, '', loginUrl);
       } else if (!isVerified && !isOAuthUser) {
-        const verifyUrl = `/verify-email?email=${encodeURIComponent(user.email || '')}&redirectTo=${encodeURIComponent(path)}`;
+        const verifyUrl = `/verify-email?email=${encodeURIComponent(user.email || '')}&redirectTo=${encodeURIComponent(safePath)}`;
         window.history.replaceState({}, '', verifyUrl);
       }
     }
-  }, [loading, user, isVerified, isOAuthUser, path]);
+  }, [loading, user, isVerified, isOAuthUser, path, safePath]);
 
   const isAuthPage =
     path.startsWith('/login') ||
@@ -130,11 +133,11 @@ function AppContent() {
   // Protected route enforcement
   if (!loading && PROTECTED_ROUTES.some((route) => path === route || path.startsWith(route + '/'))) {
     if (!user) {
-      return <LoginPage onNavigate={navigate} redirectTo={path} />;
+      return <LoginPage onNavigate={navigate} redirectTo={safePath} />;
     }
 
     if (!isVerified && !isOAuthUser) {
-      return <VerifyEmailPage onNavigate={navigate} redirectTo={path} email={user.email || undefined} />;
+      return <VerifyEmailPage onNavigate={navigate} redirectTo={safePath} email={user.email || undefined} />;
     }
   }
 
