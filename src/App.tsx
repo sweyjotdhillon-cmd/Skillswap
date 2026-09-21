@@ -16,6 +16,7 @@ import { OnboardingPage } from './pages/Onboarding';
 import { ProfilePage } from './pages/Profile';
 import { PublicProfilePage } from './pages/PublicProfile';
 import { FAQPage } from './pages/FAQ';
+import { WhatIsSkillExchangePage } from './pages/WhatIsSkillExchange';
 
 const PROTECTED_ROUTES = ['/profile', '/create-swap', '/active-swaps', '/change-password'];
 
@@ -58,6 +59,8 @@ function AppContent() {
       document.title = 'How It Works — SkillSwap';
     } else if (path === '/faq' || path === '/faq/') {
       document.title = 'Frequently Asked Questions — SkillSwap';
+    } else if (path === '/learn/what-is-skill-exchange' || path === '/learn/what-is-skill-exchange/') {
+      document.title = 'What Is Skill Exchange? | SkillSwap';
     } else if (path.startsWith('/login')) {
       document.title = 'Log In — SkillSwap';
     } else if (path.startsWith('/signup')) {
@@ -203,6 +206,10 @@ function AppContent() {
 
   if (path === '/faq' || path === '/faq/') {
     return <FAQPage onNavigate={navigate} />;
+  }
+
+  if (path === '/learn/what-is-skill-exchange' || path === '/learn/what-is-skill-exchange/') {
+    return <WhatIsSkillExchangePage onNavigate={navigate} />;
   }
 
   return <Home onNavigate={navigate} />;

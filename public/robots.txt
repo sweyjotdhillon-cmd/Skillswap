@@ -4,6 +4,7 @@ Allow: /faq
 Allow: /about
 Allow: /how-it-works
 Allow: /explore
+Allow: /learn/what-is-skill-exchange
 Disallow: /profile
 Disallow: /create-swap
 Disallow: /active-swaps

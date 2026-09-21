@@ -64,6 +64,11 @@ export function Footer({ onNavigate }: FooterProps) {
           </h4>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.875rem' }}>
             <li>
+              <a href="/learn/what-is-skill-exchange" onClick={(e) => handleLinkClick(e, '/learn/what-is-skill-exchange')} style={{ color: 'var(--text-color)', textDecoration: 'none', transition: 'color 0.15s' }}>
+                What Is Skill Exchange?
+              </a>
+            </li>
+            <li>
               <a href="/about" onClick={(e) => handleLinkClick(e, '/about')} style={{ color: 'var(--text-color)', textDecoration: 'none', transition: 'color 0.15s' }}>
                 About SkillSwap
               </a>
