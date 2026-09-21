@@ -3,8 +3,6 @@ import assert from 'node:assert/strict';
 import {
   validateChatAttachmentFile,
   sendSwapMessageWithAttachments,
-  CANONICAL_CHAT_MIME_TYPES,
-  CANONICAL_CHAT_EXTENSION_TO_MIME,
 } from './credits';
 
 describe('Chat Attachment Security S1 Validation Unit Tests', () => {
@@ -139,7 +137,7 @@ describe('Chat Attachment Security S1 Validation Unit Tests', () => {
   });
 
   test('Regression test: sendSwapMessageWithAttachments rejects unsupported attachments before Storage upload attempt', async () => {
-    let uploadAttempted = false;
+    const uploadAttempted = false;
 
     // Create a mock File object with invalid extension
     const invalidFile = new File(['dummy content'], 'dangerous_script.sh', { type: 'application/x-sh' });
