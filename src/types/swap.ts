@@ -65,6 +65,18 @@ export interface SwapMessageAttachment extends FileLifecycle {
   deleteError?: string | null;
 }
 
+export interface UpdateSwapMessageAttachmentInput {
+  fileName?: string;
+  mimeType?: string | null;
+  fileSize?: number | null;
+  deleteAfter?: string | null;
+  deletedAt?: string | null;
+  deleteStatus?: string | null;
+  deleteError?: string | null;
+  deleteClaimedAt?: string | null;
+  storagePath?: string;
+}
+
 export interface SwapMessage {
   id: string;
   swapId: string;

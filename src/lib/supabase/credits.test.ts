@@ -16,6 +16,7 @@ import { runL18GuestModeUnitTests } from './l18_guest_mode.test';
 import { runMarketplaceCardUnitTests } from '../../components/credits/MarketplaceCard.test';
 import { runFileLifecycleUnitTests } from './file_lifecycle.test';
 import { runCreatorAttachmentLifecycleTests } from './creator_attachment_lifecycle.test';
+import { runChatAttachmentS2Tests } from './chat_attachment_s2.test';
 import './credibility_verification.test';
 
 function assert(condition: boolean, message: string) {
@@ -46,6 +47,9 @@ export async function runCreditSystemTests() {
 
   // Run Section L.3 Error Recovery Unit Tests
   runErrorRecoveryUnitTests();
+
+  // Run Security Item S2 Chat Attachment Relationship Tampering Regression Tests
+  await runChatAttachmentS2Tests();
 
   // Run Section L.14 Template Gallery & Form Prefill Unit Tests
   runTemplateGalleryUnitTests();

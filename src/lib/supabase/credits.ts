@@ -2,7 +2,7 @@ import { getSupabaseBrowserClient } from './client';
 import { formatFriendlyErrorMessage } from './profile';
 import { generateUUID } from '../uuid';
 import { getTagSlug } from '../../constants/tags';
-import type { SwapMessage, SwapSubmission, SwapSubmissionFile } from '../../types/swap';
+import type { SwapMessage, SwapSubmission, SwapSubmissionFile, UpdateSwapMessageAttachmentInput } from '../../types/swap';
 import { logger } from '../logger';
 
 export interface Account {
@@ -1238,6 +1238,55 @@ export async function deleteChatAttachmentManual(attachmentId: string): Promise<
 
     return { success: true };
   } catch (err) {
+    return { success: false, error: formatFriendlyErrorMessage(err) };
+  }
+}
+
+/**
+ * Safely updates chat attachment metadata/lifecycle without mutating immutable relationship fields
+ * (message_id, swap_id, uploaded_by).
+ */
+export async function updateSwapMessageAttachmentMetadata(
+  attachmentId: string,
+  updates: UpdateSwapMessageAttachmentInput | Record<string, unknown>
+): Promise<{ success: boolean; error?: string }> {
+  if (!attachmentId) {
+    return { success: false, error: 'Attachment ID is required.' };
+  }
+
+  // Enforce runtime sanitization: strictly strip immutable relationship & identity fields
+  const cleanPayload = { ...updates };
+  delete (cleanPayload as Record<string, unknown>).id;
+  delete (cleanPayload as Record<string, unknown>).message_id;
+  delete (cleanPayload as Record<string, unknown>).messageId;
+  delete (cleanPayload as Record<string, unknown>).swap_id;
+  delete (cleanPayload as Record<string, unknown>).swapId;
+  delete (cleanPayload as Record<string, unknown>).uploaded_by;
+  delete (cleanPayload as Record<string, unknown>).uploadedBy;
+
+  if (Object.keys(cleanPayload).length === 0) {
+    return { success: false, error: 'No valid updatable metadata fields provided.' };
+  }
+
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) {
+    return { success: false, error: 'Supabase client is unavailable.' };
+  }
+
+  try {
+    const { error } = await supabase
+      .from('swap_message_attachments')
+      .update(cleanPayload)
+      .eq('id', attachmentId);
+
+    if (error) {
+      logger.error('Failed to update swap_message_attachments metadata:', error);
+      return { success: false, error: formatFriendlyErrorMessage(error) };
+    }
+
+    return { success: true };
+  } catch (err) {
+    logger.error('Unexpected exception in updateSwapMessageAttachmentMetadata:', err);
     return { success: false, error: formatFriendlyErrorMessage(err) };
   }
 }
