@@ -417,7 +417,7 @@ export function formatAcceptSwapErrorMessage(
  * Validates a chat attachment file before uploading.
  * Checks file size and file extension support.
  */
-export const CANONICAL_CHAT_MIME_TYPES = new Set<string>([
+export const CANONICAL_ATTACHMENT_MIME_TYPES = new Set<string>([
   'application/pdf',
   'text/plain',
   'text/csv',
@@ -431,7 +431,9 @@ export const CANONICAL_CHAT_MIME_TYPES = new Set<string>([
   'image/gif',
 ]);
 
-export const CANONICAL_CHAT_EXTENSION_TO_MIME: Record<string, string> = {
+export const CANONICAL_CHAT_MIME_TYPES = CANONICAL_ATTACHMENT_MIME_TYPES;
+
+export const CANONICAL_ATTACHMENT_EXTENSION_TO_MIME: Record<string, string> = {
   pdf: 'application/pdf',
   txt: 'text/plain',
   csv: 'text/csv',
@@ -446,12 +448,15 @@ export const CANONICAL_CHAT_EXTENSION_TO_MIME: Record<string, string> = {
   gif: 'image/gif',
 };
 
+export const CANONICAL_CHAT_EXTENSION_TO_MIME = CANONICAL_ATTACHMENT_EXTENSION_TO_MIME;
+
 /**
- * Validates a chat attachment file before uploading.
+ * Single canonical client attachment file validator across all upload surfaces
+ * (swap-attachments, swap-submissions, swap-chat-attachments).
  * Enforces file size limit (25 MB), non-empty filename, no slashes, max 255 chars,
  * canonical MIME type allowlist, and extension/MIME matching.
  */
-export function validateChatAttachmentFile(file: { name: string; size: number; type?: string }): { valid: boolean; error?: string } {
+export function validateAttachmentFile(file: { name: string; size: number; type?: string }): { valid: boolean; error?: string } {
   if (!file) {
     return { valid: false, error: 'Attachment upload failed. Please try again.' };
   }
@@ -479,7 +484,7 @@ export function validateChatAttachmentFile(file: { name: string; size: number; t
   }
 
   const ext = rawName.slice(lastDot + 1).toLowerCase();
-  const expectedMime = CANONICAL_CHAT_EXTENSION_TO_MIME[ext];
+  const expectedMime = CANONICAL_ATTACHMENT_EXTENSION_TO_MIME[ext];
   if (!expectedMime) {
     return { valid: false, error: "This file type isn't supported." };
   }
@@ -502,13 +507,15 @@ export function validateChatAttachmentFile(file: { name: string; size: number; t
 
     const normalizedBrowserType = MIME_ALIAS_MAP[rawBrowserType] || rawBrowserType;
 
-    if (!CANONICAL_CHAT_MIME_TYPES.has(normalizedBrowserType) || normalizedBrowserType !== expectedMime) {
+    if (!CANONICAL_ATTACHMENT_MIME_TYPES.has(normalizedBrowserType) || normalizedBrowserType !== expectedMime) {
       return { valid: false, error: 'File extension and MIME type do not match.' };
     }
   }
 
   return { valid: true };
 }
+
+export const validateChatAttachmentFile = validateAttachmentFile;
 
 export function formatChatMessageErrorMessage(error: unknown): string {
   if (!error) return 'Attachment upload failed. Please try again.';
@@ -592,6 +599,29 @@ export function formatSubmissionErrorMessage(error: unknown, fileName?: string):
 export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promise<{ success: boolean; submissionId?: string; error?: string }> {
   logger.info('[SUBMISSION] submit started', { swapId: input.swapId, fileCount: input.files?.length || 0 });
 
+  const cleanNotes = input.notes?.trim() || '';
+  const fileCount = input.files ? input.files.length : 0;
+
+  if (cleanNotes.length === 0 && fileCount === 0) {
+    logger.warn('[SUBMISSION] validation failed: empty notes and no files');
+    return { success: false, error: 'Submission must contain notes or at least one attachment.' };
+  }
+
+  if (input.files && input.files.length > 5) {
+    logger.warn('[SUBMISSION] validation failed: exceeded max 5 files', { fileCount: input.files.length });
+    return { success: false, error: 'Maximum 5 files allowed per submission.' };
+  }
+
+  if (input.files && input.files.length > 0) {
+    for (const file of input.files) {
+      const validation = validateAttachmentFile(file);
+      if (!validation.valid) {
+        console.error('[SUBMISSION] file validation failed:', validation.error, { fileName: file.name });
+        return { success: false, error: validation.error || `File "${file.name}" is invalid.` };
+      }
+    }
+  }
+
   const supabase = getSupabaseBrowserClient();
   if (!supabase) {
     logger.error('[SUBMISSION] failure: Supabase client unavailable');
@@ -609,19 +639,6 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
     return { success: false, error: 'Swap ID is required.' };
   }
 
-  const cleanNotes = input.notes?.trim() || '';
-  const fileCount = input.files ? input.files.length : 0;
-
-  if (cleanNotes.length === 0 && fileCount === 0) {
-    logger.warn('[SUBMISSION] validation failed: empty notes and no files');
-    return { success: false, error: 'Submission must contain notes or at least one attachment.' };
-  }
-
-  if (input.files && input.files.length > 5) {
-    logger.warn('[SUBMISSION] validation failed: exceeded max 5 files', { fileCount: input.files.length });
-    return { success: false, error: 'Maximum 5 files allowed per submission.' };
-  }
-
   logger.info('[SUBMISSION] validation passed', { cleanNotesLength: cleanNotes.length, fileCount });
 
   const uploadedPaths: string[] = [];
@@ -629,11 +646,6 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
 
   if (input.files && input.files.length > 0) {
     for (const file of input.files) {
-      if (file.size > 25 * 1024 * 1024) {
-        console.error('[SUBMISSION] file validation failed: size exceeds 25MB', { fileName: file.name, fileSize: file.size });
-        return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
-      }
-
       const storedFileName = sanitizeFileName(file.name);
       const normalizedMimeType = getNormalizedMimeType(storedFileName, file.type);
       const storagePath = `submissions/${input.swapId}/${user.id}/${generateUUID()}-${storedFileName}`;
@@ -1083,6 +1095,40 @@ export async function sendSwapMessage(
 }
 
 /**
+ * Safely marks received swap messages as read by updating strictly the read_at column.
+ * Strips all protected relationship/payload fields (swap_id, sender_id, recipient_id, body)
+ * to adhere strictly to database column protection rules.
+ */
+export async function markSwapMessagesRead(swapId: string, messageIds: string[]): Promise<{ success: boolean; error?: string }> {
+  if (!swapId || !messageIds || messageIds.length === 0) return { success: true };
+
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'User is not authenticated.' };
+
+    const { error } = await supabase
+      .from('swap_messages')
+      .update({ read_at: new Date().toISOString() })
+      .eq('swap_id', swapId)
+      .eq('recipient_id', user.id)
+      .in('id', messageIds);
+
+    if (error) {
+      logger.error('Failed to mark swap messages as read:', error);
+      return { success: false, error: formatFriendlyErrorMessage(error) };
+    }
+
+    return { success: true };
+  } catch (err) {
+    logger.error('Unexpected exception in markSwapMessagesRead:', err);
+    return { success: false, error: formatFriendlyErrorMessage(err) };
+  }
+}
+
+/**
  * Sends a chat message with optional file attachments uploaded to swap-chat-attachments bucket.
  * Atomic design: executes send_chat_message_with_attachments RPC as the canonical send path.
  * If upload or RPC registration fails, uploaded files are cleaned up from Storage
@@ -1253,13 +1299,13 @@ export async function getSwapMessageAttachmentSignedUrl(storagePath: string): Pr
       .createSignedUrl(storagePath, 3600);
 
     if (error || !data) {
-      console.error('Error generating chat attachment signed URL:', error);
+      logger.error('Error generating chat attachment signed URL:', error);
       return null;
     }
 
     return data.signedUrl;
   } catch (err) {
-    console.error('Unexpected error generating chat attachment signed URL:', err);
+    logger.error('Unexpected error generating chat attachment signed URL:', err);
     return null;
   }
 }
@@ -1510,13 +1556,13 @@ export async function getSubmissionFileSignedUrl(storagePath: string): Promise<s
       .createSignedUrl(storagePath, 3600);
 
     if (error || !data) {
-      console.error('Error generating signed URL:', error);
+      logger.error('Error generating signed URL:', error);
       return null;
     }
 
     return data.signedUrl;
   } catch (err) {
-    console.error('Unexpected error generating signed URL:', err);
+    logger.error('Unexpected error generating signed URL:', err);
     return null;
   }
 }
@@ -1575,9 +1621,6 @@ export async function uploadSwapAttachments(
   files: File[],
   userId?: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
-
   if (!files || files.length === 0) return { success: true };
 
   if (files.length > 5) {
@@ -1586,10 +1629,14 @@ export async function uploadSwapAttachments(
 
   // Early validation of all files before initiating network calls
   for (const file of files) {
-    if (file.size > 25 * 1024 * 1024) {
-      return { success: false, error: `File "${file.name}" exceeds maximum allowed size of 25MB.` };
+    const validation = validateAttachmentFile(file);
+    if (!validation.valid) {
+      return { success: false, error: validation.error || `File "${file.name}" is invalid.` };
     }
   }
+
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return { success: false, error: 'Supabase client is unavailable.' };
 
   const startTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
@@ -1714,13 +1761,13 @@ export async function getSwapAttachmentSignedUrl(storagePath: string): Promise<s
       .createSignedUrl(storagePath, 3600);
 
     if (error || !data) {
-      console.error('Error generating creator attachment signed URL:', error);
+      logger.error('Error generating creator attachment signed URL:', error);
       return null;
     }
 
     return data.signedUrl;
   } catch (err) {
-    console.error('Unexpected error generating creator attachment signed URL:', err);
+    logger.error('Unexpected error generating creator attachment signed URL:', err);
     return null;
   }
 }
@@ -1747,7 +1794,7 @@ export async function downloadFileFromSignedUrl(signedUrl: string, fileName: str
 
     return { success: true };
   } catch (err) {
-    console.error('Error in downloadFileFromSignedUrl:', err);
+    logger.error('Error in downloadFileFromSignedUrl:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Download failed.' };
   }
 }
