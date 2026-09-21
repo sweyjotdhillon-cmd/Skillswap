@@ -45,7 +45,13 @@ type ExploreSwapsPageProps = {
 
 export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
   const { user, profile, account, refreshAccount } = useAuth();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('search') || params.get('q') || '';
+    }
+    return '';
+  });
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [categories, setCategories] = useState<string[]>(['All', ...SEEDED_19_CATEGORIES]);
 

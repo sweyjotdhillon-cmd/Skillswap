@@ -2,17 +2,31 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { getCorsHeaders, handleCors } from '../../../supabase/functions/_shared/cors';
 
-// Polyfill global Deno if not present in Node.js test environment
-if (typeof (globalThis as any).Deno === 'undefined') {
-  const envMap = new Map<string, string>();
-  (globalThis as any).Deno = {
-    env: {
-      get: (key: string) => envMap.get(key) || undefined,
-      set: (key: string, value: string) => envMap.set(key, value),
-      delete: (key: string) => envMap.delete(key),
-    },
+type MockDeno = {
+  env: {
+    get: (key: string) => string | undefined;
+    set: (key: string, value: string) => void;
+    delete: (key: string) => void;
   };
-}
+};
+
+const getGlobalDeno = (): MockDeno => {
+  const g = globalThis as unknown as { Deno?: MockDeno };
+  if (!g.Deno) {
+    const envMap = new Map<string, string>();
+    g.Deno = {
+      env: {
+        get: (key: string) => envMap.get(key) || undefined,
+        set: (key: string, value: string) => envMap.set(key, value),
+        delete: (key: string) => envMap.delete(key),
+      },
+    };
+  }
+  return g.Deno;
+};
+
+// Polyfill global Deno if not present in Node.js test environment
+getGlobalDeno();
 
 describe('CORS Handler Security Tests', () => {
   it('allows production origin by default', () => {
@@ -38,8 +52,9 @@ describe('CORS Handler Security Tests', () => {
   });
 
   it('rejects localhost and 127.0.0.1 by default in production (environment flag not set)', () => {
-    (globalThis as any).Deno.env.delete('ALLOW_LOCAL_ORIGINS');
-    (globalThis as any).Deno.env.delete('DENO_ENV');
+    const deno = getGlobalDeno();
+    deno.env.delete('ALLOW_LOCAL_ORIGINS');
+    deno.env.delete('DENO_ENV');
 
     const reqLocalhost = new Request('https://api.example.com', {
       headers: { origin: 'http://localhost:5173' },
@@ -53,8 +68,9 @@ describe('CORS Handler Security Tests', () => {
   });
 
   it('allows localhost when ALLOW_LOCAL_ORIGINS is true', () => {
-    (globalThis as any).Deno.env.set('ALLOW_LOCAL_ORIGINS', 'true');
-    (globalThis as any).Deno.env.delete('DENO_ENV');
+    const deno = getGlobalDeno();
+    deno.env.set('ALLOW_LOCAL_ORIGINS', 'true');
+    deno.env.delete('DENO_ENV');
 
     const reqLocalhost = new Request('https://api.example.com', {
       headers: { origin: 'http://localhost:5173' },
@@ -63,12 +79,13 @@ describe('CORS Handler Security Tests', () => {
     assert.notStrictEqual(headers, null);
     assert.strictEqual(headers?.['Access-Control-Allow-Origin'], 'http://localhost:5173');
 
-    (globalThis as any).Deno.env.delete('ALLOW_LOCAL_ORIGINS');
+    deno.env.delete('ALLOW_LOCAL_ORIGINS');
   });
 
   it('allows localhost when DENO_ENV is development', () => {
-    (globalThis as any).Deno.env.delete('ALLOW_LOCAL_ORIGINS');
-    (globalThis as any).Deno.env.set('DENO_ENV', 'development');
+    const deno = getGlobalDeno();
+    deno.env.delete('ALLOW_LOCAL_ORIGINS');
+    deno.env.set('DENO_ENV', 'development');
 
     const reqIP = new Request('https://api.example.com', {
       headers: { origin: 'http://127.0.0.1:3000' },
@@ -77,11 +94,12 @@ describe('CORS Handler Security Tests', () => {
     assert.notStrictEqual(headers, null);
     assert.strictEqual(headers?.['Access-Control-Allow-Origin'], 'http://127.0.0.1:3000');
 
-    (globalThis as any).Deno.env.delete('DENO_ENV');
+    deno.env.delete('DENO_ENV');
   });
 
   it('allows custom origins configured via ALLOWED_ORIGIN env var', () => {
-    (globalThis as any).Deno.env.set('ALLOWED_ORIGIN', 'https://custom.app.com, https://staging.app.com');
+    const deno = getGlobalDeno();
+    deno.env.set('ALLOWED_ORIGIN', 'https://custom.app.com, https://staging.app.com');
 
     const reqCustom = new Request('https://api.example.com', {
       headers: { origin: 'https://staging.app.com' },
@@ -90,7 +108,7 @@ describe('CORS Handler Security Tests', () => {
     assert.notStrictEqual(headers, null);
     assert.strictEqual(headers?.['Access-Control-Allow-Origin'], 'https://staging.app.com');
 
-    (globalThis as any).Deno.env.delete('ALLOWED_ORIGIN');
+    deno.env.delete('ALLOWED_ORIGIN');
   });
 
   it('returns default restrictive headers when no Origin header is present', () => {

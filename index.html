@@ -3,24 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Trade Skills, Not Money</title>
-    <meta name="description" content="SkillSwap is a peer-to-peer skill exchange platform where skills become currency through SkillCredits. Trade design, coding, writing, video editing, tech help, and more without money." />
+    <title>SkillSwap — Peer-to-Peer Skill Exchange Platform</title>
+    <meta name="description" content="SkillSwap is a peer-to-peer skill exchange platform where users trade skills without paying money, using SkillCredits as the exchange mechanism." />
     <link rel="canonical" href="https://skillswap.sweyjotdhillon.workers.dev/" />
     <meta name="robots" content="index, follow" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="shortcut icon" href="/favicon.ico" />
 
     <!-- Open Graph Metadata -->
-    <meta property="og:title" content="SkillSwap — Trade Skills, Not Money" />
-    <meta property="og:description" content="SkillSwap is a peer-to-peer skill exchange platform where skills become currency through SkillCredits. Trade design, coding, writing, video editing, tech help, and more without money." />
+    <meta property="og:title" content="SkillSwap — Peer-to-Peer Skill Exchange Platform" />
+    <meta property="og:description" content="SkillSwap is a peer-to-peer skill exchange platform where users trade skills without paying money, using SkillCredits as the exchange mechanism." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://skillswap.sweyjotdhillon.workers.dev/" />
     <meta property="og:site_name" content="SkillSwap" />
 
     <!-- Twitter Card Metadata -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="SkillSwap — Trade Skills, Not Money" />
-    <meta name="twitter:description" content="SkillSwap is a peer-to-peer skill exchange platform where skills become currency through SkillCredits. Trade design, coding, writing, video editing, tech help, and more without money." />
+    <meta name="twitter:title" content="SkillSwap — Peer-to-Peer Skill Exchange Platform" />
+    <meta name="twitter:description" content="SkillSwap is a peer-to-peer skill exchange platform where users trade skills without paying money, using SkillCredits as the exchange mechanism." />
 
     <!-- Structured Data JSON-LD -->
     <script type="application/ld+json">
@@ -32,10 +32,17 @@
           "@id": "https://skillswap.sweyjotdhillon.workers.dev/#website",
           "url": "https://skillswap.sweyjotdhillon.workers.dev/",
           "name": "SkillSwap",
+          "alternateName": ["Skillswap"],
           "description": "Peer-to-peer skill exchange platform powered by SkillCredits.",
+          "publisher": {
+            "@id": "https://skillswap.sweyjotdhillon.workers.dev/#organization"
+          },
           "potentialAction": {
             "@type": "SearchAction",
-            "target": "https://skillswap.sweyjotdhillon.workers.dev/explore?search={search_term_string}",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://skillswap.sweyjotdhillon.workers.dev/explore?search={search_term_string}"
+            },
             "query-input": "required name=search_term_string"
           }
         },
@@ -43,8 +50,28 @@
           "@type": "Organization",
           "@id": "https://skillswap.sweyjotdhillon.workers.dev/#organization",
           "name": "SkillSwap",
+          "alternateName": ["Skillswap"],
           "url": "https://skillswap.sweyjotdhillon.workers.dev/",
           "email": "skillswap165@gmail.com"
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://skillswap.sweyjotdhillon.workers.dev/#app",
+          "name": "SkillSwap",
+          "alternateName": ["Skillswap"],
+          "url": "https://skillswap.sweyjotdhillon.workers.dev/",
+          "applicationCategory": "SocialNetworkingApplication",
+          "operatingSystem": "Web",
+          "description": "SkillSwap is a peer-to-peer skill exchange platform where users trade skills without paying money, using SkillCredits as the exchange mechanism.",
+          "publisher": {
+            "@id": "https://skillswap.sweyjotdhillon.workers.dev/#organization"
+          },
+          "creator": {
+            "@id": "https://skillswap.sweyjotdhillon.workers.dev/#organization"
+          },
+          "isPartOf": {
+            "@id": "https://skillswap.sweyjotdhillon.workers.dev/#website"
+          }
         }
       ]
     }
