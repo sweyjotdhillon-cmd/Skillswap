@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { formatFriendlyErrorMessage } from '../lib/supabase/profile';
+import { getSafeRedirect } from '../lib/safeRedirect';
 
 type LoginPageProps = {
   onNavigate?: (path: string) => void;
   redirectTo?: string;
 };
 
-export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
+export function LoginPage({ onNavigate, redirectTo: propsRedirectTo }: LoginPageProps) {
+  const safeRedirect = getSafeRedirect(propsRedirectTo, '/explore');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   type ErrorType = 'incorrect_password' | 'account_not_found' | 'ambiguous_credentials' | 'rate_limit' | 'network_error' | 'unconfirmed_email' | 'generic' | null;
@@ -40,10 +42,10 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
       }
       setErrorMessage(friendlyMsg);
 
-      const cleanUrl = window.location.pathname + (redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : '');
+      const cleanUrl = window.location.pathname + (propsRedirectTo ? `?redirectTo=${encodeURIComponent(safeRedirect)}` : '');
       window.history.replaceState({}, document.title, cleanUrl);
     }
-  }, [redirectTo]);
+  }, [propsRedirectTo, safeRedirect]);
 
   const validate = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -88,7 +90,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
         if (msg.includes('email not confirmed') || msg.includes('unconfirmed')) {
           setErrorType('unconfirmed_email');
           setErrorMessage('Please verify your email address before logging in.');
-          const verifyUrl = `/verify-email?email=${encodeURIComponent(cleanEmail)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+          const verifyUrl = `/verify-email?email=${encodeURIComponent(cleanEmail)}${propsRedirectTo ? `&redirectTo=${encodeURIComponent(safeRedirect)}` : ''}`;
           if (onNavigate) {
             onNavigate(verifyUrl);
           } else {
@@ -112,18 +114,17 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
         );
 
         if (!isVerified) {
-          const verifyUrl = `/verify-email?email=${encodeURIComponent(cleanEmail)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+          const verifyUrl = `/verify-email?email=${encodeURIComponent(cleanEmail)}${propsRedirectTo ? `&redirectTo=${encodeURIComponent(safeRedirect)}` : ''}`;
           if (onNavigate) {
             onNavigate(verifyUrl);
           } else {
             window.location.href = verifyUrl;
           }
         } else {
-          const dest = redirectTo || '/explore';
           if (onNavigate) {
-            onNavigate(dest);
+            onNavigate(safeRedirect);
           } else {
-            window.location.href = dest;
+            window.location.href = safeRedirect;
           }
         }
       }
@@ -146,7 +147,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}${redirectTo ? redirectTo : '/explore'}`,
+          redirectTo: `${window.location.origin}${safeRedirect}`,
         },
       });
       if (error) {
@@ -169,7 +170,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
-          redirectTo: `${window.location.origin}${redirectTo ? redirectTo : '/explore'}`,
+          redirectTo: `${window.location.origin}${safeRedirect}`,
         },
       });
       if (error) {
@@ -254,12 +255,12 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
                   <span>
                     Need an account?{' '}
                     <a
-                      href={`/signup?email=${encodeURIComponent(email.trim())}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`}
+                      href={`/signup?email=${encodeURIComponent(email.trim())}${propsRedirectTo ? `&redirectTo=${encodeURIComponent(safeRedirect)}` : ''}`}
                       className="auth-link"
                       style={{ fontWeight: 600, textDecoration: 'underline' }}
                       onClick={(e) => {
                         e.preventDefault();
-                        const signupUrl = `/signup?email=${encodeURIComponent(email.trim())}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+                        const signupUrl = `/signup?email=${encodeURIComponent(email.trim())}${propsRedirectTo ? `&redirectTo=${encodeURIComponent(safeRedirect)}` : ''}`;
                         if (onNavigate) {
                           onNavigate(signupUrl);
                         } else {
@@ -371,7 +372,7 @@ export function LoginPage({ onNavigate, redirectTo }: LoginPageProps) {
               className="auth-link"
               onClick={(e) => {
                 e.preventDefault();
-                if (onNavigate) onNavigate(`/signup${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`);
+                if (onNavigate) onNavigate(`/signup${propsRedirectTo ? `?redirectTo=${encodeURIComponent(safeRedirect)}` : ''}`);
               }}
             >
               Create one

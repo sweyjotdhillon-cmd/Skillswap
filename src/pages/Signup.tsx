@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { formatFriendlyErrorMessage } from '../lib/supabase/profile';
+import { getSafeRedirect } from '../lib/safeRedirect';
 
 type SignupPageProps = {
   onNavigate?: (path: string) => void;
   redirectTo?: string;
 };
 
-export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
+export function SignupPage({ onNavigate, redirectTo: propsRedirectTo }: SignupPageProps) {
+  const safeRedirect = getSafeRedirect(propsRedirectTo, '/explore');
   const urlParams = new URLSearchParams(window.location.search);
   const initialEmail = urlParams.get('email') || '';
 
@@ -42,10 +44,10 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
       }
       setErrorMessage(friendlyMsg);
 
-      const cleanUrl = window.location.pathname + (redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : '');
+      const cleanUrl = window.location.pathname + (propsRedirectTo ? `?redirectTo=${encodeURIComponent(safeRedirect)}` : '');
       window.history.replaceState({}, document.title, cleanUrl);
     }
-  }, [redirectTo]);
+  }, [propsRedirectTo, safeRedirect]);
 
   const validate = () => {
     const newErrors: { fullName?: string; email?: string; password?: string; confirmPassword?: string } = {};
@@ -114,7 +116,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
         }
       } else {
         // Always navigate to email OTP verification screen on email/password signup
-        const verifyUrl = `/verify-email?email=${encodeURIComponent(cleanEmail)}${redirectTo ? `&redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+        const verifyUrl = `/verify-email?email=${encodeURIComponent(cleanEmail)}${propsRedirectTo ? `&redirectTo=${encodeURIComponent(safeRedirect)}` : ''}`;
         if (onNavigate) {
           onNavigate(verifyUrl);
         } else {
@@ -139,7 +141,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}${redirectTo ? redirectTo : '/explore'}`,
+          redirectTo: `${window.location.origin}${safeRedirect}`,
         },
       });
       if (error) throw error;
@@ -159,7 +161,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
-          redirectTo: `${window.location.origin}${redirectTo ? redirectTo : '/explore'}`,
+          redirectTo: `${window.location.origin}${safeRedirect}`,
         },
       });
       if (error) throw error;
@@ -205,9 +207,9 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
                     onClick={(e) => {
                       e.preventDefault();
                       if (onNavigate) {
-                        onNavigate(`/login${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`);
+                        onNavigate(`/login${propsRedirectTo ? `?redirectTo=${encodeURIComponent(safeRedirect)}` : ''}`);
                       } else {
-                        window.location.href = `/login${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+                        window.location.href = `/login${propsRedirectTo ? `?redirectTo=${encodeURIComponent(safeRedirect)}` : ''}`;
                       }
                     }}
                   >
@@ -342,7 +344,7 @@ export function SignupPage({ onNavigate, redirectTo }: SignupPageProps) {
               className="auth-link"
               onClick={(e) => {
                 e.preventDefault();
-                if (onNavigate) onNavigate(`/login${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`);
+                if (onNavigate) onNavigate(`/login${propsRedirectTo ? `?redirectTo=${encodeURIComponent(safeRedirect)}` : ''}`);
               }}
             >
               Log in

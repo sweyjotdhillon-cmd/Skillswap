@@ -1,5 +1,4 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.4';
 import { handleCors } from '../_shared/cors.ts';
 
 async function hashString(data: string): Promise<string> {
@@ -17,7 +16,7 @@ function generateOTP(): string {
   return code;
 }
 
-serve(async (req) => {
+Deno.serve(async (req: Request) => {
   const { corsHeaders, errorResponse } = handleCors(req);
   if (errorResponse) {
     return errorResponse;
