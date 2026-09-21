@@ -17,7 +17,6 @@ import {
   formatFriendlyErrorMessage,
 } from '../lib/supabase/profile';
 import { getUserCompletedSwapsCount } from '../lib/supabase/credits';
-import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { VerificationBadge } from '../components/ui/VerificationBadge';
 
 type ProfilePageProps = {
@@ -139,20 +138,11 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     setEditError(null);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      if (!supabase) throw new Error('Unable to save profile right now. Please try again.');
-
-      const { error: updateErr } = await supabase
-        .from('profiles')
-        .update({
-          full_name: editFullName.trim(),
-          bio: editBio.trim() || null,
-        })
-        .eq('id', user.id);
-
-      if (updateErr) {
-        throw updateErr;
-      }
+      const { updateCurrentUserProfile } = await import('../lib/supabase/profile');
+      await updateCurrentUserProfile({
+        fullName: editFullName.trim(),
+        bio: editBio.trim() || null,
+      });
 
       // Refresh AuthContext profile state
       await refreshProfile();

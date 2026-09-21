@@ -361,6 +361,22 @@ export interface OnboardingProfileInput {
  * Saves onboarding data for the currently authenticated user only. The user id is
  * derived from Supabase Auth rather than accepted from UI state.
  */
+/**
+ * Strips platform-protected trust metrics from profile mutation payloads.
+ */
+export function sanitizeProfileUpdatePayload<T extends Record<string, unknown>>(payload: T): T {
+  const sanitized = { ...payload };
+  delete (sanitized as Record<string, unknown>).is_verified;
+  delete (sanitized as Record<string, unknown>).isVerified;
+  delete (sanitized as Record<string, unknown>).completed_swaps_count;
+  delete (sanitized as Record<string, unknown>).completedSwapsCount;
+  delete (sanitized as Record<string, unknown>).average_rating;
+  delete (sanitized as Record<string, unknown>).averageRating;
+  delete (sanitized as Record<string, unknown>).review_count;
+  delete (sanitized as Record<string, unknown>).reviewCount;
+  return sanitized;
+}
+
 export async function saveCurrentUserOnboardingProfile(input: OnboardingProfileInput): Promise<void> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) throw new Error('We couldn’t save your profile right now. Please try again.');
@@ -368,16 +384,52 @@ export async function saveCurrentUserOnboardingProfile(input: OnboardingProfileI
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData.user) throw new Error('Your session has expired. Please sign in again.');
 
+  const payload = sanitizeProfileUpdatePayload({
+    id: authData.user.id,
+    full_name: input.fullName.trim(),
+    bio: input.bio.trim() || null,
+    username: input.username.trim().toLowerCase(),
+    avatar_url: input.avatarUrl,
+  });
+
   const { error } = await supabase.from('profiles').upsert(
-    {
-      id: authData.user.id,
-      full_name: input.fullName.trim(),
-      bio: input.bio.trim() || null,
-      username: input.username.trim().toLowerCase(),
-      avatar_url: input.avatarUrl,
-    },
+    payload,
     { onConflict: 'id' },
   );
+  if (error) throw new Error(formatFriendlyErrorMessage(error));
+}
+
+/**
+ * Safely updates user-editable profile fields for the authenticated user only.
+ * Strips any platform-protected trust metrics from the payload.
+ */
+export async function updateCurrentUserProfile(updates: {
+  fullName?: string;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  location?: string | null;
+  username?: string;
+}): Promise<void> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) throw new Error('We couldn’t save your profile right now. Please try again.');
+
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw new Error('Your session has expired. Please sign in again.');
+
+  const payload: Record<string, unknown> = {};
+  if (updates.fullName !== undefined) payload.full_name = updates.fullName.trim();
+  if (updates.bio !== undefined) payload.bio = updates.bio ? updates.bio.trim() : null;
+  if (updates.avatarUrl !== undefined) payload.avatar_url = updates.avatarUrl;
+  if (updates.location !== undefined) payload.location = updates.location ? updates.location.trim() : null;
+  if (updates.username !== undefined) payload.username = updates.username.trim().toLowerCase();
+
+  const sanitized = sanitizeProfileUpdatePayload(payload);
+
+  const { error } = await supabase
+    .from('profiles')
+    .update(sanitized)
+    .eq('id', authData.user.id);
+
   if (error) throw new Error(formatFriendlyErrorMessage(error));
 }
 
@@ -408,7 +460,7 @@ export async function getProfile(userId: string): Promise<Profile | null> {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, username, full_name, avatar_url, bio, location, profile_completed, is_verified, average_rating, review_count, completed_swaps_count, created_at, updated_at')
       .eq('id', userId)
       .maybeSingle();
 
@@ -435,7 +487,7 @@ export async function getProfileByUsername(username: string): Promise<Profile | 
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, username, full_name, avatar_url, bio, location, profile_completed, is_verified, average_rating, review_count, completed_swaps_count, created_at, updated_at')
       .ilike('username', cleanUsername)
       .maybeSingle();
 
