@@ -134,6 +134,7 @@ The following features are planned for future platform iterations and are active
 | **Database & Auth** | Supabase (PostgreSQL 15+) | Authentication, database, RLS policies, Realtime, and Storage |
 | **Edge Compute** | Cloudflare Workers | SSR & Edge request handling via `@cloudflare/vite-plugin` and Wrangler |
 | **Serverless Functions**| Supabase Edge Functions | Deno runtime Edge Functions for secure password reset workflows |
+| **Supabase JS Version**| `@supabase/supabase-js` 2.112.4 | Pinned JS SDK client compatible with live Edge Function contracts |
 | **Local Test Engine** | PGLite (`@electric-sql/pglite`) | In-memory WASM PostgreSQL engine for running full integration tests |
 
 ---

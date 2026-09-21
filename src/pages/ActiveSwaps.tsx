@@ -618,6 +618,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
       if (!res.success) {
         setSubmitError(res.error || 'Failed to submit work.');
         setIsMutating(false);
+        void loadRealActiveSwaps();
         return;
       }
 
@@ -689,6 +690,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         if (!res.success) {
           setIsMutating(false);
           setSubmitSuccessToast(res.error || 'Failed to complete swap and settle credits.');
+          void loadRealActiveSwaps();
           return;
         }
 
