@@ -1,6 +1,9 @@
 import { useRef, useState } from 'react';
 import { FileExpiryIndicator } from '../ui/FileExpiryIndicator';
+import { validateAttachmentFile } from '../../lib/supabase/credits';
 import type { FileLifecycle } from '../../types/swap';
+
+const ACCEPTED_FILE_TYPES = '.pdf,.txt,.csv,.zip,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp,.gif';
 
 export interface AttachmentItem extends FileLifecycle {
   id: string;
@@ -66,7 +69,6 @@ export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAtta
   const [isDragOver, setIsDragOver] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
 
-  const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB per file
   const MAX_FILES = 5;
 
   const filterAndAddFiles = (files: FileList | File[]) => {
@@ -80,8 +82,9 @@ export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAtta
     }
 
     for (const file of filesArr) {
-      if (file.size > MAX_FILE_SIZE) {
-        setFileError(`File "${file.name}" exceeds 25MB limit.`);
+      const validation = validateAttachmentFile(file);
+      if (!validation.valid) {
+        setFileError(validation.error || `File "${file.name}" is invalid.`);
         return;
       }
       validFiles.push(file);
@@ -135,6 +138,7 @@ export function AttachmentUploader({ attachments, onAddAttachments, onRemoveAtta
         ref={fileInputRef}
         type="file"
         multiple
+        accept={ACCEPTED_FILE_TYPES}
         className="hidden-file-input"
         onChange={handleFileChange}
         onClick={(e) => e.stopPropagation()}

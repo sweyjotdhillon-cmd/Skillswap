@@ -15,6 +15,7 @@ import {
   getSwapAttachmentSignedUrl,
   downloadFileFromSignedUrl,
   submitSwapReview,
+  validateAttachmentFile,
   hasUserReviewedSwap,
   type SwapRecord,
   type SwapAttachment,
@@ -542,8 +543,9 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     const validToAdd: File[] = [];
 
     for (const file of newFiles) {
-      if (file.size > 25 * 1024 * 1024) {
-        setSubmitError(`File "${file.name}" exceeds 25MB size limit.`);
+      const validation = validateAttachmentFile(file);
+      if (!validation.valid) {
+        setSubmitError(validation.error || `File "${file.name}" is invalid.`);
         continue;
       }
       validToAdd.push(file);
@@ -1685,6 +1687,7 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                   id="submit-file-input"
                   type="file"
                   multiple
+                  accept=".pdf,.txt,.csv,.zip,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp,.gif"
                   style={{ display: 'none' }}
                   onChange={handleFileSelectChange}
                   onClick={(e) => e.stopPropagation()}

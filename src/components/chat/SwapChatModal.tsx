@@ -14,6 +14,7 @@ import {
   deleteChatAttachmentManual,
   validateChatAttachmentFile,
   deriveSwapRecipientId,
+  markSwapMessagesRead,
   type SwapAttachment,
 } from '../../lib/supabase/credits';
 import { mapSwapRecordToSwap, type Swap, type SwapMessage, type SwapSubmission } from '../../types/swap';
@@ -227,6 +228,14 @@ export function SwapChatModal({
           setChatError(res.error);
         } else {
           setMessages((prev) => mergeAndDeduplicate(prev, res.data));
+
+          // Mark received unread messages as read
+          const unreadIds = res.data
+            .filter((m) => m.recipientId === authedUser.id && !m.readAt)
+            .map((m) => m.id);
+          if (unreadIds.length > 0) {
+            void markSwapMessagesRead(swap.id, unreadIds);
+          }
         }
       };
 
@@ -789,7 +798,7 @@ export function SwapChatModal({
                 style={{ display: 'none' }}
                 onChange={handleFileSelect}
                 multiple
-                accept="image/*,application/pdf,application/zip,text/*,video/*"
+                accept=".pdf,.txt,.csv,.zip,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp,.gif"
               />
               <button
                 type="button"
