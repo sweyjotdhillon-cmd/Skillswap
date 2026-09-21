@@ -1,10 +1,16 @@
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined;
+  };
+};
+
 const PRODUCTION_ORIGIN = 'https://skillswap.sweyjotdhillon.workers.dev';
 
 export function getCorsHeaders(req: Request): Record<string, string> | null {
   const origin = req.headers.get('origin');
-  const allowedOriginEnv = Deno.env.get('ALLOWED_ORIGIN');
+  const allowedOriginEnv = typeof Deno !== 'undefined' ? Deno.env.get('ALLOWED_ORIGIN') : undefined;
   const configuredOrigins = allowedOriginEnv
-    ? allowedOriginEnv.split(',').map((o) => o.trim())
+    ? allowedOriginEnv.split(',').map((o: string) => o.trim())
     : [];
 
   const allowedOrigins = [PRODUCTION_ORIGIN, ...configuredOrigins];
@@ -22,8 +28,12 @@ export function getCorsHeaders(req: Request): Record<string, string> | null {
   let isAllowed = allowedOrigins.includes(cleanOrigin);
 
   if (!isAllowed) {
-    // Allow localhost / 127.0.0.1 origins for local development
-    if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin)) {
+    // Allow localhost / 127.0.0.1 origins only when explicitly enabled via environment variable
+    const allowLocal =
+      typeof Deno !== 'undefined' &&
+      (Deno.env.get('ALLOW_LOCAL_ORIGINS') === 'true' ||
+        Deno.env.get('DENO_ENV') === 'development');
+    if (allowLocal && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin)) {
       isAllowed = true;
     }
   }
