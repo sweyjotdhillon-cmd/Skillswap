@@ -495,7 +495,7 @@ button:disabled,
 .mobile-user-email {
   font-size: 0.95rem;
   color: var(--text-color);
-  word-break: break-all;
+  word-break: break-word;
 }
 
 .mobile-drawer-cta {
