@@ -1101,7 +1101,7 @@ export async function sendSwapMessageWithAttachments(
 
       const { error: uploadErr } = await supabase.storage
         .from('swap-chat-attachments')
-        .upload(storagePath, file, {
+        .upload(storagePath, file as File, {
           contentType: normalizedMime,
           upsert: false,
         });
