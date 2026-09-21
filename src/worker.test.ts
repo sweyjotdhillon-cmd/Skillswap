@@ -14,6 +14,9 @@ describe('C1 — Cloudflare Worker Security Headers Unit Tests', () => {
         }
         return new Response('Not Found', { status: 404 });
       }) as Fetcher['fetch'],
+      connect: (() => {
+        throw new Error('Not implemented');
+      }) as Fetcher['connect'],
     },
   });
 
