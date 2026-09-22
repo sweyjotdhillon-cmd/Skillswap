@@ -1259,15 +1259,28 @@ export async function updateSwapMessageAttachmentMetadata(
     return { success: false, error: 'Attachment ID is required.' };
   }
 
-  // Enforce runtime sanitization: strictly strip immutable relationship & identity fields
-  const cleanPayload = { ...updates };
-  delete (cleanPayload as Record<string, unknown>).id;
-  delete (cleanPayload as Record<string, unknown>).message_id;
-  delete (cleanPayload as Record<string, unknown>).messageId;
-  delete (cleanPayload as Record<string, unknown>).swap_id;
-  delete (cleanPayload as Record<string, unknown>).swapId;
-  delete (cleanPayload as Record<string, unknown>).uploaded_by;
-  delete (cleanPayload as Record<string, unknown>).uploadedBy;
+  // Enforce explicit allowlist for updatable attachment metadata fields
+  const cleanPayload: Record<string, unknown> = {};
+  const raw = updates as Record<string, unknown>;
+
+  if (raw.file_name !== undefined) cleanPayload.file_name = raw.file_name;
+  if (raw.fileName !== undefined) cleanPayload.file_name = raw.fileName;
+  if (raw.mime_type !== undefined) cleanPayload.mime_type = raw.mime_type;
+  if (raw.mimeType !== undefined) cleanPayload.mime_type = raw.mimeType;
+  if (raw.file_size !== undefined) cleanPayload.file_size = raw.file_size;
+  if (raw.fileSize !== undefined) cleanPayload.file_size = raw.fileSize;
+  if (raw.delete_after !== undefined) cleanPayload.delete_after = raw.delete_after;
+  if (raw.deleteAfter !== undefined) cleanPayload.delete_after = raw.deleteAfter;
+  if (raw.deleted_at !== undefined) cleanPayload.deleted_at = raw.deleted_at;
+  if (raw.deletedAt !== undefined) cleanPayload.deleted_at = raw.deletedAt;
+  if (raw.delete_status !== undefined) cleanPayload.delete_status = raw.delete_status;
+  if (raw.deleteStatus !== undefined) cleanPayload.delete_status = raw.deleteStatus;
+  if (raw.delete_error !== undefined) cleanPayload.delete_error = raw.delete_error;
+  if (raw.deleteError !== undefined) cleanPayload.delete_error = raw.deleteError;
+  if (raw.delete_claimed_at !== undefined) cleanPayload.delete_claimed_at = raw.delete_claimed_at;
+  if (raw.deleteClaimedAt !== undefined) cleanPayload.delete_claimed_at = raw.deleteClaimedAt;
+  if (raw.storage_path !== undefined) cleanPayload.storage_path = raw.storage_path;
+  if (raw.storagePath !== undefined) cleanPayload.storage_path = raw.storagePath;
 
   if (Object.keys(cleanPayload).length === 0) {
     return { success: false, error: 'No valid updatable metadata fields provided.' };
@@ -1382,13 +1395,17 @@ export async function updateSwapSubmissionMetadata(
     return { success: false, error: 'Submission ID is required.' };
   }
 
-  // Enforce runtime sanitization: strictly strip immutable relationship & identity fields
-  const cleanPayload = { ...updates };
-  delete (cleanPayload as Record<string, unknown>).id;
-  delete (cleanPayload as Record<string, unknown>).swap_id;
-  delete (cleanPayload as Record<string, unknown>).swapId;
-  delete (cleanPayload as Record<string, unknown>).submitted_by;
-  delete (cleanPayload as Record<string, unknown>).submittedBy;
+  // Enforce explicit allowlist for updatable submission metadata fields
+  const cleanPayload: Record<string, unknown> = {};
+  const raw = updates as Record<string, unknown>;
+
+  if (raw.notes !== undefined) cleanPayload.notes = raw.notes;
+  if (raw.reviewed_at !== undefined) cleanPayload.reviewed_at = raw.reviewed_at;
+  if (raw.reviewedAt !== undefined) cleanPayload.reviewed_at = raw.reviewedAt;
+  if (raw.reviewed_by !== undefined) cleanPayload.reviewed_by = raw.reviewed_by;
+  if (raw.reviewedBy !== undefined) cleanPayload.reviewed_by = raw.reviewedBy;
+  if (raw.updated_at !== undefined) cleanPayload.updated_at = raw.updated_at;
+  if (raw.updatedAt !== undefined) cleanPayload.updated_at = raw.updatedAt;
 
   if (Object.keys(cleanPayload).length === 0) {
     return { success: false, error: 'No valid updatable metadata fields provided.' };
@@ -1429,13 +1446,26 @@ export async function updateSwapSubmissionFileMetadata(
     return { success: false, error: 'File ID is required.' };
   }
 
-  // Enforce runtime sanitization: strictly strip immutable relationship & identity fields
-  const cleanPayload = { ...updates };
-  delete (cleanPayload as Record<string, unknown>).id;
-  delete (cleanPayload as Record<string, unknown>).submission_id;
-  delete (cleanPayload as Record<string, unknown>).submissionId;
-  delete (cleanPayload as Record<string, unknown>).storage_path;
-  delete (cleanPayload as Record<string, unknown>).storagePath;
+  // Enforce explicit allowlist for updatable submission file metadata fields
+  const cleanPayload: Record<string, unknown> = {};
+  const raw = updates as Record<string, unknown>;
+
+  if (raw.file_name !== undefined) cleanPayload.file_name = raw.file_name;
+  if (raw.fileName !== undefined) cleanPayload.file_name = raw.fileName;
+  if (raw.mime_type !== undefined) cleanPayload.mime_type = raw.mime_type;
+  if (raw.mimeType !== undefined) cleanPayload.mime_type = raw.mimeType;
+  if (raw.file_size !== undefined) cleanPayload.file_size = raw.file_size;
+  if (raw.fileSize !== undefined) cleanPayload.file_size = raw.fileSize;
+  if (raw.storage_expires_at !== undefined) cleanPayload.storage_expires_at = raw.storage_expires_at;
+  if (raw.storageExpiresAt !== undefined) cleanPayload.storage_expires_at = raw.storageExpiresAt;
+  if (raw.storage_deleted_at !== undefined) cleanPayload.storage_deleted_at = raw.storage_deleted_at;
+  if (raw.storageDeletedAt !== undefined) cleanPayload.storage_deleted_at = raw.storageDeletedAt;
+  if (raw.storage_delete_status !== undefined) cleanPayload.storage_delete_status = raw.storage_delete_status;
+  if (raw.storageDeleteStatus !== undefined) cleanPayload.storage_delete_status = raw.storageDeleteStatus;
+  if (raw.storage_delete_error !== undefined) cleanPayload.storage_delete_error = raw.storage_delete_error;
+  if (raw.storageDeleteError !== undefined) cleanPayload.storage_delete_error = raw.storageDeleteError;
+  if (raw.storage_delete_claimed_at !== undefined) cleanPayload.storage_delete_claimed_at = raw.storage_delete_claimed_at;
+  if (raw.storageDeleteClaimedAt !== undefined) cleanPayload.storage_delete_claimed_at = raw.storageDeleteClaimedAt;
 
   if (Object.keys(cleanPayload).length === 0) {
     return { success: false, error: 'No valid updatable metadata fields provided.' };

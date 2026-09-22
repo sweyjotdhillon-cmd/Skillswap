@@ -384,13 +384,15 @@ export async function saveCurrentUserOnboardingProfile(input: OnboardingProfileI
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData.user) throw new Error('Your session has expired. Please sign in again.');
 
-  const payload = sanitizeProfileUpdatePayload({
+  const allowlisted = {
     id: authData.user.id,
     full_name: input.fullName.trim(),
     bio: input.bio.trim() || null,
     username: input.username.trim().toLowerCase(),
     avatar_url: input.avatarUrl,
-  });
+  };
+
+  const payload = sanitizeProfileUpdatePayload(allowlisted);
 
   const { error } = await supabase.from('profiles').upsert(
     payload,
@@ -696,8 +698,15 @@ export async function removeUserSkill(skillType: 'predefined' | 'custom', skillI
   if (!supabase || !skillId) return false;
 
   try {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) return false;
+
     const table = skillType === 'predefined' ? 'user_skills' : 'user_custom_skills';
-    const { error } = await supabase.from(table).delete().eq('id', skillId);
+    const { error } = await supabase
+      .from(table)
+      .delete()
+      .eq('id', skillId)
+      .eq('user_id', authData.user.id);
 
     return !error;
   } catch (err) {
