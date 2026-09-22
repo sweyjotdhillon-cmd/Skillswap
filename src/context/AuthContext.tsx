@@ -3,6 +3,7 @@ import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { getProfile, type Profile } from '../lib/supabase/profile';
 import { getUserAccount, type Account } from '../lib/supabase/credits';
+import { cleanSensitiveAuthParamsFromUrl } from '../lib/safeRedirect';
 
 interface AuthContextType {
   user: User | null;
@@ -151,6 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(currentUser);
 
         if (currentUser) {
+          cleanSensitiveAuthParamsFromUrl();
           await fetchUserProfileAndAccount(currentUser.id);
         } else {
           currentFetchUserIdRef.current = null;
@@ -191,6 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(currentUser);
 
       if (currentUser) {
+        cleanSensitiveAuthParamsFromUrl();
         await fetchUserProfileAndAccount(currentUser.id);
       } else {
         currentFetchUserIdRef.current = null;

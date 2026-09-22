@@ -74,3 +74,38 @@ export function getSafeRedirect(candidate?: string | null, defaultPath: string =
     return safeDefault;
   }
 }
+
+/**
+ * Cleans OAuth tokens, refresh tokens, auth codes, and auth error parameters from window.location
+ * without causing page reloads or stripping legitimate query params like `redirectTo`.
+ */
+export function cleanSensitiveAuthParamsFromUrl() {
+  if (typeof window === 'undefined' || !window.location) return;
+
+  try {
+    const url = new URL(window.location.href);
+    let modified = false;
+
+    // Clean sensitive parameters from search params
+    const sensitiveParams = ['access_token', 'refresh_token', 'provider_token', 'code', 'state'];
+    for (const param of sensitiveParams) {
+      if (url.searchParams.has(param)) {
+        url.searchParams.delete(param);
+        modified = true;
+      }
+    }
+
+    // Clean hash parameters if present
+    if (url.hash && (url.hash.includes('access_token') || url.hash.includes('refresh_token') || url.hash.includes('error'))) {
+      url.hash = '';
+      modified = true;
+    }
+
+    if (modified) {
+      const docTitle = typeof document !== 'undefined' ? document.title : '';
+      window.history.replaceState({}, docTitle, url.pathname + url.search + url.hash);
+    }
+  } catch {
+    // ignore URL parsing errors in non-standard environments
+  }
+}

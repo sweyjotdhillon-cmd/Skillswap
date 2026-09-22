@@ -26,21 +26,45 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'Desktop Chrome',
+      name: 'Desktop 1440',
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1440, height: 900 },
       },
     },
     {
-      name: 'Tablet',
+      name: 'Desktop 1280',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 800 },
+      },
+    },
+    {
+      name: 'Tablet 1024',
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1024, height: 768 },
       },
     },
     {
-      name: 'Mobile iPhone 13/14',
+      name: 'Tablet 768',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 768, height: 1024 },
+        hasTouch: true,
+      },
+    },
+    {
+      name: 'Mobile 430',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 430, height: 932 },
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+    {
+      name: 'Mobile 390',
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 390, height: 844 },
@@ -49,10 +73,19 @@ export default defineConfig({
       },
     },
     {
-      name: 'Mobile Small',
+      name: 'Mobile 375',
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 375, height: 812 },
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+    {
+      name: 'Mobile 320',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 320, height: 568 },
         isMobile: true,
         hasTouch: true,
       },

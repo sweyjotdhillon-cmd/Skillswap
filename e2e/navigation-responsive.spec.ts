@@ -2,15 +2,17 @@ import { test, expect } from '@playwright/test';
 import { setupPageDiagnostics, assertNoUncaughtErrors, checkViewportNoOverflow } from './helpers';
 
 test.describe('5. Navigation Integrity & Responsive Smoke CUJ', () => {
-  test('should navigate cleanly via header links and drawer without broken routes or layout overflow', async ({ page, isMobile }) => {
+  test('should navigate cleanly via header links and drawer without broken routes or layout overflow', async ({ page, isMobile, viewport }) => {
     const diagnostics = setupPageDiagnostics(page);
 
     // 1. Start at Home
     await page.goto('/');
     await expect(page).toHaveTitle(/Skillswap/i);
 
-    if (isMobile) {
-      // Mobile Viewport Navigation via Drawer
+    const useMobileDrawer = isMobile || (viewport && viewport.width < 860);
+
+    if (useMobileDrawer) {
+      // Mobile Viewport Navigation via Drawer (< 860px)
       const hamburgerBtn = page.locator('.mobile-hamburger');
       await expect(hamburgerBtn).toBeVisible();
       await hamburgerBtn.click();
@@ -32,7 +34,7 @@ test.describe('5. Navigation Integrity & Responsive Smoke CUJ', () => {
       await expect(page).toHaveURL(/\/how-it-works/);
       await expect(page).toHaveTitle('How It Works — SkillSwap');
     } else {
-      // Desktop Viewport Navigation via Main Nav
+      // Desktop Viewport Navigation via Main Nav (>= 860px)
       const primaryNav = page.getByRole('navigation', { name: 'Primary navigation' });
 
       const exploreLink = primaryNav.getByRole('link', { name: 'Explore Swaps' });

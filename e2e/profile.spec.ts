@@ -7,11 +7,8 @@ test.describe('4. Profile CUJ', () => {
 
     await page.goto('/profile');
 
-    // Wait for auth initialization & potential redirection to resolve
-    await page.waitForFunction(
-      () => window.location.pathname.startsWith('/login') || document.querySelector('.profile-hero-card') !== null,
-      { timeout: 10000 }
-    );
+    // Wait for auth initialization & potential redirection without CSP unsafe-eval
+    await page.waitForSelector('h2.auth-card-title, .profile-hero-card', { timeout: 10000 });
 
     // Check if unauthenticated redirect occurred
     if (page.url().includes('/login')) {
