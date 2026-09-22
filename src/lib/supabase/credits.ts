@@ -417,105 +417,23 @@ export function formatAcceptSwapErrorMessage(
  * Validates a chat attachment file before uploading.
  * Checks file size and file extension support.
  */
-export const CANONICAL_ATTACHMENT_MIME_TYPES = new Set<string>([
-  'application/pdf',
-  'text/plain',
-  'text/csv',
-  'application/zip',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-]);
+import {
+  CANONICAL_ATTACHMENT_MIME_TYPES,
+  CANONICAL_CHAT_MIME_TYPES,
+  CANONICAL_ATTACHMENT_EXTENSION_TO_MIME,
+  CANONICAL_CHAT_EXTENSION_TO_MIME,
+  validateAttachmentFile,
+  validateChatAttachmentFile,
+} from '../fileValidation';
 
-export const CANONICAL_CHAT_MIME_TYPES = CANONICAL_ATTACHMENT_MIME_TYPES;
-
-export const CANONICAL_ATTACHMENT_EXTENSION_TO_MIME: Record<string, string> = {
-  pdf: 'application/pdf',
-  txt: 'text/plain',
-  csv: 'text/csv',
-  zip: 'application/zip',
-  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  webp: 'image/webp',
-  gif: 'image/gif',
+export {
+  CANONICAL_ATTACHMENT_MIME_TYPES,
+  CANONICAL_CHAT_MIME_TYPES,
+  CANONICAL_ATTACHMENT_EXTENSION_TO_MIME,
+  CANONICAL_CHAT_EXTENSION_TO_MIME,
+  validateAttachmentFile,
+  validateChatAttachmentFile,
 };
-
-export const CANONICAL_CHAT_EXTENSION_TO_MIME = CANONICAL_ATTACHMENT_EXTENSION_TO_MIME;
-
-/**
- * Single canonical client attachment file validator across all upload surfaces
- * (swap-attachments, swap-submissions, swap-chat-attachments).
- * Enforces file size limit (25 MB), non-empty filename, no slashes, max 255 chars,
- * canonical MIME type allowlist, and extension/MIME matching.
- */
-export function validateAttachmentFile(file: { name: string; size: number; type?: string }): { valid: boolean; error?: string } {
-  if (!file) {
-    return { valid: false, error: 'Attachment upload failed. Please try again.' };
-  }
-
-  const rawName = file.name;
-  if (typeof rawName !== 'string' || rawName.trim() === '') {
-    return { valid: false, error: 'Filename cannot be empty.' };
-  }
-
-  if (rawName.length > 255) {
-    return { valid: false, error: 'Filename is too long.' };
-  }
-
-  if (rawName.includes('/') || rawName.includes('\\')) {
-    return { valid: false, error: 'Filename cannot contain slashes.' };
-  }
-
-  if (typeof file.size !== 'number' || file.size > 25 * 1024 * 1024) {
-    return { valid: false, error: 'File is too large. Maximum size is 25 MB.' };
-  }
-
-  const lastDot = rawName.lastIndexOf('.');
-  if (lastDot === -1 || lastDot === 0 || lastDot === rawName.length - 1) {
-    return { valid: false, error: "This file type isn't supported." };
-  }
-
-  const ext = rawName.slice(lastDot + 1).toLowerCase();
-  const expectedMime = CANONICAL_ATTACHMENT_EXTENSION_TO_MIME[ext];
-  if (!expectedMime) {
-    return { valid: false, error: "This file type isn't supported." };
-  }
-
-  const rawBrowserType = file.type ? file.type.trim().toLowerCase() : '';
-  if (rawBrowserType && rawBrowserType !== 'application/octet-stream') {
-    const MIME_ALIAS_MAP: Record<string, string> = {
-      'image/jpg': 'image/jpeg',
-      'image/pjpeg': 'image/jpeg',
-      'image/jfif': 'image/jpeg',
-      'image/x-citrix-jpeg': 'image/jpeg',
-      'text/jpg': 'image/jpeg',
-      'text/jpeg': 'image/jpeg',
-      'image/x-png': 'image/png',
-      'application/x-zip-compressed': 'application/zip',
-      'application/zip-compressed': 'application/zip',
-      'application/x-pdf': 'application/pdf',
-      'text/pdf': 'application/pdf',
-    };
-
-    const normalizedBrowserType = MIME_ALIAS_MAP[rawBrowserType] || rawBrowserType;
-
-    if (!CANONICAL_ATTACHMENT_MIME_TYPES.has(normalizedBrowserType) || normalizedBrowserType !== expectedMime) {
-      return { valid: false, error: 'File extension and MIME type do not match.' };
-    }
-  }
-
-  return { valid: true };
-}
-
-export const validateChatAttachmentFile = validateAttachmentFile;
 
 export function formatChatMessageErrorMessage(error: unknown): string {
   if (!error) return 'Attachment upload failed. Please try again.';

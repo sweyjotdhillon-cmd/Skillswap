@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getSupabaseBrowserClient } from '../../lib/supabase/client';
+import { validateChatAttachmentFile } from '../../lib/fileValidation';
 import {
   getSwapMessages,
   getSwapById,
@@ -12,7 +13,6 @@ import {
   getSwapMessageAttachmentSignedUrl,
   downloadFileFromSignedUrl,
   deleteChatAttachmentManual,
-  validateChatAttachmentFile,
   deriveSwapRecipientId,
   markSwapMessagesRead,
   type SwapAttachment,
