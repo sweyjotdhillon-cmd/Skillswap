@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { FileExpiryIndicator } from '../ui/FileExpiryIndicator';
-import { validateAttachmentFile } from '../../lib/supabase/credits';
+import { validateAttachmentFile } from '../../lib/fileValidation';
 import type { FileLifecycle } from '../../types/swap';
 
 const ACCEPTED_FILE_TYPES = '.pdf,.txt,.csv,.zip,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp,.gif';

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
+import { validateAttachmentFile } from '../lib/fileValidation';
 import {
   getUserSwaps,
   getSwapById,
@@ -15,7 +16,6 @@ import {
   getSwapAttachmentSignedUrl,
   downloadFileFromSignedUrl,
   submitSwapReview,
-  validateAttachmentFile,
   hasUserReviewedSwap,
   type SwapRecord,
   type SwapAttachment,

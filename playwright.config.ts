@@ -59,7 +59,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    command: 'npm run build && npx vite preview --host 0.0.0.0 --port 5173',
     url: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
