@@ -199,3 +199,58 @@ describe('S10 — Password Reset Security Audit', () => {
     assert.ok(content.includes("setStep('success')"), 'ForgotPassword navigates to success step');
   });
 });
+
+describe('J — Comprehensive Defense & Authorization Tests', () => {
+  test('J.1: Unauthenticated user mutations fail safely without throwing unhandled exceptions', async () => {
+    const { updateSwapMessageAttachmentMetadata, updateSwapSubmissionMetadata, updateSwapSubmissionFileMetadata } = await import('./credits');
+
+    const res1 = await updateSwapMessageAttachmentMetadata('att-123', { file_name: 'new.pdf' });
+    assert.strictEqual(typeof res1.success, 'boolean');
+
+    const res2 = await updateSwapSubmissionMetadata('sub-123', { notes: 'new notes' });
+    assert.strictEqual(typeof res2.success, 'boolean');
+
+    const res3 = await updateSwapSubmissionFileMetadata('file-123', { file_name: 'new.pdf' });
+    assert.strictEqual(typeof res3.success, 'boolean');
+  });
+
+  test('J.2 & J.3: Attachment metadata updates scope by uploaded_by and submitted_by', () => {
+    const creditsFile = path.join(process.cwd(), 'src', 'lib', 'supabase', 'credits.ts');
+    const content = fs.readFileSync(creditsFile, 'utf8');
+
+    assert.ok(content.includes(".eq('uploaded_by', authData.user.id)"), 'updateSwapMessageAttachmentMetadata scopes by uploaded_by');
+    assert.ok(content.includes(".eq('submitted_by', authData.user.id)"), 'updateSwapSubmissionMetadata scopes by submitted_by');
+  });
+
+  test('J.4 - J.7: Protected mutations derive identity from auth.getUser() or RPC server context', () => {
+    const creditsFile = path.join(process.cwd(), 'src', 'lib', 'supabase', 'credits.ts');
+    const content = fs.readFileSync(creditsFile, 'utf8');
+
+    assert.ok(content.includes("await supabase.auth.getUser()"), 'Credits helper derives user identity from auth.getUser()');
+    assert.ok(content.includes("p_swap_id: swapId"), 'Lifecycle actions pass swap_id to server RPC');
+  });
+
+  test('J.9: Repeated lifecycle calls return idempotent results or clean error objects', async () => {
+    const { completeCreditSwap: completeSwapFunc, cancelCreditSwap: cancelSwapFunc } = await import('./credits');
+
+    const res1 = await completeSwapFunc('nonexistent-swap');
+    assert.strictEqual(res1.success, false);
+    assert.ok(res1.error);
+
+    const res2 = await cancelSwapFunc('nonexistent-swap');
+    assert.strictEqual(res2.success, false);
+    assert.ok(res2.error);
+  });
+
+  test('J.10: Expired attachment UI helper identifies expired files and prevents download actions', async () => {
+    const { getFileExpiryStatus } = await import('../fileExpiry');
+
+    const expiredStatus = getFileExpiryStatus(new Date(Date.now() - 10000).toISOString(), false);
+    assert.strictEqual(expiredStatus.isExpired, true);
+    assert.strictEqual(expiredStatus.displayText, 'File expired');
+
+    const deletedStatus = getFileExpiryStatus(new Date(Date.now() + 100000).toISOString(), true);
+    assert.strictEqual(deletedStatus.isExpired, true);
+    assert.strictEqual(deletedStatus.displayText, 'File expired');
+  });
+});

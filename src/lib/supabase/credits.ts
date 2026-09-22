@@ -1292,10 +1292,16 @@ export async function updateSwapMessageAttachmentMetadata(
   }
 
   try {
+    const { data: authData, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !authData?.user) {
+      return { success: false, error: 'Your session has expired. Please sign in again.' };
+    }
+
     const { error } = await supabase
       .from('swap_message_attachments')
       .update(cleanPayload)
-      .eq('id', attachmentId);
+      .eq('id', attachmentId)
+      .eq('uploaded_by', authData.user.id);
 
     if (error) {
       logger.error('Failed to update swap_message_attachments metadata:', error);
@@ -1417,10 +1423,16 @@ export async function updateSwapSubmissionMetadata(
   }
 
   try {
+    const { data: authData, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !authData?.user) {
+      return { success: false, error: 'Your session has expired. Please sign in again.' };
+    }
+
     const { error } = await supabase
       .from('swap_submissions')
       .update(cleanPayload)
-      .eq('id', submissionId);
+      .eq('id', submissionId)
+      .eq('submitted_by', authData.user.id);
 
     if (error) {
       logger.error('Failed to update swap_submissions metadata:', error);
@@ -1477,6 +1489,22 @@ export async function updateSwapSubmissionFileMetadata(
   }
 
   try {
+    const { data: authData, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !authData?.user) {
+      return { success: false, error: 'Your session has expired. Please sign in again.' };
+    }
+
+    // Verify submission file ownership via submission_id -> swap_submissions.submitted_by
+    const { data: fileRow, error: fileErr } = await supabase
+      .from('swap_submission_files')
+      .select('submission_id, swap_submissions!inner(submitted_by)')
+      .eq('id', fileId)
+      .maybeSingle();
+
+    if (fileErr || !fileRow || (fileRow.swap_submissions as unknown as { submitted_by: string })?.submitted_by !== authData.user.id) {
+      return { success: false, error: 'You don’t have permission to perform this action.' };
+    }
+
     const { error } = await supabase
       .from('swap_submission_files')
       .update(cleanPayload)
