@@ -7,11 +7,8 @@ test.describe('3. Active Swaps CUJ', () => {
 
     await page.goto('/active-swaps');
 
-    // Wait for auth initialization & potential redirection to resolve
-    await page.waitForFunction(
-      () => window.location.pathname.startsWith('/login') || document.querySelector('.active-swaps-workspace') !== null,
-      { timeout: 10000 }
-    );
+    // Wait for auth initialization & potential redirection without CSP unsafe-eval
+    await page.waitForSelector('h2.auth-card-title, .active-swaps-workspace', { timeout: 10000 });
 
     // Check if unauthenticated redirect occurred
     if (page.url().includes('/login')) {

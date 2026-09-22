@@ -7,11 +7,8 @@ test.describe('2. Create Swap CUJ', () => {
 
     await page.goto('/create-swap');
 
-    // Wait for auth initialization & potential redirection to resolve
-    await page.waitForFunction(
-      () => window.location.pathname.startsWith('/login') || document.querySelector('.cs-stepper-container') !== null,
-      { timeout: 10000 }
-    );
+    // Wait for auth initialization & potential redirection without CSP unsafe-eval
+    await page.waitForSelector('h2.auth-card-title, .cs-stepper-container', { timeout: 10000 });
 
     // Check if unauthenticated redirect occurred
     if (page.url().includes('/login')) {

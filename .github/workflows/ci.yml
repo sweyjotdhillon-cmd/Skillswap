@@ -1,0 +1,49 @@
+name: SkillSwap CI & Security Verification
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  verify:
+    name: Build, Test & Security Verification
+    runs-on: ubuntu-latest
+
+    env:
+      CI: 'true'
+      VITE_SUPABASE_URL: 'https://czpcaffwtmlxvplpanon.supabase.co'
+      VITE_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_anon_key_for_ci_testing'
+      PLAYWRIGHT_BASE_URL: 'http://localhost:5173'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript Type Check
+        run: npx tsc --noEmit
+
+      - name: Run Unit & Integration Tests
+        run: npm test
+
+      - name: Build Application for Production
+        run: npm run build
+
+      - name: Install Playwright Chromium Browser
+        run: npx playwright install chromium
+
+      - name: Run End-to-End & Security Regression Tests
+        run: npm run test:e2e
