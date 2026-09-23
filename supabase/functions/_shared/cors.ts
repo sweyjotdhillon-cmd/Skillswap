@@ -6,8 +6,17 @@ declare const Deno: {
 
 const PRODUCTION_ORIGIN = 'https://skillswap.sweyjotdhillon.workers.dev';
 
+export function getCorrelationId(req: Request): string {
+  const incomingId = req.headers.get('x-request-id') || req.headers.get('x-correlation-id');
+  if (incomingId && /^[a-zA-Z0-9_-]{8,64}$/.test(incomingId.trim())) {
+    return incomingId.trim();
+  }
+  return `req_${crypto.randomUUID()}`;
+}
+
 export function getCorsHeaders(req: Request): Record<string, string> | null {
   const origin = req.headers.get('origin');
+  const correlationId = getCorrelationId(req);
   const allowedOriginEnv = typeof Deno !== 'undefined' ? Deno.env.get('ALLOWED_ORIGIN') : undefined;
   const configuredOrigins = allowedOriginEnv
     ? allowedOriginEnv.split(',').map((o: string) => o.trim())
@@ -15,13 +24,16 @@ export function getCorsHeaders(req: Request): Record<string, string> | null {
 
   const allowedOrigins = [PRODUCTION_ORIGIN, ...configuredOrigins];
 
+  const baseHeaders: Record<string, string> = {
+    'X-Request-Id': correlationId,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-request-id, x-correlation-id',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+
   if (!origin) {
     // If request has no Origin header (e.g. server-to-server or direct call),
     // return standard restrictive headers without Access-Control-Allow-Origin wildcard.
-    return {
-      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    };
+    return baseHeaders;
   }
 
   const cleanOrigin = origin.trim();
@@ -43,27 +55,60 @@ export function getCorsHeaders(req: Request): Record<string, string> | null {
   }
 
   return {
+    ...baseHeaders,
     'Access-Control-Allow-Origin': cleanOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Vary': 'Origin',
   };
 }
 
-export function handleCors(req: Request): { corsHeaders: Record<string, string>; errorResponse?: Response } {
+export function createErrorResponse(
+  error: string,
+  message: string,
+  status: number,
+  corsHeaders: Record<string, string>,
+  correlationId?: string
+): Response {
+  const reqId = correlationId || corsHeaders['X-Request-Id'] || `req_${crypto.randomUUID()}`;
+  return new Response(
+    JSON.stringify({
+      error,
+      message,
+      correlationId: reqId,
+    }),
+    {
+      status,
+      headers: {
+        ...corsHeaders,
+        'X-Request-Id': reqId,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+}
+
+export function handleCors(req: Request): {
+  corsHeaders: Record<string, string>;
+  correlationId: string;
+  errorResponse?: Response;
+} {
+  const correlationId = getCorrelationId(req);
   const corsHeaders = getCorsHeaders(req);
+
   if (!corsHeaders) {
-    const errorResponse = new Response(
-      JSON.stringify({ error: 'CORS_DISALLOWED', message: 'Origin not allowed.' }),
-      { status: 403, headers: { 'Content-Type': 'application/json' } }
+    const errorResponse = createErrorResponse(
+      'CORS_DISALLOWED',
+      'Origin not allowed.',
+      403,
+      { 'X-Request-Id': correlationId },
+      correlationId
     );
-    return { corsHeaders: {}, errorResponse };
+    return { corsHeaders: {}, correlationId, errorResponse };
   }
 
   if (req.method === 'OPTIONS') {
     const errorResponse = new Response('ok', { headers: corsHeaders });
-    return { corsHeaders, errorResponse };
+    return { corsHeaders, correlationId, errorResponse };
   }
 
-  return { corsHeaders };
+  return { corsHeaders, correlationId };
 }

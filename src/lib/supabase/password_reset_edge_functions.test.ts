@@ -42,9 +42,9 @@ describe('C3 — Password Reset Edge Functions Security & Invariants Audit', () 
       const content = fs.readFileSync(filepath, 'utf-8');
 
       assert.strictEqual(
-        content.includes("import { handleCors } from '../_shared/cors.ts'"),
+        content.includes("from '../_shared/cors.ts'"),
         true,
-        `${name}/index.ts must import handleCors from _shared/cors.ts`
+        `${name}/index.ts must import from _shared/cors.ts`
       );
       assert.strictEqual(
         content.includes('handleCors(req)'),

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { getCorsHeaders, handleCors } from '../../../supabase/functions/_shared/cors';
+import { getCorsHeaders, handleCors, getCorrelationId, createErrorResponse } from '../../../supabase/functions/_shared/cors';
 
 type MockDeno = {
   env: {
@@ -36,6 +36,7 @@ describe('CORS Handler Security Tests', () => {
     const headers = getCorsHeaders(req);
     assert.notStrictEqual(headers, null);
     assert.strictEqual(headers?.['Access-Control-Allow-Origin'], 'https://skillswap.sweyjotdhillon.workers.dev');
+    assert.ok(headers?.['X-Request-Id']);
   });
 
   it('rejects unauthorized external origins', () => {
@@ -117,5 +118,22 @@ describe('CORS Handler Security Tests', () => {
     assert.notStrictEqual(headers, null);
     assert.strictEqual(headers?.['Access-Control-Allow-Origin'], undefined);
     assert.ok(headers?.['Access-Control-Allow-Headers']);
+    assert.ok(headers?.['X-Request-Id']);
+  });
+
+  it('extracts or generates valid correlation ID and creates formatted error responses', async () => {
+    const reqWithId = new Request('https://api.example.com', {
+      headers: { 'x-request-id': 'req_valid_custom_id_123' },
+    });
+    const corrId = getCorrelationId(reqWithId);
+    assert.strictEqual(corrId, 'req_valid_custom_id_123');
+
+    const errRes = createErrorResponse('INVALID_PARAM', 'Bad request', 400, { 'X-Request-Id': corrId }, corrId);
+    assert.strictEqual(errRes.status, 400);
+    assert.strictEqual(errRes.headers.get('X-Request-Id'), 'req_valid_custom_id_123');
+    const json = (await errRes.json()) as { error: string; message: string; correlationId: string };
+    assert.strictEqual(json.error, 'INVALID_PARAM');
+    assert.strictEqual(json.message, 'Bad request');
+    assert.strictEqual(json.correlationId, 'req_valid_custom_id_123');
   });
 });

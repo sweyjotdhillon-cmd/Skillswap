@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.4';
-import { handleCors } from '../_shared/cors.ts';
+import { handleCors, createErrorResponse } from '../_shared/cors.ts';
 
 async function hashString(data: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -17,7 +17,7 @@ function generateOTP(): string {
 }
 
 Deno.serve(async (req: Request) => {
-  const { corsHeaders, errorResponse } = handleCors(req);
+  const { corsHeaders, correlationId, errorResponse } = handleCors(req);
   if (errorResponse) {
     return errorResponse;
   }
@@ -26,10 +26,7 @@ Deno.serve(async (req: Request) => {
     const { email } = await req.json();
 
     if (!email || typeof email !== 'string' || !/\S+@\S+\.\S+/.test(email.trim())) {
-      return new Response(
-        JSON.stringify({ error: 'INVALID_EMAIL', message: 'Please provide a valid email address.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createErrorResponse('INVALID_EMAIL', 'Please provide a valid email address.', 400, corsHeaders, correlationId);
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -37,10 +34,7 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     if (!supabaseUrl || !supabaseServiceKey) {
-      return new Response(
-        JSON.stringify({ error: 'SERVER_ERROR', message: 'Database service configuration missing.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createErrorResponse('SERVER_ERROR', 'Database service configuration missing.', 500, corsHeaders, correlationId);
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -92,26 +86,26 @@ Deno.serve(async (req: Request) => {
       });
 
       if (atomicErr) {
-        console.error('RPC request_password_reset_challenge_atomic error:', atomicErr.message || 'Atomic challenge error');
-        return new Response(
-          JSON.stringify({ error: 'SERVER_ERROR', message: 'Failed to generate verification code.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.error(`[${correlationId}] RPC request_password_reset_challenge_atomic error:`, atomicErr.message || 'Atomic challenge error');
+        return createErrorResponse('SERVER_ERROR', 'Failed to generate verification code.', 500, corsHeaders, correlationId);
       }
 
       if (!atomicRes?.success) {
         if (atomicRes?.error_code === 'RATE_LIMIT_EXCEEDED') {
-          return new Response(
-            JSON.stringify({
-              error: 'RATE_LIMIT_EXCEEDED',
-              message: atomicRes.message || 'Too many password reset requests for this email. Please wait 15 minutes before trying again.',
-            }),
-            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          return createErrorResponse(
+            'RATE_LIMIT_EXCEEDED',
+            atomicRes.message || 'Too many password reset requests for this email. Please wait 15 minutes before trying again.',
+            429,
+            corsHeaders,
+            correlationId
           );
         }
-        return new Response(
-          JSON.stringify({ error: atomicRes?.error_code || 'SERVER_ERROR', message: atomicRes?.message || 'Failed to generate verification code.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        return createErrorResponse(
+          atomicRes?.error_code || 'SERVER_ERROR',
+          atomicRes?.message || 'Failed to generate verification code.',
+          500,
+          corsHeaders,
+          correlationId
         );
       }
 
@@ -120,14 +114,8 @@ Deno.serve(async (req: Request) => {
       const senderEmail = Deno.env.get('BREVO_SENDER_EMAIL') || Deno.env.get('SENDER_EMAIL') || 'noreply@brevo.com';
 
       if (!brevoApiKey) {
-        console.error('BREVO_API_KEY secret is not configured in Edge Function.');
-        return new Response(
-          JSON.stringify({
-            error: 'EMAIL_SEND_FAILED',
-            message: 'Email service configuration is missing. Please contact support.',
-          }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.error(`[${correlationId}] BREVO_API_KEY secret is not configured in Edge Function.`);
+        return createErrorResponse('EMAIL_SEND_FAILED', 'Email service configuration is missing. Please contact support.', 500, corsHeaders, correlationId);
       }
 
       try {
@@ -158,24 +146,12 @@ Deno.serve(async (req: Request) => {
         });
 
         if (!brevoRes.ok) {
-          console.error('Brevo API email delivery failed with status:', brevoRes.status);
-          return new Response(
-            JSON.stringify({
-              error: 'EMAIL_SEND_FAILED',
-              message: 'Failed to deliver verification code via email provider.',
-            }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          console.error(`[${correlationId}] Brevo API email delivery failed with status:`, brevoRes.status);
+          return createErrorResponse('EMAIL_SEND_FAILED', 'Failed to deliver verification code via email provider.', 500, corsHeaders, correlationId);
         }
       } catch (emailErr: unknown) {
-        console.error('Exception during Brevo email send:', emailErr instanceof Error ? emailErr.message : 'Network error');
-        return new Response(
-          JSON.stringify({
-            error: 'EMAIL_SEND_FAILED',
-            message: 'An error occurred while attempting to send email.',
-          }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.error(`[${correlationId}] Exception during Brevo email send:`, emailErr instanceof Error ? emailErr.message : 'Network error');
+        return createErrorResponse('EMAIL_SEND_FAILED', 'An error occurred while attempting to send email.', 500, corsHeaders, correlationId);
       }
     }
 
@@ -188,10 +164,7 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err: unknown) {
-    console.error('Unexpected error in request-password-reset:', err instanceof Error ? err.message : 'Server error');
-    return new Response(
-      JSON.stringify({ error: 'SERVER_ERROR', message: 'An unexpected error occurred.' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error(`[${correlationId}] Unexpected error in request-password-reset:`, err instanceof Error ? err.message : 'Server error');
+    return createErrorResponse('SERVER_ERROR', 'An unexpected error occurred.', 500, corsHeaders, correlationId);
   }
 });
