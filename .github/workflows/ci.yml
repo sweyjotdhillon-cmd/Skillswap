@@ -13,8 +13,8 @@ jobs:
 
     env:
       CI: 'true'
-      VITE_SUPABASE_URL: 'https://czpcaffwtmlxvplpanon.supabase.co'
-      VITE_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_anon_key_for_ci_testing'
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'placeholder-publishable-key' }}
       PLAYWRIGHT_BASE_URL: 'http://localhost:5173'
 
     steps:
