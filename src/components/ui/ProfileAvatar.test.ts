@@ -1,5 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
+import React from 'react';
+import { renderToString } from 'react-dom/server';
 import { ProfileAvatar } from './ProfileAvatar';
 import { getInitials } from '../../lib/initials';
 
@@ -27,71 +29,78 @@ describe('ProfileAvatar Unit Tests', () => {
     });
   });
 
-  describe('ProfileAvatar React element structure & props contract', () => {
+  describe('ProfileAvatar Component Rendering & HTML Contract', () => {
     test('renders img element when valid src is provided', () => {
-      const element = ProfileAvatar({
-        src: 'https://lh3.googleusercontent.com/a/abc123',
-        displayName: 'Sarah Connor',
-        size: 'lg',
-        className: 'custom-avatar-class',
-      });
+      const html = renderToString(
+        React.createElement(ProfileAvatar, {
+          src: 'https://lh3.googleusercontent.com/a/abc123',
+          displayName: 'Sarah Connor',
+          size: 'lg',
+          className: 'custom-avatar-class',
+        })
+      );
 
-      assert.strictEqual(element.type, 'img');
-      assert.strictEqual(element.props.src, 'https://lh3.googleusercontent.com/a/abc123');
-      assert.strictEqual(element.props.alt, 'Profile photo of Sarah Connor');
-      assert.ok(typeof element.props.onError === 'function');
-      assert.ok(element.props.className.includes('custom-avatar-class'));
+      assert.ok(html.includes('<img'), 'Must render <img> tag when valid src is provided');
+      assert.ok(html.includes('src="https://lh3.googleusercontent.com/a/abc123"'));
+      assert.ok(html.includes('alt="Profile photo of Sarah Connor"'));
+      assert.ok(html.includes('class="custom-avatar-class"'));
     });
 
     test('renders initials fallback div when src is null or empty', () => {
-      const elementNull = ProfileAvatar({
-        src: null,
-        displayName: 'Marcus Aurelius',
-        size: 'md',
-      });
-
-      assert.strictEqual(elementNull.type, 'div');
-      assert.strictEqual(elementNull.props.role, 'img');
-      assert.strictEqual(
-        elementNull.props['aria-label'],
-        'Profile photo unavailable for Marcus Aurelius. Initials shown instead.'
+      const htmlNull = renderToString(
+        React.createElement(ProfileAvatar, {
+          src: null,
+          displayName: 'Marcus Aurelius',
+          size: 'md',
+        })
       );
-      assert.strictEqual(elementNull.props.children, 'MA');
 
-      const elementEmpty = ProfileAvatar({
-        src: '   ',
-        displayName: 'Elena Rostova',
-      });
-      assert.strictEqual(elementEmpty.type, 'div');
-      assert.strictEqual(elementEmpty.props.children, 'ER');
+      assert.ok(htmlNull.includes('<div'), 'Must render fallback <div> when src is null');
+      assert.ok(htmlNull.includes('role="img"'));
+      assert.ok(
+        htmlNull.includes('aria-label="Profile photo unavailable for Marcus Aurelius. Initials shown instead."')
+      );
+      assert.ok(htmlNull.includes('>MA</div>'), 'Must render initials inside fallback div');
+
+      const htmlEmpty = renderToString(
+        React.createElement(ProfileAvatar, {
+          src: '   ',
+          displayName: 'Elena Rostova',
+        })
+      );
+      assert.ok(htmlEmpty.includes('<div'));
+      assert.ok(htmlEmpty.includes('>ER</div>'));
     });
 
     test('provides accurate accessible labels when display name is missing', () => {
-      const element = ProfileAvatar({
-        src: null,
-        displayName: null,
-      });
-
-      assert.strictEqual(element.type, 'div');
-      assert.strictEqual(
-        element.props['aria-label'],
-        'Profile photo unavailable for Member. Initials shown instead.'
+      const html = renderToString(
+        React.createElement(ProfileAvatar, {
+          src: null,
+          displayName: null,
+        })
       );
-      assert.strictEqual(element.props.children, 'SS');
+
+      assert.ok(html.includes('<div'));
+      assert.ok(
+        html.includes('aria-label="Profile photo unavailable for Member. Initials shown instead."')
+      );
+      assert.ok(html.includes('>SS</div>'));
     });
 
     test('supports numerical size and ring styling', () => {
-      const element = ProfileAvatar({
-        src: 'https://avatars.githubusercontent.com/u/12345',
-        displayName: 'Dev User',
-        size: 84,
-        showRing: true,
-      });
+      const html = renderToString(
+        React.createElement(ProfileAvatar, {
+          src: 'https://avatars.githubusercontent.com/u/12345',
+          displayName: 'Dev User',
+          size: 84,
+          showRing: true,
+        })
+      );
 
-      assert.strictEqual(element.type, 'img');
-      assert.strictEqual(element.props.style.width, '84px');
-      assert.strictEqual(element.props.style.height, '84px');
-      assert.ok(element.props.className.includes('swap-avatar-ring'));
+      assert.ok(html.includes('<img'));
+      assert.ok(html.includes('width:84px'));
+      assert.ok(html.includes('height:84px'));
+      assert.ok(html.includes('swap-avatar-ring'));
     });
   });
 });
