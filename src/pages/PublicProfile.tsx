@@ -14,6 +14,7 @@ import {
 } from '../lib/supabase/profile';
 import { getUserCompletedSwapsCount } from '../lib/supabase/credits';
 import { VerificationBadge } from '../components/ui/VerificationBadge';
+import { ProfileAvatar } from '../components/ui/ProfileAvatar';
 
 type PublicProfileProps = {
   targetUsername?: string;
@@ -122,15 +123,6 @@ export function PublicProfilePage({ targetUsername, targetUserId, onNavigate }: 
       </div>
     );
   }
-
-  const initials = profile.full_name
-    ? profile.full_name
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
-    : 'SS';
 
   return (
     <div className="page-shell">
@@ -252,29 +244,25 @@ export function PublicProfilePage({ targetUsername, targetUserId, onNavigate }: 
         <section className="profile-hero-card" aria-label="Public Profile Hero">
           <div className="profile-hero-content">
             <div className="profile-avatar-container">
-              {profile.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt={`Profile photo of ${profile.full_name}`}
-                  className="profile-avatar-image swap-avatar-ring"
-                />
-              ) : (
-                <div className="profile-avatar-fallback swap-avatar-ring">
-                  {initials}
-                </div>
-              )}
+              <ProfileAvatar
+                src={profile.avatar_url}
+                displayName={profile.full_name}
+                size="2xl"
+                className="profile-avatar-image"
+                showRing
+              />
             </div>
 
             <div className="profile-hero-identity">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <h1 className="profile-full-name" style={{ margin: 0 }}>{profile.full_name}</h1>
+              <div className="profile-hero-identity-header">
+                <h1 className="profile-full-name">{profile.full_name}</h1>
                 <VerificationBadge isVerified={profile.is_verified} label="Verified Profile" size="md" />
               </div>
 
-              <div className="profile-username-row" style={{ marginTop: '0.35rem' }}>
+              <div className="profile-hero-meta">
                 <span className="profile-username-tag">@{profile.username}</span>
                 {profile.created_at && (
-                  <span className="trust-member-since-badge" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <span className="profile-member-since">
                     • Member since {new Date(profile.created_at).getFullYear()}
                   </span>
                 )}
@@ -285,7 +273,7 @@ export function PublicProfilePage({ targetUsername, targetUserId, onNavigate }: 
               )}
 
               {isSelf && (
-                <div className="profile-hero-actions" style={{ marginTop: '0.85rem' }}>
+                <div className="profile-hero-actions">
                   <button
                     type="button"
                     className="profile-edit-btn"
@@ -398,7 +386,6 @@ export function PublicProfilePage({ targetUsername, targetUserId, onNavigate }: 
                 {userReviews.map((rev) => {
                   const reviewerName = rev.reviewer_profile?.full_name || (rev.reviewer_profile?.username ? `@${rev.reviewer_profile.username}` : 'SkillSwap Member');
                   const reviewerAvatar = rev.reviewer_profile?.avatar_url;
-                  const reviewerInitials = reviewerName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'SS';
                   const dateFormatted = new Date(rev.created_at).toLocaleDateString(undefined, {
                     month: 'short',
                     day: 'numeric',
@@ -421,18 +408,12 @@ export function PublicProfilePage({ targetUsername, targetUserId, onNavigate }: 
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                          {reviewerAvatar ? (
-                            <img
-                              src={reviewerAvatar}
-                              alt={`Profile photo of ${reviewerName}`}
-                              className="swap-avatar swap-avatar-ring"
-                              style={{ width: '36px', height: '36px' }}
-                            />
-                          ) : (
-                            <div className="swap-avatar-fallback swap-avatar-ring" style={{ width: '36px', height: '36px', fontSize: '0.8rem' }}>
-                              {reviewerInitials}
-                            </div>
-                          )}
+                          <ProfileAvatar
+                            src={reviewerAvatar}
+                            displayName={reviewerName}
+                            size={36}
+                            showRing
+                          />
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
                               <strong style={{ fontSize: '0.9rem', color: 'var(--text-color)' }}>{reviewerName}</strong>

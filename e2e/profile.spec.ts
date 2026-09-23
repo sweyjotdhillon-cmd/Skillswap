@@ -22,9 +22,15 @@ test.describe('4. Profile CUJ', () => {
     await expect(page).toHaveURL(/\/profile/);
     await expect(page).toHaveTitle('My Profile — SkillSwap');
 
-    // Profile Hero Card
+    // Profile Hero Card & Avatar
     const heroCard = page.locator('.profile-hero-card');
     await expect(heroCard).toBeVisible();
+
+    const heroIdentityHeader = page.locator('.profile-hero-identity-header');
+    await expect(heroIdentityHeader).toBeVisible();
+
+    const avatarElement = heroCard.locator('img, [role="img"]');
+    await expect(avatarElement.first()).toBeVisible();
 
     // Key Profile Sections
     const skillJourneySection = page.getByRole('region', { name: 'Skill Journey Overview' });

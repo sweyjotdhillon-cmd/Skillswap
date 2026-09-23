@@ -20,6 +20,9 @@ describe('C1 — Cloudflare Worker Security Headers & Correlation ID Unit Tests'
     },
   });
 
+  const EXPECTED_CSP =
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co https://lh3.googleusercontent.com https://avatars.githubusercontent.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'";
+
   test('C1.1: Security headers and X-Request-Id applied to standard asset GET request over HTTPS', async () => {
     const mockEnv = createMockEnv({
       '/main.js': new Response('console.log("ok");', {
@@ -38,10 +41,7 @@ describe('C1 — Cloudflare Worker Security Headers & Correlation ID Unit Tests'
     assert.strictEqual(res.headers.get('Content-Type'), 'application/javascript');
     assert.strictEqual(res.headers.get('Cache-Control'), 'public, max-age=3600');
     assert.strictEqual(res.headers.get('X-Request-Id'), 'req_custom_test_1234');
-    assert.strictEqual(
-      res.headers.get('Content-Security-Policy'),
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
-    );
+    assert.strictEqual(res.headers.get('Content-Security-Policy'), EXPECTED_CSP);
     assert.strictEqual(res.headers.get('Strict-Transport-Security'), 'max-age=31536000; includeSubDomains');
     assert.strictEqual(res.headers.get('X-Content-Type-Options'), 'nosniff');
     assert.strictEqual(res.headers.get('Referrer-Policy'), 'strict-origin-when-cross-origin');
@@ -79,10 +79,7 @@ describe('C1 — Cloudflare Worker Security Headers & Correlation ID Unit Tests'
     const body = await res.text();
     assert.strictEqual(body, '<!DOCTYPE html><html><body>SPA</body></html>');
     assert.ok(res.headers.get('X-Request-Id')?.startsWith('req_'));
-    assert.strictEqual(
-      res.headers.get('Content-Security-Policy'),
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
-    );
+    assert.strictEqual(res.headers.get('Content-Security-Policy'), EXPECTED_CSP);
     assert.strictEqual(res.headers.get('X-Frame-Options'), 'DENY');
     assert.strictEqual(res.headers.get('Strict-Transport-Security'), 'max-age=31536000; includeSubDomains');
   });
@@ -101,5 +98,26 @@ describe('C1 — Cloudflare Worker Security Headers & Correlation ID Unit Tests'
     assert.strictEqual(securedRes.headers.get('Content-Type'), 'image/png');
     assert.strictEqual(securedRes.headers.get('X-Custom-Header'), 'preserve-me');
     assert.strictEqual(securedRes.headers.get('X-Content-Type-Options'), 'nosniff');
+  });
+
+  test('C1.5: CSP permits Google and GitHub avatar hosts while excluding arbitrary wildcards', () => {
+    const req = new Request('https://example.com/test', { method: 'GET' });
+    const res = applySecurityHeaders(req, new Response('ok'));
+    const csp = res.headers.get('Content-Security-Policy') || '';
+
+    // Verify img-src directive contains required avatar hosts
+    const imgSrcMatch = csp.match(/img-src ([^;]+)/);
+    assert.ok(imgSrcMatch, 'img-src directive must exist in CSP');
+    const imgSrc = imgSrcMatch[1];
+
+    assert.ok(imgSrc.includes('https://lh3.googleusercontent.com'), 'Google avatar host must be allowed');
+    assert.ok(imgSrc.includes('https://avatars.githubusercontent.com'), 'GitHub avatar host must be allowed');
+    assert.ok(imgSrc.includes('https://images.unsplash.com'), 'Unsplash images must remain allowed');
+    assert.ok(imgSrc.includes('https://*.supabase.co'), 'Supabase storage images must remain allowed');
+
+    // Ensure broad wildcards are NOT introduced
+    const imgSrcSources = imgSrc.split(/\s+/);
+    assert.strictEqual(imgSrcSources.includes('*'), false, 'Wildcard * must not be present in img-src');
+    assert.strictEqual(imgSrcSources.includes('https:'), false, 'Broad https: scheme must not be present in img-src');
   });
 });

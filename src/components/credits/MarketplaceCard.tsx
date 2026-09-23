@@ -2,6 +2,7 @@ import React from 'react';
 import type { Swap } from '../../types/swap';
 import { getTagLabel, getTagSlug } from '../../constants/tags';
 import { VerificationBadge } from '../ui/VerificationBadge';
+import { ProfileAvatar } from '../ui/ProfileAvatar';
 
 export interface MarketplaceCardProps {
   swap: Swap;
@@ -221,14 +222,6 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
   const avgRating = requesterProfile?.averageRating ?? null;
   const displayCompletedCount = requesterProfile?.completedSwapsCount ?? completedCount;
 
-  const requesterInitials = (requesterProfile?.fullName || requesterProfile?.username || 'SS')
-    .split(' ')
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2) || 'SS';
-
   const formattedDate = new Date(swap.createdAt).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -241,17 +234,13 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
       {/* 1. USER PROFILE SECTION */}
       <div className="flex items-start gap-3 w-full min-w-0">
         <div className="relative flex-shrink-0 mt-0.5">
-          {requesterAvatar ? (
-            <img
-              src={requesterAvatar}
-              alt={`Profile photo of ${requesterName}`}
-              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-[var(--color-structure)] shadow-sm"
-            />
-          ) : (
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[var(--color-surface-muted)] ring-2 ring-[var(--color-structure)] text-[var(--color-structure)] flex items-center justify-center font-bold text-sm shadow-sm">
-              {requesterInitials}
-            </div>
-          )}
+          <ProfileAvatar
+            src={requesterAvatar}
+            displayName={requesterName}
+            size={48}
+            className="w-11 h-11 sm:w-12 sm:h-12 shadow-sm"
+            showRing
+          />
           {/* Active Presence Dot */}
           <span
             className="absolute bottom-0 right-0 w-3 h-3 bg-[var(--status-success)] border-2 border-[var(--color-surface)] rounded-full"

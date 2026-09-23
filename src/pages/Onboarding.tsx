@@ -18,6 +18,7 @@ import {
 } from '../lib/supabase/profile';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { getSafeRedirect } from '../lib/safeRedirect';
+import { ProfileAvatar } from '../components/ui/ProfileAvatar';
 
 type OnboardingProps = {
   onNavigate?: (path: string) => void;
@@ -168,13 +169,6 @@ export function OnboardingPage({ onNavigate, redirectTo: propsRedirectTo }: Onbo
     user?.user_metadata?.picture ||
     profile?.avatar_url ||
     null;
-
-  const getInitials = (name: string) => {
-    if (!name.trim()) return 'SK';
-    const parts = name.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  };
 
   // Step 1 Validation
   const handleStep1Continue = (e: React.FormEvent) => {
@@ -674,13 +668,12 @@ export function OnboardingPage({ onNavigate, redirectTo: propsRedirectTo }: Onbo
               {/* Profile Avatar */}
               <div className="onboarding-avatar-section">
                 <div className="onboarding-avatar-wrapper">
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="Profile Avatar" className="onboarding-avatar-img" />
-                  ) : (
-                    <div className="onboarding-avatar-fallback">
-                      {getInitials(fullName)}
-                    </div>
-                  )}
+                  <ProfileAvatar
+                    src={avatarUrl}
+                    displayName={fullName}
+                    size={84}
+                    className="onboarding-avatar-img"
+                  />
                 </div>
                 <div className="onboarding-avatar-meta">
                   <span className="onboarding-avatar-label">Profile Picture</span>
@@ -1315,13 +1308,11 @@ export function OnboardingPage({ onNavigate, redirectTo: propsRedirectTo }: Onbo
                 <div className="profile-preview-card">
                   <div className="preview-card-top">
                     <div className="preview-avatar">
-                      {avatarUrl ? (
-                        <img src={avatarUrl} alt={fullName} />
-                      ) : (
-                        <div className="preview-avatar-fallback">
-                          {getInitials(fullName)}
-                        </div>
-                      )}
+                      <ProfileAvatar
+                        src={avatarUrl}
+                        displayName={fullName}
+                        size={48}
+                      />
                     </div>
                     <div className="preview-user-meta">
                       <h4 className="preview-full-name">{fullName || 'Your Name'}</h4>
