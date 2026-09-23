@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.4';
-import { handleCors } from '../_shared/cors.ts';
+import { handleCors, createErrorResponse } from '../_shared/cors.ts';
 
 async function hashString(data: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -10,7 +10,7 @@ async function hashString(data: string): Promise<string> {
 }
 
 Deno.serve(async (req: Request) => {
-  const { corsHeaders, errorResponse } = handleCors(req);
+  const { corsHeaders, correlationId, errorResponse } = handleCors(req);
   if (errorResponse) {
     return errorResponse;
   }
@@ -19,24 +19,15 @@ Deno.serve(async (req: Request) => {
     const { email, recoveryToken, newPassword } = await req.json();
 
     if (!email || typeof email !== 'string' || !/\S+@\S+\.\S+/.test(email.trim())) {
-      return new Response(
-        JSON.stringify({ error: 'INVALID_EMAIL', message: 'Please provide a valid email address.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createErrorResponse('INVALID_EMAIL', 'Please provide a valid email address.', 400, corsHeaders, correlationId);
     }
 
     if (!recoveryToken || typeof recoveryToken !== 'string') {
-      return new Response(
-        JSON.stringify({ error: 'INVALID_TOKEN', message: 'Invalid or missing recovery authorization.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createErrorResponse('INVALID_TOKEN', 'Invalid or missing recovery authorization.', 400, corsHeaders, correlationId);
     }
 
     if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
-      return new Response(
-        JSON.stringify({ error: 'WEAK_PASSWORD', message: 'Password must be at least 8 characters long.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createErrorResponse('WEAK_PASSWORD', 'Password must be at least 8 characters long.', 400, corsHeaders, correlationId);
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -45,10 +36,7 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     if (!supabaseUrl || !supabaseServiceKey) {
-      return new Response(
-        JSON.stringify({ error: 'SERVER_ERROR', message: 'Database service configuration missing.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createErrorResponse('SERVER_ERROR', 'Database service configuration missing.', 500, corsHeaders, correlationId);
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -60,18 +48,12 @@ Deno.serve(async (req: Request) => {
     });
 
     if (claimErr) {
-      console.error('RPC claim_password_reset_recovery_token error:', claimErr.message || 'Claim recovery token error');
-      return new Response(
-        JSON.stringify({ error: 'SERVER_ERROR', message: 'Failed to authorize recovery token.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error(`[${correlationId}] RPC claim_password_reset_recovery_token error:`, claimErr.message || 'Claim recovery token error');
+      return createErrorResponse('SERVER_ERROR', 'Failed to authorize recovery token.', 500, corsHeaders, correlationId);
     }
 
     if (!claimRes.success) {
-      return new Response(
-        JSON.stringify({ error: claimRes.error_code || 'INVALID_TOKEN', message: claimRes.message || 'Recovery authorization is invalid.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createErrorResponse(claimRes.error_code || 'INVALID_TOKEN', claimRes.message || 'Recovery authorization is invalid.', 400, corsHeaders, correlationId);
     }
 
     let userId = claimRes.user_id;
@@ -99,10 +81,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!userId) {
-      return new Response(
-        JSON.stringify({ error: 'USER_NOT_FOUND', message: 'User account not found.' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createErrorResponse('USER_NOT_FOUND', 'User account not found.', 404, corsHeaders, correlationId);
     }
 
     // Update password using server-side admin API
@@ -112,11 +91,8 @@ Deno.serve(async (req: Request) => {
     });
 
     if (updatePasswordErr) {
-      console.error('Error updating user password via Admin API:', updatePasswordErr.message || 'Admin update user error');
-      return new Response(
-        JSON.stringify({ error: 'UPDATE_FAILED', message: updatePasswordErr.message || 'Failed to update password.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error(`[${correlationId}] Error updating user password via Admin API:`, updatePasswordErr.message || 'Admin update user error');
+      return createErrorResponse('UPDATE_FAILED', updatePasswordErr.message || 'Failed to update password.', 500, corsHeaders, correlationId);
     }
 
     return new Response(
@@ -127,10 +103,7 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err: unknown) {
-    console.error('Unexpected error in complete-password-reset:', err instanceof Error ? err.message : 'Server error');
-    return new Response(
-      JSON.stringify({ error: 'SERVER_ERROR', message: 'An unexpected error occurred.' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error(`[${correlationId}] Unexpected error in complete-password-reset:`, err instanceof Error ? err.message : 'Server error');
+    return createErrorResponse('SERVER_ERROR', 'An unexpected error occurred.', 500, corsHeaders, correlationId);
   }
 });

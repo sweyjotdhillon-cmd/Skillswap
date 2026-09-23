@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.4';
-import { handleCors } from '../_shared/cors.ts';
+import { handleCors, createErrorResponse } from '../_shared/cors.ts';
 
 interface ClaimedItem {
   source: string;
@@ -23,7 +23,7 @@ function constantTimeEqual(a: string, b: string): boolean {
 }
 
 Deno.serve(async (req: Request) => {
-  const { corsHeaders, errorResponse } = handleCors(req);
+  const { corsHeaders, correlationId, errorResponse } = handleCors(req);
   if (errorResponse) return errorResponse;
 
   try {
@@ -31,10 +31,7 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      return new Response(
-        JSON.stringify({ error: 'CONFIG_ERROR', message: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createErrorResponse('CONFIG_ERROR', 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.', 500, corsHeaders, correlationId);
     }
 
     // Fail-closed authentication check with constant-time comparison
@@ -42,10 +39,7 @@ Deno.serve(async (req: Request) => {
     const expectedToken = `Bearer ${supabaseServiceKey}`;
 
     if (!authHeader || !constantTimeEqual(authHeader, expectedToken)) {
-      return new Response(
-        JSON.stringify({ error: 'UNAUTHORIZED', message: 'Missing or invalid Authorization header.' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createErrorResponse('UNAUTHORIZED', 'Missing or invalid Authorization header.', 401, corsHeaders, correlationId);
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
@@ -72,11 +66,8 @@ Deno.serve(async (req: Request) => {
     });
 
     if (claimErr) {
-      console.error('[cleanup-storage-files] claim_expired_file_cleanup RPC failed:', claimErr.message);
-      return new Response(
-        JSON.stringify({ error: 'CLAIM_FAILED', message: 'Claim operation failed.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error(`[${correlationId}] [cleanup-storage-files] claim_expired_file_cleanup RPC failed:`, claimErr.message);
+      return createErrorResponse('CLAIM_FAILED', 'Claim operation failed.', 500, corsHeaders, correlationId);
     }
 
     const items: ClaimedItem[] = (claimedData || []) as ClaimedItem[];
@@ -146,14 +137,14 @@ Deno.serve(async (req: Request) => {
       }
 
       if (!isConfirmedAbsent) {
-        console.error(`[cleanup-storage-files] Storage removal failed for source=${source} file_id=${file_id}:`, removeErr?.message || 'Removal unconfirmed');
+        console.error(`[${correlationId}] [cleanup-storage-files] Storage removal failed for source=${source} file_id=${file_id}:`, removeErr?.message || 'Removal unconfirmed');
         const { error: markFailedErr } = await supabase.rpc('mark_file_storage_failed', {
           p_source: source,
           p_file_id: file_id,
           p_error: removeErr?.message || 'Physical storage removal unconfirmed',
         });
         if (markFailedErr) {
-          console.error(`[cleanup-storage-files] mark_file_storage_failed RPC failed for source=${source} file_id=${file_id}:`, markFailedErr.message);
+          console.error(`[${correlationId}] [cleanup-storage-files] mark_file_storage_failed RPC failed for source=${source} file_id=${file_id}:`, markFailedErr.message);
         }
         failed++;
         errors.push({ source, file_id, error: 'Physical storage removal failed' });
@@ -165,7 +156,7 @@ Deno.serve(async (req: Request) => {
         });
 
         if (markDeletedErr) {
-          console.error(`[cleanup-storage-files] mark_file_storage_deleted RPC error for source=${source} file_id=${file_id}:`, markDeletedErr.message);
+          console.error(`[${correlationId}] [cleanup-storage-files] mark_file_storage_deleted RPC error for source=${source} file_id=${file_id}:`, markDeletedErr.message);
           await supabase.rpc('mark_file_storage_failed', {
             p_source: source,
             p_file_id: file_id,
@@ -190,10 +181,7 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {
-    console.error('[cleanup-storage-files] Unexpected exception:', err instanceof Error ? err.message : 'Internal worker error');
-    return new Response(
-      JSON.stringify({ error: 'INTERNAL_ERROR', message: 'Internal worker error.' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error(`[${correlationId}] [cleanup-storage-files] Unexpected exception:`, err instanceof Error ? err.message : 'Internal worker error');
+    return createErrorResponse('INTERNAL_ERROR', 'Internal worker error.', 500, corsHeaders, correlationId);
   }
 });

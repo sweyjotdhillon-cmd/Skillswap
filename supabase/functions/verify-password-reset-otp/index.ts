@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.4';
-import { handleCors } from '../_shared/cors.ts';
+import { handleCors, createErrorResponse } from '../_shared/cors.ts';
 
 async function hashString(data: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -10,7 +10,7 @@ async function hashString(data: string): Promise<string> {
 }
 
 Deno.serve(async (req: Request) => {
-  const { corsHeaders, errorResponse } = handleCors(req);
+  const { corsHeaders, correlationId, errorResponse } = handleCors(req);
   if (errorResponse) {
     return errorResponse;
   }
@@ -19,17 +19,11 @@ Deno.serve(async (req: Request) => {
     const { email, otp } = await req.json();
 
     if (!email || typeof email !== 'string' || !/\S+@\S+\.\S+/.test(email.trim())) {
-      return new Response(
-        JSON.stringify({ error: 'INVALID_EMAIL', message: 'Please provide a valid email address.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createErrorResponse('INVALID_EMAIL', 'Please provide a valid email address.', 400, corsHeaders, correlationId);
     }
 
     if (!otp || typeof otp !== 'string' || !/^\d{6}$/.test(otp.trim())) {
-      return new Response(
-        JSON.stringify({ error: 'INVALID_OTP', message: 'Verification code must be 6 digits.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createErrorResponse('INVALID_OTP', 'Verification code must be 6 digits.', 400, corsHeaders, correlationId);
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -38,10 +32,7 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     if (!supabaseUrl || !supabaseServiceKey) {
-      return new Response(
-        JSON.stringify({ error: 'SERVER_ERROR', message: 'Database service configuration missing.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createErrorResponse('SERVER_ERROR', 'Database service configuration missing.', 500, corsHeaders, correlationId);
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -59,18 +50,12 @@ Deno.serve(async (req: Request) => {
     });
 
     if (rpcErr) {
-      console.error('RPC verify_password_reset_otp_atomic error:', rpcErr.message || 'OTP verification atomic error');
-      return new Response(
-        JSON.stringify({ error: 'SERVER_ERROR', message: 'Failed to complete verification step.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error(`[${correlationId}] RPC verify_password_reset_otp_atomic error:`, rpcErr.message || 'OTP verification atomic error');
+      return createErrorResponse('SERVER_ERROR', 'Failed to complete verification step.', 500, corsHeaders, correlationId);
     }
 
     if (!rpcRes.success) {
-      return new Response(
-        JSON.stringify({ error: rpcRes.error_code || 'INVALID_OTP', message: rpcRes.message || 'Verification failed.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createErrorResponse(rpcRes.error_code || 'INVALID_OTP', rpcRes.message || 'Verification failed.', 400, corsHeaders, correlationId);
     }
 
     return new Response(
@@ -82,10 +67,7 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err: unknown) {
-    console.error('Unexpected error in verify-password-reset-otp:', err instanceof Error ? err.message : 'Server error');
-    return new Response(
-      JSON.stringify({ error: 'SERVER_ERROR', message: 'An unexpected error occurred.' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error(`[${correlationId}] Unexpected error in verify-password-reset-otp:`, err instanceof Error ? err.message : 'Server error');
+    return createErrorResponse('SERVER_ERROR', 'An unexpected error occurred.', 500, corsHeaders, correlationId);
   }
 });
