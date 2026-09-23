@@ -526,13 +526,14 @@ GRANT EXECUTE ON FUNCTION public.send_chat_message_with_attachments(uuid, uuid, 
 -- 2. CANONICAL FILE LIFECYCLE CRON SCHEDULING
 -- ============================================================================
 -- Single canonical cron job process-file-lifecycle-hourly at schedule 5 * * * *
--- Calls https://czpcaffwtmlxvplpanon.supabase.co/functions/v1/cleanup-storage-files with {"batch_size":100}
+-- Calls Edge Function /cleanup-storage-files with {"limit":100}
 -- Authorization bearer token resolved dynamically at runtime from Vault (cleanup_worker_key)
 DO $$
 DECLARE
   v_has_cron boolean;
   v_has_net boolean;
   v_has_vault boolean;
+  v_base_url text;
   v_cmd text;
 BEGIN
   SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') INTO v_has_cron;
@@ -545,21 +546,9 @@ BEGIN
     SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'vault') INTO v_has_vault;
 
     IF v_has_vault THEN
-      v_cmd := $cmd$
-        SELECT net.http_post(
-          url := 'https://czpcaffwtmlxvplpanon.supabase.co/functions/v1/cleanup-storage-files',
-          headers := jsonb_build_object(
-            'Content-Type', 'application/json',
-            'Authorization', 'Bearer ' || (
-              SELECT decrypted_secret
-              FROM vault.decrypted_secrets
-              WHERE name = 'cleanup_worker_key'
-              LIMIT 1
-            )
-          ),
-          body := jsonb_build_object('limit', 100)
-        );
-      $cmd$;
+      v_base_url := COALESCE(NULLIF(current_setting('app.settings.edge_function_base_url', true), ''), 'http://127.0.0.1:54321/functions/v1');
+
+      v_cmd := 'SELECT net.http_post(url := ' || quote_literal(v_base_url || '/cleanup-storage-files') || ', headers := jsonb_build_object(''Content-Type'', ''application/json'', ''Authorization'', ''Bearer '' || COALESCE((SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = ''cleanup_worker_key'' LIMIT 1), '''')), body := jsonb_build_object(''limit'', 100));';
 
       EXECUTE 'SELECT cron.schedule(''process-file-lifecycle-hourly'', ''5 * * * *'', ' || quote_literal(v_cmd) || ')';
       RAISE NOTICE 'process-file-lifecycle-hourly cron job successfully scheduled.';
