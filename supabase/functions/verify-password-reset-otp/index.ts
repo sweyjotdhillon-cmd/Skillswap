@@ -59,7 +59,7 @@ Deno.serve(async (req: Request) => {
     });
 
     if (rpcErr) {
-      console.error('RPC verify_password_reset_otp_atomic error:', rpcErr);
+      console.error('RPC verify_password_reset_otp_atomic error:', rpcErr.message || 'OTP verification atomic error');
       return new Response(
         JSON.stringify({ error: 'SERVER_ERROR', message: 'Failed to complete verification step.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -82,7 +82,7 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err: unknown) {
-    console.error('Unexpected error in verify-password-reset-otp:', err);
+    console.error('Unexpected error in verify-password-reset-otp:', err instanceof Error ? err.message : 'Server error');
     return new Response(
       JSON.stringify({ error: 'SERVER_ERROR', message: 'An unexpected error occurred.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

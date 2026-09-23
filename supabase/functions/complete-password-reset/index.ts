@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
     });
 
     if (claimErr) {
-      console.error('RPC claim_password_reset_recovery_token error:', claimErr);
+      console.error('RPC claim_password_reset_recovery_token error:', claimErr.message || 'Claim recovery token error');
       return new Response(
         JSON.stringify({ error: 'SERVER_ERROR', message: 'Failed to authorize recovery token.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -112,7 +112,7 @@ Deno.serve(async (req: Request) => {
     });
 
     if (updatePasswordErr) {
-      console.error('Error updating user password via Admin API:', updatePasswordErr);
+      console.error('Error updating user password via Admin API:', updatePasswordErr.message || 'Admin update user error');
       return new Response(
         JSON.stringify({ error: 'UPDATE_FAILED', message: updatePasswordErr.message || 'Failed to update password.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -127,7 +127,7 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err: unknown) {
-    console.error('Unexpected error in complete-password-reset:', err);
+    console.error('Unexpected error in complete-password-reset:', err instanceof Error ? err.message : 'Server error');
     return new Response(
       JSON.stringify({ error: 'SERVER_ERROR', message: 'An unexpected error occurred.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

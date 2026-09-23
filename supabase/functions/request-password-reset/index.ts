@@ -92,7 +92,7 @@ Deno.serve(async (req: Request) => {
       });
 
       if (atomicErr) {
-        console.error('RPC request_password_reset_challenge_atomic error:', atomicErr);
+        console.error('RPC request_password_reset_challenge_atomic error:', atomicErr.message || 'Atomic challenge error');
         return new Response(
           JSON.stringify({ error: 'SERVER_ERROR', message: 'Failed to generate verification code.' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -158,8 +158,7 @@ Deno.serve(async (req: Request) => {
         });
 
         if (!brevoRes.ok) {
-          const errText = await brevoRes.text();
-          console.error('Brevo API email delivery failed:', errText);
+          console.error('Brevo API email delivery failed with status:', brevoRes.status);
           return new Response(
             JSON.stringify({
               error: 'EMAIL_SEND_FAILED',
@@ -169,7 +168,7 @@ Deno.serve(async (req: Request) => {
           );
         }
       } catch (emailErr: unknown) {
-        console.error('Exception during Brevo email send:', emailErr);
+        console.error('Exception during Brevo email send:', emailErr instanceof Error ? emailErr.message : 'Network error');
         return new Response(
           JSON.stringify({
             error: 'EMAIL_SEND_FAILED',
@@ -189,7 +188,7 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err: unknown) {
-    console.error('Unexpected error in request-password-reset:', err);
+    console.error('Unexpected error in request-password-reset:', err instanceof Error ? err.message : 'Server error');
     return new Response(
       JSON.stringify({ error: 'SERVER_ERROR', message: 'An unexpected error occurred.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

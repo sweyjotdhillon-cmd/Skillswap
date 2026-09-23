@@ -34,7 +34,7 @@ async function callEdgeFunction(functionName: string, body: object) {
         return { data, error: null };
       }
 
-      console.error(`Supabase Edge Function '${functionName}' invoke error:`, error.message || 'Invocation failed');
+      // Suppress raw log output
 
       let errorMessage = error.message || '';
       const errCtx = error as unknown as { context?: { json?: () => Promise<{ message?: string }> } };
@@ -54,7 +54,6 @@ async function callEdgeFunction(functionName: string, body: object) {
       }
       primaryError = errorMessage;
     } catch (err: unknown) {
-      console.error(`Exception invoking Edge Function '${functionName}':`, err instanceof Error ? err.message : String(err));
       primaryError = formatFriendlyErrorMessage(err);
     }
   }
@@ -81,8 +80,8 @@ async function callEdgeFunction(functionName: string, body: object) {
         return { data: null, error: { message: msg } };
       }
       return { data: resData, error: null };
-    } catch (fetchErr: unknown) {
-      console.error(`Direct fetch to Edge Function '${functionName}' failed:`, fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+    } catch {
+      // Direct fetch fallback error
     }
   }
 
