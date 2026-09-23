@@ -318,7 +318,7 @@ export async function checkUsernameAvailability(username: string): Promise<Usern
 
   const supabase = getSupabaseBrowserClient();
   if (!supabase) {
-    console.error('Error checking username availability: Supabase browser client unavailable');
+    logger.error('Error checking username availability: Supabase browser client unavailable');
     return { status: 'error', message: 'Unable to check username right now. Please try again.' };
   }
 
@@ -328,12 +328,10 @@ export async function checkUsernameAvailability(username: string): Promise<Usern
     });
 
     if (rpcError) {
-      console.error('[checkUsernameAvailability] RPC check_username_available error:', {
+      logger.error('[checkUsernameAvailability] RPC check_username_available error:', {
         rpc: 'check_username_available',
-        params: { p_username: cleanUsername },
         message: rpcError.message,
         code: rpcError.code,
-        details: rpcError.details,
       });
       return { status: 'error', message: 'Unable to check username right now. Please try again.' };
     }
@@ -344,7 +342,7 @@ export async function checkUsernameAvailability(username: string): Promise<Usern
 
     return { status: 'error', message: 'Unable to check username right now. Please try again.' };
   } catch (err: unknown) {
-    console.error('[checkUsernameAvailability] Unexpected error:', err);
+    logger.error('[checkUsernameAvailability] Unexpected error:', err);
     return { status: 'error', message: formatFriendlyErrorMessage(err) };
   }
 }
@@ -471,7 +469,7 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     }
     return data as Profile;
   } catch (err) {
-    console.error('Error fetching profile:', err);
+    logger.error('Error fetching profile:', err);
     return null;
   }
 }
@@ -498,7 +496,7 @@ export async function getProfileByUsername(username: string): Promise<Profile | 
     }
     return data as Profile;
   } catch (err) {
-    console.error('Error fetching profile by username:', err);
+    logger.error('Error fetching profile by username:', err);
     return null;
   }
 }
@@ -522,7 +520,7 @@ export async function getAccount(userId: string): Promise<Account | null> {
     }
     return data as Account;
   } catch (err) {
-    console.error('Error fetching account:', err);
+    logger.error('Error fetching account:', err);
     return null;
   }
 }
@@ -546,7 +544,7 @@ export async function getPrivateContact(userId: string): Promise<UserPrivateCont
     }
     return data as UserPrivateContact;
   } catch (err) {
-    console.error('Error fetching private contact:', err);
+    logger.error('Error fetching private contact:', err);
     return null;
   }
 }
@@ -604,13 +602,13 @@ export async function searchSkillsCatalog(query: string, category?: string): Pro
     const { data, error } = await req;
 
     if (error) {
-      console.error('Error searching skills catalog:', error);
+      logger.error('Error searching skills catalog:', error);
       return [];
     }
 
     return (data || []) as Skill[];
   } catch (err) {
-    console.error('Unexpected error searching skills catalog:', err);
+    logger.error('Unexpected error searching skills catalog:', err);
     return [];
   }
 }
@@ -633,7 +631,7 @@ export async function getUserSkills(userId: string): Promise<{ predefined: UserS
       custom: (customRes.data || []) as UserCustomSkill[],
     };
   } catch (err) {
-    console.error('Error fetching user skills:', err);
+    logger.error('Error fetching user skills:', err);
     return { predefined: [], custom: [] };
   }
 }
@@ -655,7 +653,7 @@ export async function addUserSkill(
     });
 
     if (error) {
-      console.error('[addUserSkill] RPC error:', error);
+      logger.error('[addUserSkill] RPC error:', error);
       return { success: false, error: formatFriendlyErrorMessage(error) };
     }
 
@@ -664,7 +662,7 @@ export async function addUserSkill(
     }
     return data;
   } catch (err: unknown) {
-    console.error('[addUserSkill] Exception:', err);
+    logger.error('[addUserSkill] Exception:', err);
     return { success: false, error: formatFriendlyErrorMessage(err) };
   }
 }
@@ -680,12 +678,12 @@ export async function checkUserHasPassword(): Promise<boolean | null> {
   try {
     const { data, error } = await supabase.rpc('has_user_password');
     if (error) {
-      console.error('Error checking has_user_password:', error);
+      logger.error('Error checking has_user_password:', error);
       return null;
     }
     return typeof data === 'boolean' ? data : null;
   } catch (err) {
-    console.error('Exception in checkUserHasPassword:', err);
+    logger.error('Exception in checkUserHasPassword:', err);
     return null;
   }
 }
@@ -710,7 +708,7 @@ export async function removeUserSkill(skillType: 'predefined' | 'custom', skillI
 
     return !error;
   } catch (err) {
-    console.error('Error removing user skill:', err);
+    logger.error('Error removing user skill:', err);
     return false;
   }
 }
@@ -738,12 +736,12 @@ export async function getUserReviews(userId: string): Promise<SwapReview[]> {
       .limit(20);
 
     if (error) {
-      console.error('Error fetching user reviews:', error);
+      logger.error('Error fetching user reviews:', error);
       return [];
     }
     return (data || []) as SwapReview[];
   } catch (err) {
-    console.error('Unexpected error fetching user reviews:', err);
+    logger.error('Unexpected error fetching user reviews:', err);
     return [];
   }
 }

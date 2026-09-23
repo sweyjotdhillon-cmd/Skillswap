@@ -100,8 +100,8 @@ export function OnboardingPage({ onNavigate, redirectTo: propsRedirectTo }: Onbo
         if (isMounted && contact?.phone_number) {
           setPhoneNumber(contact.phone_number);
         }
-      } catch (err) {
-        console.warn('Could not load existing private contact:', err);
+      } catch {
+        // Ignored non-fatal contact load error
       }
 
       // Load existing user skills
@@ -128,8 +128,8 @@ export function OnboardingPage({ onNavigate, redirectTo: propsRedirectTo }: Onbo
             setSelectedSkills(loadedSkills);
           }
         }
-      } catch (err) {
-        console.warn('Could not load existing user skills:', err);
+      } catch {
+        // Ignored non-fatal skills load error
       }
     }
 
@@ -146,10 +146,8 @@ export function OnboardingPage({ onNavigate, redirectTo: propsRedirectTo }: Onbo
     setSkillsError('');
     try {
       const catalog = await getSkillsCatalog();
-      console.log(`[Skills Catalog] Successfully loaded ${catalog.length} skills from public.skills`);
       setSkillsCatalog(catalog);
-    } catch (err: unknown) {
-      console.error('Failed to load skills catalog:', err);
+    } catch {
       setSkillsError('Unable to load skills right now. Please try again.');
     } finally {
       setSkillsLoading(false);
@@ -421,7 +419,6 @@ export function OnboardingPage({ onNavigate, redirectTo: propsRedirectTo }: Onbo
           });
         }
       } catch (err: unknown) {
-        console.error('Failed to finalize onboarding after Google linking:', err);
         sessionStorage.removeItem('skillswap_pending_onboarding');
         if (isMounted) {
           setSubmitError(formatFriendlyErrorMessage(err));
@@ -544,7 +541,6 @@ export function OnboardingPage({ onNavigate, redirectTo: propsRedirectTo }: Onbo
         avatarUrl,
       });
     } catch (err: unknown) {
-      console.error('Final onboarding submission error:', err);
       const friendlyMsg = formatFriendlyErrorMessage(err);
       setSubmitError(friendlyMsg);
       setIsSubmitting(false);

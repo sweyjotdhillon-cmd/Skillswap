@@ -534,8 +534,8 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
     for (const file of input.files) {
       const validation = validateAttachmentFile(file);
       if (!validation.valid) {
-        console.error('[SUBMISSION] file validation failed:', validation.error, { fileName: file.name });
-        return { success: false, error: validation.error || `File "${file.name}" is invalid.` };
+        logger.error('[SUBMISSION] file validation failed:', validation.error);
+        return { success: false, error: validation.error || 'File is invalid.' };
       }
     }
   }
@@ -568,14 +568,10 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
       const normalizedMimeType = getNormalizedMimeType(storedFileName, file.type);
       const storagePath = `submissions/${input.swapId}/${user.id}/${generateUUID()}-${storedFileName}`;
 
-      console.log(`[SUBMISSION] upload started: ${file.name}`, {
-        filename: file.name,
-        storedFileName,
-        'file.size': file.size,
-        'file.type': file.type,
+      logger.info(`[SUBMISSION] upload started`, {
+        fileCount: input.files.length,
         normalizedMimeType,
-        'storage path': storagePath,
-        'bucket name': 'swap-submissions',
+        bucket: 'swap-submissions',
       });
 
       const { error: uploadError } = await supabase.storage
@@ -586,43 +582,24 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
         });
 
       if (uploadError) {
-        const errObj = uploadError as {
-          message?: string;
-          name?: string;
-          status?: number;
-          statusCode?: number;
-          error?: string;
-          details?: string;
-        };
-
-        console.error(`[SUBMISSION] upload failed: ${file.name}`, {
-          filename: file.name,
-          storedFileName,
-          'file.size': file.size,
-          'file.type': file.type,
-          'storage path': storagePath,
-          'bucket name': 'swap-submissions',
-          'Supabase error.message': errObj.message,
-          'Supabase error.name': errObj.name,
-          'Supabase error.status': errObj.status,
-          'Supabase error.statusCode': errObj.statusCode,
-          'Supabase error.error': errObj.error,
-          'Supabase error.details': errObj.details,
+        logger.error(`[SUBMISSION] upload failed`, {
+          bucket: 'swap-submissions',
+          error: uploadError,
         });
 
         // Clean up any files uploaded so far before returning error
         if (uploadedPaths.length > 0) {
           try {
             await supabase.storage.from('swap-submissions').remove(uploadedPaths);
-            console.log('[SUBMISSION] cleanup completed after upload failure', { uploadedPaths });
+            logger.info('[SUBMISSION] cleanup completed after upload failure');
           } catch (cleanupErr) {
-            console.error('[SUBMISSION] cleanup failed after upload failure', { uploadedPaths, cleanupErr });
+            logger.error('[SUBMISSION] cleanup failed after upload failure:', cleanupErr);
           }
         }
         return { success: false, error: formatSubmissionErrorMessage(uploadError, file.name) };
       }
 
-      console.log(`[SUBMISSION] upload completed: ${storagePath}`);
+      logger.info(`[SUBMISSION] upload completed`);
       uploadedPaths.push(storagePath);
       uploadedFileMetadata.push({
         storage_path: storagePath,
@@ -633,7 +610,7 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
     }
   }
 
-  console.log('[SUBMISSION] submission RPC started', { swapId: input.swapId, cleanNotesLength: cleanNotes.length, filesCount: uploadedFileMetadata.length });
+  logger.info('[SUBMISSION] submission RPC started', { swapId: input.swapId, cleanNotesLength: cleanNotes.length, filesCount: uploadedFileMetadata.length });
 
   const { data, error } = await supabase.rpc('submit_swap_work', {
     p_swap_id: input.swapId,
@@ -642,15 +619,11 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
   });
 
   if (error || !data) {
-    console.error('[SUBMISSION] submission RPC failed', {
+    logger.error('[SUBMISSION] submission RPC failed', {
       operationName: 'rpc.submit_swap_work',
       errorMessage: error?.message,
       errorCode: error?.code,
-      errorDetails: error?.details,
-      errorHint: error?.hint,
       swapId: input.swapId,
-      notesLength: cleanNotes.length,
-      fileMetadataCount: uploadedFileMetadata.length,
     });
 
     // Rollback uploaded files on database transaction error
@@ -658,18 +631,12 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
       try {
         const { error: removeErr } = await supabase.storage.from('swap-submissions').remove(uploadedPaths);
         if (removeErr) {
-          console.error('[SUBMISSION] CRITICAL: Storage cleanup failed for orphaned files after RPC error:', {
-            uploadedPaths,
-            removeError: removeErr,
-          });
+          logger.error('[SUBMISSION] CRITICAL: Storage cleanup failed for orphaned files after RPC error:', removeErr);
         } else {
-          console.log('[SUBMISSION] Storage cleanup completed after RPC error:', { uploadedPaths });
+          logger.info('[SUBMISSION] Storage cleanup completed after RPC error');
         }
       } catch (cleanupErr) {
-        console.error('[SUBMISSION] CRITICAL: Storage cleanup exception for orphaned files after RPC error:', {
-          uploadedPaths,
-          cleanupErr,
-        });
+        logger.error('[SUBMISSION] CRITICAL: Storage cleanup exception for orphaned files after RPC error:', cleanupErr);
       }
     }
     return { success: false, error: formatSubmissionErrorMessage(error ?? new Error('Failed to submit swap work.')) };
@@ -694,35 +661,28 @@ export async function submitSwapWorkWithFiles(input: SubmitSwapWorkInput): Promi
   }
 
   if (!isSuccess) {
-    console.error('[SUBMISSION] submission RPC returned unsuccessful status', {
+    logger.error('[SUBMISSION] submission RPC returned unsuccessful status', {
       operationName: 'rpc.submit_swap_work',
       swapId: input.swapId,
       resultError: resultObj?.error,
-      returnedData: data,
     });
 
     if (uploadedPaths.length > 0) {
       try {
         const { error: removeErr } = await supabase.storage.from('swap-submissions').remove(uploadedPaths);
         if (removeErr) {
-          console.error('[SUBMISSION] CRITICAL: Storage cleanup failed for orphaned files after unsuccessful RPC result:', {
-            uploadedPaths,
-            removeError: removeErr,
-          });
+          logger.error('[SUBMISSION] CRITICAL: Storage cleanup failed for orphaned files after unsuccessful RPC result:', removeErr);
         } else {
-          console.log('[SUBMISSION] Storage cleanup completed after unsuccessful RPC result:', { uploadedPaths });
+          logger.info('[SUBMISSION] Storage cleanup completed after unsuccessful RPC result');
         }
       } catch (cleanupErr) {
-        console.error('[SUBMISSION] CRITICAL: Storage cleanup exception for orphaned files after unsuccessful RPC result:', {
-          uploadedPaths,
-          cleanupErr,
-        });
+        logger.error('[SUBMISSION] CRITICAL: Storage cleanup exception for orphaned files after unsuccessful RPC result:', cleanupErr);
       }
     }
     return { success: false, error: (resultObj?.error as string) || 'Failed to record submission.' };
   }
 
-  console.log('[SUBMISSION] submission RPC completed', { submissionId });
+  logger.info('[SUBMISSION] submission RPC completed', { submissionId });
   return { success: true, submissionId };
 }
 
@@ -803,12 +763,12 @@ export async function getOpenSwaps(): Promise<GetOpenSwapsResult> {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching open swaps:', error);
+      logger.error('Error fetching open swaps:', error);
       return { data: [] };
     }
     return { data: (data || []) as SwapRecord[] };
   } catch (err) {
-    console.error('Unexpected error fetching open swaps:', err);
+    logger.error('Unexpected error fetching open swaps:', err);
     return { data: [] };
   }
 }
@@ -832,12 +792,12 @@ export async function getUserSwaps(userId: string): Promise<GetUserSwapsResult> 
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching user swaps:', error);
+      logger.error('Error fetching user swaps:', error);
       return { data: [], error: formatFriendlyErrorMessage(error) };
     }
     return { data: (data || []) as SwapRecord[] };
   } catch (err) {
-    console.error('Unexpected error fetching user swaps:', err);
+    logger.error('Unexpected error fetching user swaps:', err);
     return { data: [], error: formatFriendlyErrorMessage(err) };
   }
 }
@@ -861,12 +821,12 @@ export async function getSwapById(swapId: string): Promise<{ data: SwapRecord | 
       .maybeSingle();
 
     if (error) {
-      console.error('Error fetching swap by ID:', error);
+      logger.error('Error fetching swap by ID:', error);
       return { data: null, error: formatFriendlyErrorMessage(error) };
     }
     return { data: (data || null) as SwapRecord | null };
   } catch (err) {
-    console.error('Unexpected error fetching swap by ID:', err);
+    logger.error('Unexpected error fetching swap by ID:', err);
     return { data: null, error: formatFriendlyErrorMessage(err) };
   }
 }
@@ -883,12 +843,12 @@ export async function getUserCompletedSwapsCount(userId: string): Promise<number
       .eq('status', 'completed');
 
     if (error) {
-      console.error('Error fetching completed swaps count:', error);
+      logger.error('Error fetching completed swaps count:', error);
       return 0;
     }
     return count || 0;
   } catch (err) {
-    console.error('Unexpected error fetching completed swaps count:', err);
+    logger.error('Unexpected error fetching completed swaps count:', err);
     return 0;
   }
 }
@@ -953,7 +913,7 @@ export async function getSwapMessages(swapId: string): Promise<{ data: SwapMessa
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error('Error fetching swap messages:', error);
+      logger.error('Error fetching swap messages:', error);
       return { data: [], error: formatFriendlyErrorMessage(error) };
     }
 
@@ -997,7 +957,7 @@ export async function getSwapMessages(swapId: string): Promise<{ data: SwapMessa
 
     return { data: messages };
   } catch (err) {
-    console.error('Unexpected error fetching messages:', err);
+    logger.error('Unexpected error fetching messages:', err);
     return { data: [], error: formatFriendlyErrorMessage(err) };
   }
 }
@@ -1112,7 +1072,7 @@ export async function sendSwapMessageWithAttachments(
         });
 
       if (uploadErr) {
-        console.error('Chat attachment upload failed:', uploadErr);
+        logger.error('Chat attachment upload failed:', uploadErr);
         if (uploadedPaths.length > 0) {
           await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
         }
@@ -1138,7 +1098,7 @@ export async function sendSwapMessageWithAttachments(
   });
 
   if (rpcErr || !rpcData) {
-    console.error('send_chat_message_with_attachments RPC failed:', rpcErr);
+    logger.error('send_chat_message_with_attachments RPC failed:', rpcErr);
     if (uploadedPaths.length > 0) {
       await supabase.storage.from('swap-chat-attachments').remove(uploadedPaths);
     }
@@ -1331,7 +1291,7 @@ export async function getSwapSubmission(swapId: string): Promise<{ data: SwapSub
       .maybeSingle();
 
     if (subError) {
-      console.error('Error fetching submission:', subError);
+      logger.error('Error fetching submission:', subError);
       return { data: null, error: formatFriendlyErrorMessage(subError) };
     }
 
@@ -1346,7 +1306,7 @@ export async function getSwapSubmission(swapId: string): Promise<{ data: SwapSub
       .order('created_at', { ascending: true });
 
     if (fileError) {
-      console.error('Error fetching submission files:', fileError);
+      logger.error('Error fetching submission files:', fileError);
     }
 
     const files: SwapSubmissionFile[] = (fileData || []).map((f) => {
@@ -1384,7 +1344,7 @@ export async function getSwapSubmission(swapId: string): Promise<{ data: SwapSub
 
     return { data: submission };
   } catch (err) {
-    console.error('Unexpected error fetching submission:', err);
+    logger.error('Unexpected error fetching submission:', err);
     return { data: null, error: formatFriendlyErrorMessage(err) };
   }
 }
@@ -1559,7 +1519,7 @@ export async function getSwapAttachments(swapId: string): Promise<{ data: SwapAt
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error('Error fetching swap attachments:', error);
+      logger.error('Error fetching swap attachments:', error);
       return { data: [], error: formatFriendlyErrorMessage(error) };
     }
 
@@ -1587,7 +1547,7 @@ export async function getSwapAttachments(swapId: string): Promise<{ data: SwapAt
 
     return { data: attachments };
   } catch (err) {
-    console.error('Unexpected error fetching swap attachments:', err);
+    logger.error('Unexpected error fetching swap attachments:', err);
     return { data: [], error: formatFriendlyErrorMessage(err) };
   }
 }
@@ -1662,7 +1622,7 @@ export async function uploadSwapAttachments(
         });
 
       if (uploadErr) {
-        console.error('Creator attachment upload failed:', uploadErr);
+        logger.error('Creator attachment upload failed:', uploadErr);
         throw new Error(formatSubmissionErrorMessage(uploadErr, file.name));
       }
 
@@ -1678,7 +1638,7 @@ export async function uploadSwapAttachments(
       });
 
       if (rpcErr) {
-        console.error('register_swap_attachment RPC error:', rpcErr);
+        logger.error('register_swap_attachment RPC error:', rpcErr);
         throw new Error(formatSubmissionErrorMessage(rpcErr, file.name));
       }
 
@@ -1686,7 +1646,7 @@ export async function uploadSwapAttachments(
       if (rpcData) {
         const res = rpcData as { success?: boolean; attachment_id?: string; id?: string; error?: string };
         if (res.success === false) {
-          console.error('register_swap_attachment RPC returned failure:', res.error);
+          logger.error('register_swap_attachment RPC returned failure:', res.error);
           throw new Error(res.error ? `Failed to register attachment: ${res.error}` : 'Failed to register creator attachment.');
         }
         if (res.attachment_id) {
@@ -1699,7 +1659,7 @@ export async function uploadSwapAttachments(
       if (attachmentId) {
         registeredIds.push(attachmentId);
       } else {
-        console.error('register_swap_attachment RPC returned invalid response shape:', rpcData);
+        logger.error('register_swap_attachment RPC returned invalid response shape:', rpcData);
         throw new Error(`Failed to record attachment "${file.name}".`);
       }
     });
@@ -1721,7 +1681,7 @@ export async function uploadSwapAttachments(
 
     return { success: true };
   } catch (err) {
-    console.error('Unexpected exception during creator attachment upload:', err);
+    logger.error('Unexpected exception during creator attachment upload:', err);
     await cleanupRollback();
     return { success: false, error: err instanceof Error ? err.message : 'Unexpected attachment upload error.' };
   }
@@ -1786,14 +1746,14 @@ export async function getUserAccount(): Promise<Account | null> {
     const { data, error } = await supabase.rpc('get_user_account');
 
     if (error) {
-      console.error('Error in get_user_account RPC:', error);
+      logger.error('Error in get_user_account RPC:', error);
       const { data: selectData, error: selectError } = await supabase
         .from('accounts')
         .select('*')
         .single();
 
       if (selectError) {
-        console.error('Error fetching accounts table directly:', selectError);
+        logger.error('Error fetching accounts table directly:', selectError);
         return null;
       }
       return selectData as Account;
@@ -1801,7 +1761,7 @@ export async function getUserAccount(): Promise<Account | null> {
 
     return data as Account;
   } catch (err) {
-    console.error('Unexpected error fetching user account:', err);
+    logger.error('Unexpected error fetching user account:', err);
     return null;
   }
 }
@@ -1823,7 +1783,7 @@ export async function getCreditTransactions(
     });
 
     if (error) {
-      console.error('Error fetching credit transactions via RPC:', error);
+      logger.error('Error fetching credit transactions via RPC:', error);
       const { data: selectData, error: selectError } = await supabase
         .from('credit_transactions')
         .select('id, amount, balance_after, transaction_type, reason, related_swap_id, created_at')
@@ -1831,7 +1791,7 @@ export async function getCreditTransactions(
         .range(offset, offset + limit - 1);
 
       if (selectError) {
-        console.error('Error fetching credit transactions directly:', selectError);
+        logger.error('Error fetching credit transactions directly:', selectError);
         return [];
       }
       return (selectData || []) as CreditTransaction[];
@@ -1839,7 +1799,7 @@ export async function getCreditTransactions(
 
     return (data || []) as CreditTransaction[];
   } catch (err) {
-    console.error('Unexpected error fetching transaction history:', err);
+    logger.error('Unexpected error fetching transaction history:', err);
     return [];
   }
 }
