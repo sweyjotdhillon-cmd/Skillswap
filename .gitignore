@@ -3,6 +3,7 @@ dist/
 .wrangler/
 .dev.vars
 *.local
+.env*.local
 .DS_Store
 
 tsconfig.tsbuildinfo
