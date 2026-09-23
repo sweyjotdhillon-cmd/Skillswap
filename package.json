@@ -12,7 +12,8 @@
     "test:integration": "tsx --test \"src/**/*.test.ts\" --test-name-pattern=\"Integration\"",
     "test:e2e": "playwright test",
     "lint": "eslint .",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "security:live": "python3 scripts/security/check.py"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "1.54.1",

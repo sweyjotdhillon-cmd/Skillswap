@@ -20,7 +20,44 @@ Do each category fully before moving to the next. Do not batch them.
 
 Create the `security/reports/` and `security/plans/` directories if they don't exist.
 
-**Check the deployed app too, not just the code.** Headers, CORS, and publicly served files are often decided by the host or CDN (Vercel, Netlify, Cloudflare, nginx), not by your app code. Before starting, ask the human for the production (or staging) URL. If they give one, then for categories 1, 5, 7, 8, 9, and 15, check the live responses and report any mismatch between what the code sets and what is actually served. If the vibe-check scanner is available (`scripts/check.py` in the vibe-check skill, or `skills/vibe-check/scripts/check.py` in the vibe-check repo), run `python3 check.py <url> --json` first and use its findings as evidence. Otherwise use `curl -sI` / `curl -s`. Also read hosting config files: `vercel.json`, `netlify.toml`, `_headers`, `nginx.conf`, `Caddyfile`, `firebase.json`, `wrangler.toml`.
+**Check the deployed app too, not just the code.** Headers, CORS, and publicly served files are often decided by the host or CDN (Vercel, Netlify, Cloudflare, nginx), not by your app code. Before starting, ask the human for the production (or staging) URL. If they give one, then for categories 1, 5, 7, 8, 9, and 15, check the live responses and report any mismatch between what the code sets and what is actually served. If the scanner is available (`scripts/security/check.py`), run `python3 scripts/security/check.py <url> --json` first and use its findings as evidence. Otherwise use `curl -sI` / `curl -s`. Also read hosting config files: `wrangler.jsonc`, `worker/index.ts`, `supabase/functions/_shared/cors.ts`.
+
+---
+
+## Live Scanner Scope & Integration Logic
+
+The repository-local scanner at `scripts/security/check.py` is a read-only live web security evidence collector.
+
+- **Supplemental Evidence Only:** `check.py` provides supplemental live evidence; it is NOT a substitute for a full code audit.
+- **Implemented Categories:** The scanner only externally verifies the following 6 categories:
+  1. `SECRETS_EXPOSURE` (publicly served .env / .git / dumps, directory listing)
+  5. `FRONTEND_SECRETS` (public source maps)
+  7. `CSRF` (cookie flags: HttpOnly, Secure, SameSite)
+  8. `SECURITY_HEADERS` (CSP directives, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy)
+  9. `CORS` (wildcard / reflected / null origins)
+  15. `ERROR_HANDLING` (verbose error pages, debug/API-doc endpoints, version disclosure)
+- **Full Source Investigation Required:** A PASS output from `check.py` does NOT mean the corresponding category is fully compliant. The auditing agent MUST still inspect source code, configuration files, and database settings for every category.
+- **Non-Scanner Categories:** Categories 2, 3, 4, 6, 10, 11, 12, 13, 14, 16, and 17 require direct repository, configuration, database, and account inspection as defined in this checklist. They MUST NOT be marked PASS merely because `check.py` executed without errors.
+- **Skillswap Architecture Alignment:**
+  - For `SECURITY_HEADERS` (Category 8): Compare live headers returned by `check.py` against `worker/index.ts` (application-level source of truth) and `wrangler.jsonc` (static asset serving configuration). Static assets pass through Cloudflare Worker, so live scans detect deployment mismatches.
+  - For `CORS` (Category 9): Treat `supabase/functions/_shared/cors.ts` as the Supabase Edge Function CORS source of truth. When a deployed Supabase/Edge Function URL is provided by a human, test it via `python3 scripts/security/check.py <frontend-url> --api <api-url> --json`. Never invent or hardcode API URLs.
+
+---
+
+## Audit Execution Workflow
+
+When conducting an audit against this project, follow this exact sequence:
+
+A. Read `AGENTS.md`.
+B. Read `AI-CHECKLIST.md`.
+C. If an authorized production/staging URL is available, run:
+   `python3 scripts/security/check.py <frontend-url> --json`
+   (include relevant API URLs with `--api` only when known/authorized).
+D. Use scanner results as live evidence for categories 1, 5, 7, 8, 9, and 15.
+E. Inspect the actual repository, configuration files, and Supabase implementation for every category.
+F. Continue through all 17 categories in exact numerical order.
+G. Create reports under `security/reports/`, plans under `security/plans/`, and `security/AUDIT_SUMMARY.md` upon completion.
+H. Do not treat scanner PASS output as proof that the full category is PASS.
 
 ---
 
