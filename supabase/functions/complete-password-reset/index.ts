@@ -92,7 +92,7 @@ Deno.serve(async (req: Request) => {
 
     if (updatePasswordErr) {
       console.error(`[${correlationId}] Error updating user password via Admin API:`, updatePasswordErr.message || 'Admin update user error');
-      return createErrorResponse('UPDATE_FAILED', updatePasswordErr.message || 'Failed to update password.', 500, corsHeaders, correlationId);
+      return createErrorResponse('UPDATE_FAILED', 'Failed to update password.', 500, corsHeaders, correlationId);
     }
 
     return new Response(

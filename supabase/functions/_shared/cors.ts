@@ -26,6 +26,8 @@ export function getCorsHeaders(req: Request): Record<string, string> | null {
 
   const baseHeaders: Record<string, string> = {
     'X-Request-Id': correlationId,
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-request-id, x-correlation-id',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };

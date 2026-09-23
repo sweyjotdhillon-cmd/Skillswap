@@ -9,7 +9,10 @@
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 class Logger {
-  private isDev = typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production';
+  private isDev =
+    typeof process !== 'undefined' && process.env?.NODE_ENV
+      ? process.env.NODE_ENV !== 'production'
+      : (typeof import.meta !== 'undefined' && (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true);
 
   /**
    * Sanitizes sensitive fields from objects or arguments prior to logging.
