@@ -265,3 +265,20 @@ These rules apply to all code generated in this project. They are non-negotiable
 - Before installing any package, verify it exists on the official registry with a reasonable download count and history
 - Pin exact versions in package.json / requirements.txt (no ^ or ~ in production)
 - Commit lock files (package-lock.json, poetry.lock, yarn.lock)
+
+## Security Audit Checklist
+
+`AI-CHECKLIST.md` is the authoritative operational procedure for performing a full Skillswap security audit.
+
+When a security audit is requested:
+- Read and follow `AI-CHECKLIST.md` in full.
+- Execute all applicable vulnerability categories in the exact order defined by the checklist.
+- Investigate the actual Skillswap codebase, configuration, deployment configuration, and Supabase implementation rather than making assumptions.
+- Complete each category before moving to the next.
+- Create the required reports under `security/reports/`.
+- Create the required fix plans under `security/plans/`.
+- Implement applicable application-code fixes and verify them against the plan.
+- Perform required Supabase/database changes directly through the Supabase integration according to the existing database-change rules in this AGENTS.md. Never create a database-change prompt for another coding agent.
+- Create/update `security/AUDIT_SUMMARY.md` after all categories are completed.
+- Preserve all security requirements already defined in this AGENTS.md even if a particular requirement is not repeated in AI-CHECKLIST.md.
+- Treat AI-CHECKLIST.md as an executable audit procedure, not as permission to weaken any security rule in AGENTS.md.
