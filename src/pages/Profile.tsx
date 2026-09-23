@@ -14,6 +14,7 @@ import {
   addUserSkill,
   removeUserSkill,
   getUserReviews,
+  deleteCurrentUserAccount,
   formatFriendlyErrorMessage,
 } from '../lib/supabase/profile';
 import { getUserCompletedSwapsCount } from '../lib/supabase/credits';
@@ -24,7 +25,7 @@ type ProfilePageProps = {
 };
 
 export function ProfilePage({ onNavigate }: ProfilePageProps) {
-  const { user, profile: authProfile, account, connectedProviders, refreshProfile } = useAuth();
+  const { user, profile: authProfile, account, connectedProviders, refreshProfile, signOut } = useAuth();
 
   const [profile, setProfile] = useState<Profile | null>(authProfile);
   const [predefinedSkills, setPredefinedSkills] = useState<UserSkill[]>([]);
@@ -37,12 +38,17 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   // Modals state
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isManageSkillsOpen, setIsManageSkillsOpen] = useState(false);
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
 
   // Edit profile form state
   const [editFullName, setEditFullName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // Delete account state
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Skill management state
   const [skillsCatalog, setSkillsCatalog] = useState<Skill[]>([]);
@@ -153,6 +159,30 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       setEditError(formatFriendlyErrorMessage(err));
     } finally {
       setEditSubmitting(false);
+    }
+  };
+
+  // Handle Account Deletion
+  const handleDeleteAccountConfirm = async () => {
+    setDeleteSubmitting(true);
+    setDeleteError(null);
+
+    try {
+      const res = await deleteCurrentUserAccount();
+      if (!res.success) {
+        setDeleteError(res.error || 'Could not delete account. Please try again.');
+      } else {
+        await signOut();
+        if (onNavigate) {
+          onNavigate('/login');
+        } else {
+          window.location.href = '/login';
+        }
+      }
+    } catch (err: unknown) {
+      setDeleteError(formatFriendlyErrorMessage(err));
+    } finally {
+      setDeleteSubmitting(false);
     }
   };
 
@@ -705,7 +735,96 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
             )}
           </div>
         </section>
+
+        {/* DANGER ZONE / ACCOUNT DELETION SECTION */}
+        <section className="profile-section-card" aria-label="Account Settings & Danger Zone" style={{ border: '1px solid rgba(220, 38, 38, 0.3)' }}>
+          <div className="profile-section-header">
+            <div>
+              <h2 className="profile-section-title" style={{ color: '#dc2626' }}>Account Settings &amp; Data Deletion</h2>
+              <span className="profile-section-subtitle">
+                Manage your personal data lifecycle and account deletion rights
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+              Under our data privacy framework, you have the right to delete your personal data at any time. Requesting account deletion will immediately delete your private contacts, remove your listed skills, anonymize your public profile, and sign you out.
+            </p>
+
+            <div>
+              <button
+                type="button"
+                className="action-button"
+                style={{
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '0.6rem 1.25rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => {
+                  setDeleteError(null);
+                  setIsDeleteAccountOpen(true);
+                }}
+              >
+                Delete Account &amp; Anonymize Personal Data
+              </button>
+            </div>
+          </div>
+        </section>
       </main>
+
+      {/* DELETE ACCOUNT CONFIRMATION MODAL */}
+      {isDeleteAccountOpen && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-account-modal-title">
+          <div className="modal-content profile-modal-content" style={{ maxWidth: '480px' }}>
+            <h2 id="delete-account-modal-title" className="modal-title" style={{ color: '#dc2626' }}>
+              Confirm Account Deletion
+            </h2>
+
+            {deleteError && (
+              <div className="auth-alert auth-alert--error" style={{ marginBottom: '1rem' }}>
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+              Are you sure you want to delete your personal data? This action will:
+            </p>
+
+            <ul style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', paddingLeft: '1.25rem', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+              <li>Permanently remove your private contact details (phone number)</li>
+              <li>Remove all skills from your profile</li>
+              <li>Anonymize your name, username, bio, and avatar</li>
+              <li>Immediately sign you out of SkillSwap</li>
+            </ul>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn modal-btn--cancel"
+                onClick={() => setIsDeleteAccountOpen(false)}
+                disabled={deleteSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="modal-btn"
+                style={{ backgroundColor: '#dc2626', color: '#ffffff', border: 'none' }}
+                onClick={handleDeleteAccountConfirm}
+                disabled={deleteSubmitting}
+              >
+                {deleteSubmitting ? 'Deleting...' : 'Yes, Delete My Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* EDIT PROFILE MODAL */}
       {isEditProfileOpen && (

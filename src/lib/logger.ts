@@ -2,7 +2,7 @@
  * Skillswap Production Logging Abstraction
  *
  * Provides centralized, structured, and sanitized logging across development and production environments.
- * Ensures sensitive user information (passwords, OTPs, tokens, service role keys, Auth headers)
+ * Ensures sensitive user information (passwords, OTPs, tokens, emails, phone numbers, full names, service role keys, Auth headers)
  * is never logged to stdout/stderr.
  */
 
@@ -18,11 +18,20 @@ class Logger {
     if (data === null || data === undefined) return data;
 
     if (typeof data === 'string') {
+      let cleanStr = data;
       // Redact potential authorization tokens or passwords in raw strings if present
-      if (/bearer\s+[a-zA-Z0-9._-]+/i.test(data)) {
-        return data.replace(/bearer\s+[a-zA-Z0-9._-]+/gi, 'Bearer [REDACTED]');
+      if (/bearer\s+[a-zA-Z0-9._-]+/i.test(cleanStr)) {
+        cleanStr = cleanStr.replace(/bearer\s+[a-zA-Z0-9._-]+/gi, 'Bearer [REDACTED]');
       }
-      return data;
+      // Redact email addresses
+      if (/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/i.test(cleanStr)) {
+        cleanStr = cleanStr.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/gi, '[REDACTED_EMAIL]');
+      }
+      // Redact phone numbers
+      if (/\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/.test(cleanStr)) {
+        cleanStr = cleanStr.replace(/\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '[REDACTED_PHONE]');
+      }
+      return cleanStr;
     }
 
     if (typeof data === 'object') {
@@ -37,11 +46,32 @@ class Logger {
         'token',
         'access_token',
         'refresh_token',
+        'recoverytoken',
+        'recovery_token',
+        'otphash',
+        'otp_hash',
+        'tokenhash',
+        'token_hash',
+        'newpassword',
+        'new_password',
+        'oldpassword',
+        'old_password',
         'service_role_key',
-        'serviceKey',
+        'servicekey',
         'authorization',
         'auth_header',
         'secret',
+        'email',
+        'phone',
+        'phone_number',
+        'phonenumber',
+        'full_name',
+        'fullname',
+        'address',
+        'dob',
+        'date_of_birth',
+        'credit_card',
+        'card_number',
       ]);
 
       for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
@@ -50,7 +80,7 @@ class Logger {
         } else if (typeof value === 'object' && value !== null) {
           sanitizedObj[key] = this.sanitize(value);
         } else {
-          sanitizedObj[key] = value;
+          sanitizedObj[key] = this.sanitize(value);
         }
       }
       return sanitizedObj;
