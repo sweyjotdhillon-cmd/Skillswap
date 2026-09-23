@@ -262,6 +262,14 @@ When deploying to production, update the hosted Supabase project's **Authenticat
 
 ---
 
+### ⚠️ IMPORTANT: Secret Safety & Key Rotation Warning
+> **Warning for Operators & Developers**:
+> If any API key, database URL, password, or service role key was previously hardcoded or committed to git history during earlier development phases, **that old value is still present in git history**.
+>
+> **You MUST rotate any previously hardcoded secrets immediately** in your Supabase dashboard, Cloudflare Worker secrets, email providers (Brevo, SendGrid), or third-party service dashboards before deploying this application to a public or production environment.
+
+---
+
 ## Local Development & Commands
 
 ### 1. Installation
