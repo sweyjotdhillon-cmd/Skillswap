@@ -765,3 +765,57 @@ export async function completeProfile(): Promise<{ success: boolean; profile_com
     return { success: false, error: formatFriendlyErrorMessage(err) };
   }
 }
+
+/**
+ * Deletes or anonymizes all personal data for the currently authenticated user.
+ * 1. Deletes private contact records (phone_number) from public.user_private_contacts.
+ * 2. Deletes user skills from public.user_skills and public.user_custom_skills.
+ * 3. Anonymizes user profile in public.profiles (resets full_name to 'Deleted User', bio to null, avatar_url to null, location to null, username to null, profile_completed to false).
+ * 4. Signs out the user from Supabase Auth.
+ */
+export async function deleteCurrentUserAccount(): Promise<{ success: boolean; error?: string }> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return { success: false, error: 'We couldn’t process account deletion right now. Please try again.' };
+
+  try {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) {
+      return { success: false, error: 'Your session has expired. Please sign in again.' };
+    }
+
+    const userId = authData.user.id;
+
+    // 1. Delete private contact
+    await supabase.from('user_private_contacts').delete().eq('user_id', userId);
+
+    // 2. Delete user skills
+    await supabase.from('user_skills').delete().eq('user_id', userId);
+    await supabase.from('user_custom_skills').delete().eq('user_id', userId);
+
+    // 3. Anonymize profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        full_name: 'Deleted User',
+        username: null,
+        bio: null,
+        avatar_url: null,
+        location: null,
+        profile_completed: false,
+      })
+      .eq('id', userId);
+
+    if (profileError) {
+      logger.error('Error anonymizing profile during account deletion:', profileError);
+      return { success: false, error: formatFriendlyErrorMessage(profileError) };
+    }
+
+    // 4. Sign out user
+    await supabase.auth.signOut();
+
+    return { success: true };
+  } catch (err: unknown) {
+    logger.error('Unexpected error during account deletion:', err);
+    return { success: false, error: formatFriendlyErrorMessage(err) };
+  }
+}
