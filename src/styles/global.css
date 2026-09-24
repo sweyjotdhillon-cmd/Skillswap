@@ -7214,11 +7214,34 @@ h1 span { color: #a8781d; }
 
 /* Fix Header Overlap on Mobile */
 @media (max-width: 860px) {
+  .site-header {
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+  .brand {
+    min-width: 0;
+    flex-shrink: 1;
+  }
+  .header-right-group {
+    flex-shrink: 0;
+    gap: 0.5rem;
+    align-items: center;
+  }
   .desktop-user-menu {
     display: none !important;
   }
   .mobile-hamburger {
     display: flex;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 440px) {
+  .mobile-credit-btn {
+    padding: 0.3rem 0.5rem;
+    gap: 0.35rem;
+    max-width: 130px;
   }
 }
 
