@@ -86,3 +86,33 @@ describe('C3 — Password Reset Edge Functions Security & Invariants Audit', () 
     }
   });
 });
+
+describe('Password Reset Security Requirements (Requirement 8)', () => {
+  const edgeFunctionsDir = path.join(process.cwd(), 'supabase', 'functions');
+
+  test('Req 8.1: verify-password-reset-otp passes supplied OTP hash and token parameters to verify_password_reset_otp_atomic', () => {
+    const verifyContent = fs.readFileSync(path.join(edgeFunctionsDir, 'verify-password-reset-otp', 'index.ts'), 'utf-8');
+    assert.strictEqual(verifyContent.includes('verify_password_reset_otp_atomic'), true);
+    assert.strictEqual(verifyContent.includes('p_supplied_otp_hash'), true);
+    assert.strictEqual(verifyContent.includes('p_recovery_token_hash'), true);
+    assert.strictEqual(verifyContent.includes('p_token_expires_at'), true);
+  });
+
+  test('Req 8.2: complete-password-reset claims token via claim_password_reset_recovery_token before updateUserById', () => {
+    const completeContent = fs.readFileSync(path.join(edgeFunctionsDir, 'complete-password-reset', 'index.ts'), 'utf-8');
+    assert.strictEqual(completeContent.includes('claim_password_reset_recovery_token'), true);
+
+    const claimIdx = completeContent.indexOf('claim_password_reset_recovery_token');
+    const updatePasswordIdx = completeContent.indexOf('updateUserById');
+
+    assert.notStrictEqual(claimIdx, -1, 'claim_password_reset_recovery_token must exist');
+    assert.notStrictEqual(updatePasswordIdx, -1, 'updateUserById must exist');
+    assert.strictEqual(claimIdx < updatePasswordIdx, true, 'Token claim must occur before password update');
+  });
+
+  test('Req 8.3: request-password-reset uses request_password_reset_challenge_atomic and preserves anti-enumeration response', () => {
+    const requestContent = fs.readFileSync(path.join(edgeFunctionsDir, 'request-password-reset', 'index.ts'), 'utf-8');
+    assert.strictEqual(requestContent.includes('request_password_reset_challenge_atomic'), true);
+    assert.strictEqual(requestContent.includes('A 6-digit verification code has been sent to your email address if an account exists.'), true);
+  });
+});
