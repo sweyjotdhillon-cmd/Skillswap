@@ -166,6 +166,10 @@ These rules apply to all code generated in this project. They are non-negotiable
 - The .env file MUST be in .gitignore before the first commit. Verify this before creating any .env file
 - Use .env.example with placeholder values only, never real credentials
 
+## Database Agent Instructions (`docs/agents/AGENTS-db.md`)
+
+- For **ALL** database-related work (including Supabase, PostgreSQL, database migrations, Row Level Security (RLS), RPCs, stored procedures, triggers, storage policies, Edge Functions, or database data integrity), agents **MUST** consult and strictly adhere to `docs/agents/AGENTS-db.md`.
+
 ## Database
 
 - Enable Row Level Security on EVERY Supabase table before deployment. Default policy: deny all. Write explicit policies scoped to auth.uid()
