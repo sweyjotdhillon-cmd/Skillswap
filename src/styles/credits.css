@@ -580,7 +580,8 @@
   background: rgba(17, 22, 28, 0.05);
   padding: 0.2rem 0.5rem;
   border-radius: 6px;
-  word-break: break-word;
+  word-break: break-all;
+  overflow-wrap: anywhere;
   color: var(--text-color, #11161c);
 }
 

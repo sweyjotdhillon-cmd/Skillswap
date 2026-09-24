@@ -355,14 +355,14 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
       <div className="flex items-center gap-2 w-full pt-0.5">
         <button
           type="button"
-          className="flex-1 min-h-[44px] px-4 py-2.5 text-sm font-bold text-[#11161c] bg-[var(--color-transactional,#d6a64a)] hover:bg-[var(--color-transactional-hover,#e4af48)] active:scale-98 rounded-lg shadow-sm hover:shadow-md transition-all duration-150 flex items-center justify-center text-center"
+          className="flex-1 min-h-[44px] px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold text-[#11161c] bg-[var(--color-transactional,#d6a64a)] hover:bg-[var(--color-transactional-hover,#e4af48)] active:scale-98 rounded-lg shadow-sm hover:shadow-md transition-all duration-150 flex items-center justify-center text-center"
           onClick={() => onAccept(swap)}
         >
           Accept Swap
         </button>
         <button
           type="button"
-          className="min-h-[44px] px-4 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-muted)] border border-[var(--color-border)] active:scale-98 rounded-lg transition-all duration-150 flex items-center justify-center text-center"
+          className="min-h-[44px] px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold text-[var(--color-text-primary)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-muted)] border border-[var(--color-border)] active:scale-98 rounded-lg transition-all duration-150 flex items-center justify-center text-center"
           onClick={() => onChat(swap)}
           aria-label={`Chat with ${requesterName} about ${swap.topic}`}
         >

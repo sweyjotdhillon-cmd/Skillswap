@@ -41,6 +41,29 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const [isManageSkillsOpen, setIsManageSkillsOpen] = useState(false);
   const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
 
+  const isAnyProfileModalOpen = isEditProfileOpen || isManageSkillsOpen || isDeleteAccountOpen;
+
+  useEffect(() => {
+    if (!isAnyProfileModalOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsEditProfileOpen(false);
+        setIsManageSkillsOpen(false);
+        setIsDeleteAccountOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isAnyProfileModalOpen]);
+
   // Edit profile form state
   const [editFullName, setEditFullName] = useState('');
   const [editBio, setEditBio] = useState('');

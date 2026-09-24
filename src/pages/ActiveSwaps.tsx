@@ -126,6 +126,44 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
   // Chat Modal state
   const [activeChatSwap, setActiveChatSwap] = useState<CategorizedSwapItem | null>(null);
 
+  const isAnyActiveSwapsModalOpen = Boolean(
+    isSubmitWorkModalOpen ||
+      selectedProfileModal ||
+      selectedGivenDetailsModal ||
+      selectedSwapForReview ||
+      activeChatSwap
+  );
+
+  useEffect(() => {
+    if (!isAnyActiveSwapsModalOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isSubmitWorkModalOpen) setIsSubmitWorkModalOpen(false);
+        if (selectedProfileModal) setSelectedProfileModal(null);
+        if (selectedGivenDetailsModal) setSelectedGivenDetailsModal(null);
+        if (selectedSwapForReview) setSelectedSwapForReview(null);
+        if (activeChatSwap) setActiveChatSwap(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [
+    isAnyActiveSwapsModalOpen,
+    isSubmitWorkModalOpen,
+    selectedProfileModal,
+    selectedGivenDetailsModal,
+    selectedSwapForReview,
+    activeChatSwap,
+  ]);
+
   const isMountedRef = useRef(true);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);

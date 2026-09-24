@@ -62,6 +62,25 @@ export function OnboardingPage({ onNavigate, redirectTo: propsRedirectTo }: Onbo
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedSkills, setSelectedSkills] = useState<SelectedSkill[]>([]);
   const [customSkillModalOpen, setCustomSkillModalOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!customSkillModalOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setCustomSkillModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [customSkillModalOpen]);
   const [customSkillInput, setCustomSkillInput] = useState<string>('');
   const [customSkillError, setCustomSkillError] = useState<string>('');
   const [step3Error, setStep3Error] = useState<string>('');

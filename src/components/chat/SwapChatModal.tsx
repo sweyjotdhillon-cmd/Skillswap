@@ -169,8 +169,11 @@ export function SwapChatModal({
     };
   }, [swap.id, swap.status]);
 
-  // Modal Escape key listener
+  // Modal Escape key listener & Body scroll lock
   useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
@@ -178,6 +181,7 @@ export function SwapChatModal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
+      document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [onClose]);
