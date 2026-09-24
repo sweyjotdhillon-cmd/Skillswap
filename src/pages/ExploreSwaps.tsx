@@ -15,6 +15,7 @@ import { SwapChatModal } from '../components/chat/SwapChatModal';
 import { MarketplaceCard } from '../components/credits/MarketplaceCard';
 import { Footer } from '../components/navigation/Footer';
 import { VerificationBadge } from '../components/ui/VerificationBadge';
+import { ProfileAvatar } from '../components/ui/ProfileAvatar';
 import { ScaffoldingCard } from '../components/ui/ScaffoldingCard';
 
 const SEEDED_19_CATEGORIES: readonly string[] = [
@@ -279,17 +280,6 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
 
   const getRequesterAvatar = (swap: Swap) => {
     return swap.requesterProfile?.avatarUrl || undefined;
-  };
-
-  const getRequesterInitials = (swap: Swap) => {
-    const name = swap.requesterProfile?.fullName || swap.requesterProfile?.username || 'SS';
-    return name
-      .split(' ')
-      .filter(Boolean)
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2) || 'SS';
   };
 
   return (
@@ -591,18 +581,12 @@ export function ExploreSwapsPage({ onNavigate }: ExploreSwapsPageProps) {
                 <span className="modal-label">Requester &amp; Social Proof</span>
               </div>
               <div className="modal-counterpart-card" style={{ background: 'var(--card-bg, rgba(255, 255, 255, 0.03))', border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))', padding: '0.75rem 0.9rem', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                {getRequesterAvatar(selectedSwapForAccept) ? (
-                  <img
-                    src={getRequesterAvatar(selectedSwapForAccept)!}
-                    alt={`Profile photo of ${getRequesterName(selectedSwapForAccept)}`}
-                    className="swap-avatar swap-avatar-ring"
-                    style={{ width: '44px', height: '44px' }}
-                  />
-                ) : (
-                  <div className="swap-avatar-fallback swap-avatar-ring" style={{ width: '44px', height: '44px', fontSize: '0.9rem' }}>
-                    {getRequesterInitials(selectedSwapForAccept)}
-                  </div>
-                )}
+                <ProfileAvatar
+                  src={getRequesterAvatar(selectedSwapForAccept)}
+                  displayName={getRequesterName(selectedSwapForAccept)}
+                  size={44}
+                  showRing
+                />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
                     <strong style={{ fontSize: '0.925rem' }}>{getRequesterName(selectedSwapForAccept)}</strong>

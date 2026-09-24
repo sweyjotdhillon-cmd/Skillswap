@@ -4496,6 +4496,13 @@ h1 span { color: #a8781d; }
   min-width: 0;
 }
 
+.profile-hero-identity-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .profile-full-name {
   margin: 0;
   font-family: 'Playfair Display', Georgia, serif;
@@ -4503,6 +4510,21 @@ h1 span { color: #a8781d; }
   font-weight: 700;
   line-height: 1.1;
   color: var(--text-color, #11161c);
+}
+
+.profile-hero-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.profile-hero-meta-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .profile-username-row {
@@ -4518,7 +4540,6 @@ h1 span { color: #a8781d; }
   color: #a8781d;
 }
 
-
 .profile-permanent-badge {
   display: inline-flex;
   align-items: center;
@@ -4533,6 +4554,14 @@ h1 span { color: #a8781d; }
   user-select: none;
 }
 
+.profile-member-since {
+  font-size: 0.8rem;
+  color: var(--text-muted, rgba(17, 22, 28, 0.65));
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
 
 .permanent-lock-icon {
   width: 13px;
@@ -4541,11 +4570,13 @@ h1 span { color: #a8781d; }
 }
 
 .profile-hero-bio {
-  margin: 0.25rem 0 0.5rem;
-  font-size: 1.05rem;
+  margin: 0.35rem 0 0.5rem;
+  font-size: 1.025rem;
   line-height: 1.55;
   color: var(--text-muted, rgba(17, 22, 28, 0.75));
   max-width: 680px;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .profile-hero-actions {
@@ -4770,6 +4801,19 @@ h1 span { color: #a8781d; }
     gap: 1.25rem;
   }
 
+  .profile-hero-identity {
+    width: 100%;
+    align-items: center;
+  }
+
+  .profile-hero-identity-header {
+    justify-content: center;
+  }
+
+  .profile-hero-meta {
+    justify-content: center;
+  }
+
   .profile-username-row {
     justify-content: center;
   }
@@ -4796,11 +4840,13 @@ h1 span { color: #a8781d; }
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 360px) {
   .as-stats-row {
     grid-template-columns: 1fr;
   }
+}
 
+@media (max-width: 480px) {
   .as-detail-card {
     padding: 1.25rem;
   }

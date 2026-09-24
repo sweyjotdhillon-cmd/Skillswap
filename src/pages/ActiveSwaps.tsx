@@ -30,6 +30,7 @@ import { PendingTransactionVault } from '../components/transaction/PendingTransa
 import { useScaffolding } from '../hooks/useScaffolding';
 import { VerificationBadge } from '../components/ui/VerificationBadge';
 import { FileExpiryIndicator } from '../components/ui/FileExpiryIndicator';
+import { ProfileAvatar } from '../components/ui/ProfileAvatar';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80';
 
@@ -1130,7 +1131,12 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                         {/* 1. Partner Header */}
                         <div className="as-card-header-row">
                           <div className="as-card-user">
-                            <img src={item.partner.avatar} alt={item.partner.name} className="as-card-avatar" />
+                            <ProfileAvatar
+                              src={item.partner.avatar !== DEFAULT_AVATAR ? item.partner.avatar : null}
+                              displayName={item.partner.name}
+                              size={44}
+                              className="as-card-avatar"
+                            />
                             <div className="as-card-user-meta">
                               <span className="as-card-user-name">{item.partner.name}</span>
                               <span className="as-card-role-context">{item.roleContext}</span>
@@ -1282,10 +1288,12 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
                 <div className="as-detail-participant-header">
                   <div className="as-detail-user-group">
                     {mainSection !== 'listings' && (
-                      <img
-                        src={currentSelectedItem.partner.avatar}
-                        alt={`Profile photo of ${currentSelectedItem.partner.name}`}
-                        className="as-detail-avatar swap-avatar-ring"
+                      <ProfileAvatar
+                        src={currentSelectedItem.partner.avatar !== DEFAULT_AVATAR ? currentSelectedItem.partner.avatar : null}
+                        displayName={currentSelectedItem.partner.name}
+                        size={56}
+                        className="as-detail-avatar"
+                        showRing
                       />
                     )}
                     <div className="as-detail-user-info">
@@ -1787,7 +1795,13 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
         <div className="modal-overlay" onClick={() => setSelectedProfileModal(null)}>
           <div className="modal-content as-profile-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="as-profile-modal-header">
-              <img src={selectedProfileModal.avatar} alt={`Profile photo of ${selectedProfileModal.name}`} className="as-modal-avatar swap-avatar-ring" />
+              <ProfileAvatar
+                src={selectedProfileModal.avatar !== DEFAULT_AVATAR ? selectedProfileModal.avatar : null}
+                displayName={selectedProfileModal.name}
+                size={64}
+                className="as-modal-avatar"
+                showRing
+              />
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                   <h3 className="as-modal-title" style={{ margin: 0 }}>{selectedProfileModal.name}</h3>

@@ -23,6 +23,7 @@ import { getFileExpiryStatus } from '../../lib/fileExpiry';
 import { TransactionProgress } from '../transaction/TransactionProgress';
 import { PendingTransactionVault } from '../transaction/PendingTransactionVault';
 import { VerificationBadge } from '../ui/VerificationBadge';
+import { ProfileAvatar } from '../ui/ProfileAvatar';
 import { FileExpiryIndicator } from '../ui/FileExpiryIndicator';
 import {
   EmbeddedTransactionCard,
@@ -521,7 +522,13 @@ export function SwapChatModal({
         {/* WORKSPACE HEADER */}
         <div className="chat-modal-header">
           <div className="chat-user-header-info">
-            <img src={displayAvatar} alt={`Profile photo of ${displayName}`} className="chat-avatar swap-avatar-ring" />
+            <ProfileAvatar
+              src={displayAvatar !== DEFAULT_AVATAR ? displayAvatar : null}
+              displayName={displayName}
+              size={40}
+              className="chat-avatar"
+              showRing
+            />
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                 <h3 className="chat-title" style={{ margin: 0 }}>
@@ -841,7 +848,13 @@ export function SwapChatModal({
             {/* 1. PARTNER IDENTITY & ROLE CONTEXT CARD */}
             <section className="ws-section ws-partner-card" aria-label="Participant Identity Context">
               <div className="ws-partner-card-header">
-                <img src={displayAvatar} alt={`Profile photo of ${displayName}`} className="chat-avatar swap-avatar-ring" />
+                <ProfileAvatar
+                  src={displayAvatar !== DEFAULT_AVATAR ? displayAvatar : null}
+                  displayName={displayName}
+                  size={40}
+                  className="chat-avatar"
+                  showRing
+                />
                 <div className="ws-partner-card-info">
                   <div className="ws-partner-name-row">
                     <h4 className="ws-partner-name">{displayName}</h4>
