@@ -433,7 +433,7 @@ button:disabled,
   border-radius: 18px;
   padding: 1.25rem;
   box-shadow: 0 16px 36px rgba(17, 22, 28, 0.18);
-  z-index: 1100;
+  z-index: 1050;
   max-height: calc(100vh - 90px);
   overflow-y: auto;
 }
@@ -2060,6 +2060,7 @@ h1 span { color: #a8781d; }
   align-items: center;
   gap: 0.5rem;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: 0.35rem;
   scrollbar-width: thin;
 }
@@ -2405,7 +2406,7 @@ h1 span { color: #a8781d; }
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 2000;
   padding: clamp(0.75rem, 2vw, 1.5rem);
   overflow-y: auto;
   box-sizing: border-box;
