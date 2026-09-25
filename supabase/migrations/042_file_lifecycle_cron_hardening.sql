@@ -6,8 +6,8 @@
 -- ============================================================================
 -- Ensures exactly ONE canonical cron job exists for physical file lifecycle cleanup.
 -- Invokes the file-lifecycle-worker Edge Function via pg_net every 10 minutes when pg_cron is enabled.
--- Note: In hosted Supabase environments, set app.settings.edge_function_base_url and app.settings.service_role_key
--- via ALTER DATABASE postgres SET app.settings.service_role_key = 'your_key';
+-- Note: In hosted Supabase environments, configure app.settings.edge_function_base_url and app.settings.service_role_key
+-- via secure environment variables or vault configuration without hardcoding secret values in SQL scripts.
 DO $$
 DECLARE
   v_has_cron boolean;
