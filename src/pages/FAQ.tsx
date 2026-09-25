@@ -118,12 +118,13 @@ const FAQ_ITEMS: FAQItem[] = [
 
 export const FAQPage: React.FC<FAQPageProps> = ({ onNavigate }) => {
   const [activeCategory, setActiveCategory] = useState<'all' | 'trust' | 'use-cases'>('all');
-  const [openItemIds, setOpenItemIds] = useState<Set<number>>(new Set([1, 2]));
+  const [openItemIds, setOpenItemIds] = useState<Set<number>>(new Set([1]));
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     document.title = 'Frequently Asked Questions — SkillSwap';
 
-    // Inject FAQPage Schema.org Structured Data matching public/faq.html
+    // Inject FAQPage Schema.org Structured Data
     const scriptId = 'faq-schema-structured-data';
     let script = document.getElementById(scriptId) as HTMLScriptElement | null;
     if (!script) {
@@ -149,9 +150,9 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onNavigate }) => {
     script.textContent = JSON.stringify(faqSchemaData);
 
     return () => {
-      const el = document.getElementById(scriptId);
-      if (el) {
-        el.remove();
+      const existingScript = document.getElementById(scriptId);
+      if (existingScript) {
+        existingScript.remove();
       }
     };
   }, []);
@@ -173,18 +174,6 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onNavigate }) => {
     return item.category === activeCategory;
   });
 
-  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
-    if (!href) return;
-    if (href.startsWith('/')) {
-      e.preventDefault();
-      if (onNavigate) {
-        onNavigate(href);
-      } else {
-        window.location.href = href;
-      }
-    }
-  };
-
   const navigateTo = (path: string) => {
     if (onNavigate) {
       onNavigate(path);
@@ -193,24 +182,29 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onNavigate }) => {
     }
   };
 
+  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    navigateTo(href);
+  };
+
   return (
-    <div className="page-shell" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <div className="page-shell">
       <Navbar onNavigate={onNavigate} />
 
-      <main className="faq-main" style={{ flex: 1, width: '100%', maxWidth: '900px', margin: '0 auto', padding: '2.5rem 1rem 3.5rem' }}>
-        {/* FAQ Hero Header */}
-        <section className="faq-hero-section" style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-          <span className="section-eyebrow">Everything You Need To Know</span>
-          <h1 className="section-title" style={{ fontSize: 'clamp(2.2rem, 4.5vw, 3.4rem)', lineHeight: 1.15, marginBottom: '0.85rem' }}>
+      <main className="faq-main">
+        {/* Hero Section */}
+        <section className="faq-hero-section">
+          <span className="section-eyebrow">Got Questions?</span>
+          <h1 className="section-title">
             Frequently Asked Questions
           </h1>
-          <p className="section-description" style={{ maxWidth: '640px', margin: '0 auto', fontSize: 'clamp(1rem, 1.2vw, 1.15rem)', lineHeight: 1.6 }}>
-            Everything you need to know about trading skills, earning SkillCredits, platform safety, and getting help on SkillSwap.
+          <p className="section-description">
+            Everything you need to know about SkillSwap, SkillCredits, skill exchanges, and trading talents without cash.
           </p>
         </section>
 
-        {/* Category Tabs */}
-        <div className="faq-category-bar" role="tablist" aria-label="FAQ categories" style={{ marginBottom: '2rem' }}>
+        {/* Category Filter Pills */}
+        <div className="faq-category-bar" role="tablist" aria-label="FAQ categories">
           <button
             type="button"
             role="tab"
@@ -241,7 +235,7 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* FAQ Accordions List */}
-        <section className="faq-grid" aria-label="Frequently Asked Questions list" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <section className="faq-grid" aria-label="Frequently Asked Questions list">
           {filteredItems.map((item, index) => {
             const isOpen = openItemIds.has(item.id);
             return (
@@ -254,15 +248,16 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onNavigate }) => {
                   aria-controls={`faq-page-ans-${item.id}`}
                   onClick={() => toggleItem(item.id)}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.85rem' }}>
-                    <span className="faq-badge" aria-hidden="true" style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'rgba(214, 166, 74, 0.15)', color: '#a8781d', fontSize: '0.875rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '3px' }}>
+                  <div className="faq-question-leading">
+                    <span className="faq-badge" aria-hidden="true">
                       {index + 1}
                     </span>
-                    <h2 style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: 'clamp(1.15rem, 2vw, 1.35rem)', fontWeight: 700, color: 'var(--text-color, #11161c)', lineHeight: 1.35, margin: 0 }}>
+                    <h2 className="faq-question-heading">
                       {item.question}
                     </h2>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+
+                  <div className="faq-question-controls">
                     <span className="faq-card-tag">{item.categoryLabel}</span>
                     <span className={`home-faq-icon ${isOpen ? 'home-faq-icon--open' : ''}`} aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -279,15 +274,15 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onNavigate }) => {
                     aria-labelledby={`faq-page-btn-${item.id}`}
                     className="faq-accordion-content"
                   >
-                    <p style={{ margin: 0, color: 'var(--text-muted, rgba(17, 22, 28, 0.7))', lineHeight: 1.65 }}>
+                    <p className="faq-answer-text">
                       {item.answer}
                     </p>
                     {item.linkHref && item.linkText && (
-                      <div style={{ marginTop: '0.85rem' }}>
+                      <div className="faq-answer-link-wrapper">
                         <a
                           href={item.linkHref}
-                          onClick={(e) => handleLinkClick(e, item.linkHref)}
-                          style={{ color: '#a8781d', fontWeight: 600, textDecoration: 'underline', fontSize: '0.925rem' }}
+                          onClick={(e) => handleLinkClick(e, item.linkHref!)}
+                          className="faq-answer-link"
                         >
                           {item.linkText} &rarr;
                         </a>
@@ -301,10 +296,10 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onNavigate }) => {
         </section>
 
         {/* Contact Support Section */}
-        <section className="faq-contact-section" aria-labelledby="faq-contact-heading" style={{ marginTop: '4.5rem', borderTop: '1px solid var(--shell-border, rgba(17, 22, 28, 0.08))', paddingTop: '3.5rem', textAlign: 'center' }}>
-          <div className="faq-contact-header" style={{ marginBottom: '2.25rem' }}>
+        <section className="faq-contact-section" aria-labelledby="faq-contact-heading">
+          <div className="faq-contact-header">
             <span className="section-eyebrow">Need More Help?</span>
-            <h2 id="faq-contact-heading" className="section-title" style={{ fontSize: 'clamp(1.8rem, 3.2vw, 2.6rem)' }}>
+            <h2 id="faq-contact-heading" className="section-title">
               Contact Support
             </h2>
             <p className="section-description">
@@ -365,15 +360,15 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onNavigate }) => {
         </section>
 
         {/* CTA Banner */}
-        <section className="faq-cta-banner" style={{ marginTop: '4.5rem', background: '#11161c', color: '#ffffff', borderRadius: '28px', padding: 'clamp(2.5rem, 5vw, 3.5rem) clamp(1.5rem, 4vw, 3rem)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 20px 50px rgba(17, 22, 28, 0.18)' }}>
+        <section className="faq-cta-banner">
           <span className="section-eyebrow" style={{ color: '#d6a64a' }}>Ready to Trade Skills?</span>
-          <h2 className="faq-cta-title" style={{ margin: '0.4rem 0 1rem', fontFamily: 'Playfair Display, Georgia, serif', fontSize: 'clamp(2rem, 3.8vw, 3.2rem)', color: '#ffffff', lineHeight: 1.1 }}>
+          <h2 className="faq-cta-title">
             Trade Skills Without Money
           </h2>
-          <p className="faq-cta-text" style={{ fontSize: 'clamp(1rem, 1.2vw, 1.15rem)', lineHeight: 1.6, color: 'rgba(255, 255, 255, 0.8)', maxWidth: '620px', margin: '0 0 2.25rem' }}>
+          <p className="faq-cta-text">
             Join SkillSwap today and start earning SkillCredits for your skills while getting the help you need.
           </p>
-          <div className="faq-cta-actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+          <div className="faq-cta-actions">
             <button
               type="button"
               className="action-button action-button--filled"

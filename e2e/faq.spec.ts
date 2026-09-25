@@ -68,7 +68,74 @@ test.describe('FAQ Route Architecture & Visual Consistency E2E', () => {
     assertNoUncaughtErrors(diagnostics);
   });
 
-  test('2. Verify static standalone faq.html does NOT exist in public or dist build output', async () => {
+  test('2. Mobile layout (390px) enforces 2-row structure and full question width', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/faq');
+
+    const firstCard = page.locator('article.faq-accordion-card').first();
+    await expect(firstCard).toBeVisible();
+
+    const button = firstCard.locator('button.faq-accordion-btn');
+    await expect(button).toBeVisible();
+
+    const badge = button.locator('.faq-badge');
+    const categoryTag = button.locator('.faq-card-tag');
+    const heading = button.locator('.faq-question-heading');
+
+    await expect(badge).toBeVisible();
+    await expect(categoryTag).toBeVisible();
+    await expect(heading).toBeVisible();
+
+    // Measure bounding boxes at 390px viewport width
+    const buttonBox = await button.boundingBox();
+    const headingBox = await heading.boundingBox();
+    const categoryBox = await categoryTag.boundingBox();
+
+    expect(buttonBox).not.toBeNull();
+    expect(headingBox).not.toBeNull();
+    expect(categoryBox).not.toBeNull();
+
+    if (buttonBox && headingBox && categoryBox) {
+      // Heading must occupy nearly full available card width (>= 80% of button width)
+      expect(headingBox.width).toBeGreaterThan(buttonBox.width * 0.8);
+
+      // On mobile 2-row layout, question heading is positioned below the top metadata row (category tag)
+      expect(headingBox.y).toBeGreaterThanOrEqual(categoryBox.y + categoryBox.height - 4);
+    }
+
+    // Verify no horizontal page overflow on small mobile screen
+    await checkViewportNoOverflow(page);
+  });
+
+  test('3. Desktop layout (1024px) maintains controlled 3-part layout', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.goto('/faq');
+
+    const firstCard = page.locator('article.faq-accordion-card').first();
+    await expect(firstCard).toBeVisible();
+
+    const button = firstCard.locator('button.faq-accordion-btn');
+    const badge = button.locator('.faq-badge');
+    const categoryTag = button.locator('.faq-card-tag');
+    const heading = button.locator('.faq-question-heading');
+
+    await expect(badge).toBeVisible();
+    await expect(categoryTag).toBeVisible();
+    await expect(heading).toBeVisible();
+
+    const headingBox = await heading.boundingBox();
+    const categoryBox = await categoryTag.boundingBox();
+
+    expect(headingBox).not.toBeNull();
+    expect(categoryBox).not.toBeNull();
+
+    if (headingBox && categoryBox) {
+      // On desktop, category tag is aligned to the right of the question heading
+      expect(categoryBox.x).toBeGreaterThan(headingBox.x);
+    }
+  });
+
+  test('4. Verify static standalone faq.html does NOT exist in public or dist build output', async () => {
     const publicFaqPath = path.join(process.cwd(), 'public', 'faq.html');
     expect(fs.existsSync(publicFaqPath)).toBe(false);
 
