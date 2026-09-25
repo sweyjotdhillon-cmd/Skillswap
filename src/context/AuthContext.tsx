@@ -55,39 +55,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profileLoading, setProfileLoading] = useState(true);
   const [accountLoading, setAccountLoading] = useState(true);
 
-  // Track the current user ID being processed to prevent race conditions
-  const currentFetchUserIdRef = useRef<string | null>(null);
+  // Monotonic generation counter to prevent stale asynchronous profile/account queries
+  // from overwriting state when user, session, or auth generation changes
+  const authGenerationRef = useRef<number>(0);
 
-  const fetchUserProfileAndAccount = useCallback(async (userId: string): Promise<{ profile: Profile | null; account: Account | null }> => {
-    currentFetchUserIdRef.current = userId;
+  const hydrateProfileAndAccount = useCallback(async (userId: string, generationId: number) => {
     setProfileLoading(true);
     setAccountLoading(true);
 
-    try {
-      const [userProfile, userAccount] = await Promise.all([
-        getProfile(userId),
-        getUserAccount(),
-      ]);
+    const [profileResult, accountResult] = await Promise.allSettled([
+      getProfile(userId),
+      getUserAccount(),
+    ]);
 
-      if (currentFetchUserIdRef.current === userId) {
-        setProfile(userProfile);
-        setAccount(userAccount);
-      }
-      return { profile: userProfile, account: userAccount };
-    } catch (err) {
-      console.error('Error fetching profile or account:', err);
-      if (currentFetchUserIdRef.current === userId) {
-        setProfile(null);
-        setAccount(null);
-      }
-      return { profile: null, account: null };
-    } finally {
-      if (currentFetchUserIdRef.current === userId) {
-        setProfileLoading(false);
-        setAccountLoading(false);
-      }
+    // Guard: ignore stale hydration if auth generation changed during async fetch
+    if (authGenerationRef.current !== generationId) {
+      return;
     }
+
+    if (profileResult.status === 'fulfilled') {
+      setProfile(profileResult.value);
+    } else {
+      console.error('Error fetching profile:', profileResult.reason);
+      setProfile(null);
+    }
+
+    if (accountResult.status === 'fulfilled') {
+      setAccount(accountResult.value);
+    } else {
+      console.error('Error fetching account:', accountResult.reason);
+      setAccount(null);
+    }
+
+    setProfileLoading(false);
+    setAccountLoading(false);
   }, []);
+
+  const handleAuthTransition = useCallback((event: AuthChangeEvent | 'REFRESH_SESSION', newSession: Session | null) => {
+    const newUser = newSession?.user ?? null;
+
+    if (event === 'SIGNED_OUT' || (!newSession && event !== 'INITIAL_SESSION')) {
+      authGenerationRef.current++;
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      setAccount(null);
+      setProfileLoading(false);
+      setAccountLoading(false);
+      setLoading(false);
+      return;
+    }
+
+    if (newUser) {
+      cleanSensitiveAuthParamsFromUrl();
+      const currentGen = ++authGenerationRef.current;
+      setSession(newSession);
+      setUser(newUser);
+      setLoading(false);
+
+      // Asynchronous hydration runs out-of-band without blocking auth event execution
+      hydrateProfileAndAccount(newUser.id, currentGen);
+    } else {
+      authGenerationRef.current++;
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      setAccount(null);
+      setProfileLoading(false);
+      setAccountLoading(false);
+      setLoading(false);
+    }
+  }, [hydrateProfileAndAccount]);
 
   const refreshProfile = useCallback(async (): Promise<Profile | null> => {
     if (!user) {
@@ -95,16 +133,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfileLoading(false);
       return null;
     }
+    const currentGen = authGenerationRef.current;
     setProfileLoading(true);
     try {
       const userProfile = await getProfile(user.id);
-      setProfile(userProfile);
+      if (authGenerationRef.current === currentGen) {
+        setProfile(userProfile);
+      }
       return userProfile;
     } catch (err) {
       console.error('Error refreshing profile:', err);
       return null;
     } finally {
-      setProfileLoading(false);
+      if (authGenerationRef.current === currentGen) {
+        setProfileLoading(false);
+      }
     }
   }, [user]);
 
@@ -114,16 +157,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAccountLoading(false);
       return null;
     }
+    const currentGen = authGenerationRef.current;
     setAccountLoading(true);
     try {
       const acc = await getUserAccount();
-      setAccount(acc);
+      if (authGenerationRef.current === currentGen) {
+        setAccount(acc);
+      }
       return acc;
     } catch (err) {
       console.error('Error refreshing account:', err);
       return null;
     } finally {
-      setAccountLoading(false);
+      if (authGenerationRef.current === currentGen) {
+        setAccountLoading(false);
+      }
     }
   }, [user]);
 
@@ -136,74 +184,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!supabase) {
       setLoading(false);
       setProfileLoading(false);
+      setAccountLoading(false);
       return;
     }
 
     let mounted = true;
 
-    // Fetch initial session
-    supabase.auth
-      .getSession()
-      .then(async ({ data }: { data: { session: Session | null } }) => {
-        if (!mounted) return;
-        const initialSession = data.session;
-        setSession(initialSession);
-        const currentUser = initialSession?.user ?? null;
-        setUser(currentUser);
-
-        if (currentUser) {
-          cleanSensitiveAuthParamsFromUrl();
-          await fetchUserProfileAndAccount(currentUser.id);
-        } else {
-          currentFetchUserIdRef.current = null;
-          setProfile(null);
-          setAccount(null);
-          setProfileLoading(false);
-          setAccountLoading(false);
-        }
-        if (mounted) {
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        console.error('Error getting Supabase session:', err);
-        if (mounted) {
-          currentFetchUserIdRef.current = null;
-          setProfile(null);
-          setAccount(null);
-          setProfileLoading(false);
-          setAccountLoading(false);
-          setLoading(false);
-        }
-      });
-
-    // Subscribe to auth state changes
+    // Subscribe to auth state changes synchronously.
+    // In Supabase v2, onAuthStateChange immediately fires INITIAL_SESSION with current session if present.
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, currentSession: Session | null) => {
+    } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, currentSession: Session | null) => {
       if (!mounted) return;
+      handleAuthTransition(event, currentSession);
+    });
 
-      if (event === 'INITIAL_SESSION') {
-        // Handled by getSession above to prevent redundant fetch
-        return;
+    // Fallback reconciliation for initial session check if listener subscription hasn't fired
+    supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
+      if (!mounted) return;
+      // Only process getSession if auth generation is still 0 (initial state before any auth event)
+      if (authGenerationRef.current === 0) {
+        handleAuthTransition('INITIAL_SESSION', data.session);
       }
-
-      setSession(currentSession);
-      const currentUser = currentSession?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        cleanSensitiveAuthParamsFromUrl();
-        await fetchUserProfileAndAccount(currentUser.id);
-      } else {
-        currentFetchUserIdRef.current = null;
-        setProfile(null);
-        setAccount(null);
-        setProfileLoading(false);
-        setAccountLoading(false);
-      }
-      if (mounted) {
-        setLoading(false);
+    }).catch((err) => {
+      console.error('Error getting Supabase session:', err);
+      if (mounted && authGenerationRef.current === 0) {
+        handleAuthTransition('INITIAL_SESSION', null);
       }
     });
 
@@ -211,31 +217,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchUserProfileAndAccount]);
+  }, [handleAuthTransition]);
 
-  const refreshSession = async () => {
+  const refreshSession = useCallback(async (): Promise<Session | null> => {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return null;
 
     try {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (!userError && userData.user) {
-        setUser(userData.user);
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('Error getting session on refreshSession:', sessionError);
+        return null;
       }
-
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData.session) {
-        setSession(sessionData.session);
-        setUser(sessionData.session.user);
+      const currentSession = sessionData.session;
+      if (currentSession) {
+        handleAuthTransition('REFRESH_SESSION', currentSession);
       }
-      return sessionData.session;
+      return currentSession;
     } catch (err) {
       console.error('Error refreshing session:', err);
       return null;
     }
-  };
+  }, [handleAuthTransition]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     if (user) {
       try {
         localStorage.removeItem(`skillswap_create_swap_draft_${user.id}`);
@@ -244,13 +249,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    currentFetchUserIdRef.current = null;
+    authGenerationRef.current++;
     setUser(null);
     setSession(null);
     setProfile(null);
     setAccount(null);
     setProfileLoading(false);
     setAccountLoading(false);
+    setLoading(false);
 
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
@@ -259,7 +265,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err) {
       console.error('Error signing out:', err);
     }
-  };
+  }, [user]);
 
   const isGoogleUser = Boolean(
     user &&
