@@ -1,129 +1,163 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/navigation/Navbar';
 import { Footer } from '../components/navigation/Footer';
 
-type FAQPageProps = {
+interface FAQPageProps {
   onNavigate?: (path: string) => void;
-};
+}
 
-type FAQCategory = 'all' | 'trust' | 'use-cases';
-
-type FAQItem = {
-  id: string;
-  category: 'trust' | 'use-cases';
-  categoryLabel: string;
+interface FAQItem {
+  id: number;
   question: string;
   answer: string;
+  category: 'trust' | 'use-cases';
+  categoryLabel: string;
   linkText?: string;
   linkHref?: string;
-};
+}
 
 const FAQ_ITEMS: FAQItem[] = [
-  // CATEGORY A — How It Works & Trust
+  // Category A: How It Works & Trust
   {
-    id: 'free-model',
+    id: 1,
     category: 'trust',
-    categoryLabel: 'How It Works & Trust',
+    categoryLabel: 'Category A',
     question: 'How is SkillSwap free? Is there a catch or hidden fee?',
-    answer: 'SkillSwap is 100% free with zero transaction fees. Members exchange skills directly using SkillCredits—our internal currency—rather than cash. When you complete your profile setup, you receive an initial welcome allocation of 100 SkillCredits to begin proposing and accepting swaps right away.',
-    linkText: 'Join SkillSwap Free',
-    linkHref: '/signup',
+    answer:
+      'SkillSwap is 100% free with zero transaction fees. Members exchange skills directly using SkillCredits—our internal currency—rather than cash. When you complete your profile setup, you receive an initial welcome allocation of 100 SkillCredits to begin proposing and accepting swaps right away.',
   },
   {
-    id: 'how-credits-work',
+    id: 2,
     category: 'trust',
-    categoryLabel: 'How It Works & Trust',
+    categoryLabel: 'Category A',
     question: 'How do SkillCredits work?',
-    answer: 'SkillCredits are SkillSwap\'s internal unit of account. When you create a swap, the required SkillCredits are reserved from your balance and held safely during the swap lifecycle. Upon completing the swap, reserved credits transfer to the fulfiller. If a qualifying swap is cancelled before fulfillment, your reserved SkillCredits are released back to your balance.',
-    linkText: 'Explore Marketplace',
-    linkHref: '/explore',
+    answer:
+      "SkillCredits are SkillSwap's internal unit of account. When you create a swap, the required SkillCredits are reserved from your balance and held safely during the swap lifecycle. Upon completing the swap, reserved credits transfer to the fulfiller. If a qualifying swap is cancelled before fulfillment, your reserved SkillCredits are released back to your balance.",
   },
   {
-    id: 'delivery-and-quality',
+    id: 3,
     category: 'trust',
-    categoryLabel: 'How It Works & Trust',
-    question: 'What happens if someone doesn\'t deliver or does a poor job?',
-    answer: 'SkillCredits are reserved for the swap and are only transferred when the swap is marked complete. If work is not submitted, reserved credits are released back to the requester according to platform lifecycle rules and automated timeouts. While SkillSwap holds credits in reserve during active swaps, the platform does not currently provide a dispute resolution mechanism for subjective quality disagreements, so we encourage setting clear requirements before accepting an exchange.',
+    categoryLabel: 'Category A',
+    question: "What happens if someone doesn't deliver or does a poor job?",
+    answer:
+      'SkillCredits are reserved for the swap and are only transferred when the swap is marked complete. If work is not submitted, reserved credits are released back to the requester according to platform lifecycle rules and automated timeouts. While SkillSwap holds credits in reserve during active swaps, the platform does not currently provide a dispute resolution mechanism for subjective quality disagreements, so we encourage setting clear requirements before accepting an exchange.',
   },
   {
-    id: 'cross-skill-trading',
+    id: 4,
     category: 'trust',
-    categoryLabel: 'How It Works & Trust',
+    categoryLabel: 'Category A',
     question: 'Can I trade different types of skills (e.g., writing for logo design)?',
-    answer: 'Yes! SkillCredits remove the need for direct 1:1 barter. You can earn SkillCredits by offering your expertise—like technical writing or coding—to one member, and then spend those earned credits to get logo design, video editing, or marketing strategy from anyone else in the community.',
-    linkText: 'Create a Swap',
+    answer:
+      'Yes! SkillCredits remove the need for direct 1:1 barter. You can earn SkillCredits by offering your expertise—like technical writing or coding—to one member, and then spend those earned credits to get logo design, video editing, or marketing strategy from anyone else in the community.',
+    linkText: 'Create a swap offer',
     linkHref: '/create-swap',
   },
   {
-    id: 'getting-started',
+    id: 5,
     category: 'trust',
-    categoryLabel: 'How It Works & Trust',
+    categoryLabel: 'Category A',
     question: 'How do I get started and earn my first credits?',
-    answer: 'Signing up is fast and free. Complete your profile setup to receive your initial 100 SkillCredits. From there, you can spend credits to request a swap on the marketplace or list your own skills to fulfill swaps and earn additional credits.',
-    linkText: 'Sign Up Free',
+    answer:
+      'Signing up is fast and free. Complete your profile setup to receive your initial 100 SkillCredits. From there, you can spend credits to request a swap on the marketplace or list your own skills to fulfill swaps and earn additional credits.',
+    linkText: 'Create your free account',
     linkHref: '/signup',
   },
 
-  // CATEGORY B — Popular Skill Swaps / Use Cases
+  // Category B: Popular Skill Swaps / Use Cases
   {
-    id: 'find-designer',
+    id: 6,
     category: 'use-cases',
-    categoryLabel: 'Popular Skill Swaps',
+    categoryLabel: 'Category B',
     question: 'Where can I find someone to design something if I offer my skills in return?',
-    answer: 'SkillSwap is a peer-to-peer platform where you can find designers for UI/UX, graphic design, logos, and branding by offering your own skills in return. Using SkillCredits, you can trade coding, writing, video editing, translation, or tech help for professional design work without using money.',
-    linkText: 'Explore Open Design Swaps',
+    answer:
+      'SkillSwap is a peer-to-peer platform where you can find designers for UI/UX, graphic design, logos, and branding by offering your own skills in return. Using SkillCredits, you can trade coding, writing, video editing, translation, or tech help for professional design work without using money.',
+    linkText: 'Explore open design swaps',
     linkHref: '/explore',
   },
   {
-    id: 'skill-swap-community',
+    id: 7,
     category: 'use-cases',
-    categoryLabel: 'Popular Skill Swaps',
+    categoryLabel: 'Category B',
     question: 'Where can I find a skill-swap community?',
-    answer: 'SkillSwap provides a dedicated online skill-swap community where creators, freelancers, and learners exchange talents. On SkillSwap, you can browse open skill swaps across categories like design, development, writing, and video editing, connect with collaborators, and earn or spend SkillCredits in a fair, secure ecosystem.',
-    linkText: 'Join the Community',
+    answer:
+      'SkillSwap provides a dedicated online skill-swap community where creators, freelancers, and learners exchange talents. On SkillSwap, you can browse open skill swaps across categories like design, development, writing, and video editing, connect with collaborators, and earn or spend SkillCredits in a fair, secure ecosystem.',
+    linkText: 'Sign up for free',
     linkHref: '/signup',
   },
   {
-    id: 'writing-for-design',
+    id: 8,
     category: 'use-cases',
-    categoryLabel: 'Popular Skill Swaps',
+    categoryLabel: 'Category B',
     question: 'Can I trade writing skills for logo/design help?',
-    answer: 'Yes! On SkillSwap, you can directly trade writing skills—such as copywriting, technical writing, or content creation—for logo design and graphic assets. You can post a custom swap offer describing what you need and what you offer, or request an existing design swap using your SkillCredits.',
-    linkText: 'Browse Marketplace',
+    answer:
+      'Yes! On SkillSwap, you can directly trade writing skills—such as copywriting, technical writing, or content creation—for logo design and graphic assets. You can post a custom swap offer describing what you need and what you offer, or request an existing design swap using your SkillCredits.',
+    linkText: 'Explore Swaps marketplace',
     linkHref: '/explore',
   },
   {
-    id: 'trade-skills',
+    id: 9,
     category: 'use-cases',
-    categoryLabel: 'Popular Skill Swaps',
-    question: 'Where can I trade my skills for someone else\'s skills?',
-    answer: 'You can trade your skills for someone else\'s skills on SkillSwap. The platform features an open marketplace where members offer and request services in design, web development, content writing, video production, language learning, and technical support using SkillCredits.',
-    linkText: 'List Your Offer',
+    categoryLabel: 'Category B',
+    question: "Where can I trade my skills for someone else's skills?",
+    answer:
+      "You can trade your skills for someone else's skills on SkillSwap. The platform features an open marketplace where members offer and request services in design, web development, content writing, video production, language learning, and technical support using SkillCredits.",
+    linkText: 'List the skill you offer',
     linkHref: '/create-swap',
   },
   {
-    id: 'free-tech-help',
+    id: 10,
     category: 'use-cases',
-    categoryLabel: 'Popular Skill Swaps',
+    categoryLabel: 'Category B',
     question: 'Where can I get free tech help by offering my own skills in return?',
-    answer: 'SkillSwap allows you to get free technical support, software troubleshooting, website debugging, or coding assistance by offering your own skills in return. You earn SkillCredits by helping others with your talents and spend those credits to receive tech help from experienced community members.',
-    linkText: 'Browse Tech Swaps',
+    answer:
+      'SkillSwap allows you to get free technical support, software troubleshooting, website debugging, or coding assistance by offering your own skills in return. You earn SkillCredits by helping others with your talents and spend those credits to receive tech help from experienced community members.',
+    linkText: 'Browse tech help swaps',
     linkHref: '/explore',
   },
 ];
 
-export function FAQPage({ onNavigate }: FAQPageProps) {
-  const [activeCategory, setActiveCategory] = useState<FAQCategory>('all');
-  const [openItemIds, setOpenFaqIds] = useState<Set<string>>(new Set(['free-model', 'find-designer']));
+export const FAQPage: React.FC<FAQPageProps> = ({ onNavigate }) => {
+  const [activeCategory, setActiveCategory] = useState<'all' | 'trust' | 'use-cases'>('all');
+  const [openItemIds, setOpenItemIds] = useState<Set<number>>(new Set([1, 2]));
 
-  const filteredItems = FAQ_ITEMS.filter((item) => {
-    if (activeCategory === 'trust') return item.category === 'trust';
-    if (activeCategory === 'use-cases') return item.category === 'use-cases';
-    return true;
-  });
+  useEffect(() => {
+    document.title = 'Frequently Asked Questions — SkillSwap';
 
-  const toggleItem = (id: string) => {
-    setOpenFaqIds((prev) => {
+    // Inject FAQPage Schema.org Structured Data matching public/faq.html
+    const scriptId = 'faq-schema-structured-data';
+    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.type = 'application/ld+json';
+      document.head.appendChild(script);
+    }
+
+    const faqSchemaData = {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: FAQ_ITEMS.map((item) => ({
+        '@type': 'Question',
+        name: item.question,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: item.answer,
+        },
+      })),
+    };
+
+    script.textContent = JSON.stringify(faqSchemaData);
+
+    return () => {
+      const el = document.getElementById(scriptId);
+      if (el) {
+        el.remove();
+      }
+    };
+  }, []);
+
+  const toggleItem = (id: number) => {
+    setOpenItemIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -134,31 +168,49 @@ export function FAQPage({ onNavigate }: FAQPageProps) {
     });
   };
 
+  const filteredItems = FAQ_ITEMS.filter((item) => {
+    if (activeCategory === 'all') return true;
+    return item.category === activeCategory;
+  });
+
   const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
     if (!href) return;
-    e.preventDefault();
+    if (href.startsWith('/')) {
+      e.preventDefault();
+      if (onNavigate) {
+        onNavigate(href);
+      } else {
+        window.location.href = href;
+      }
+    }
+  };
+
+  const navigateTo = (path: string) => {
     if (onNavigate) {
-      onNavigate(href);
+      onNavigate(path);
     } else {
-      window.location.href = href;
+      window.location.href = path;
     }
   };
 
   return (
-    <div className="page-shell">
+    <div className="page-shell" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Navbar onNavigate={onNavigate} />
 
-      <main className="faq-main" style={{ flex: 1, width: '100%', maxWidth: '900px', margin: '0 auto', padding: '2.5rem 0 3.5rem' }}>
+      <main className="faq-main" style={{ flex: 1, width: '100%', maxWidth: '900px', margin: '0 auto', padding: '2.5rem 1rem 3.5rem' }}>
+        {/* FAQ Hero Header */}
         <section className="faq-hero-section" style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-          <span className="section-eyebrow">Help &amp; Knowledge Base</span>
-          <h1 className="section-title">Frequently Asked Questions</h1>
-          <p className="section-description">
-            Everything you need to know about trading skills, earning SkillCredits, and getting help with design, writing, coding, and technical projects on SkillSwap.
+          <span className="section-eyebrow">Everything You Need To Know</span>
+          <h1 className="section-title" style={{ fontSize: 'clamp(2.2rem, 4.5vw, 3.4rem)', lineHeight: 1.15, marginBottom: '0.85rem' }}>
+            Frequently Asked Questions
+          </h1>
+          <p className="section-description" style={{ maxWidth: '640px', margin: '0 auto', fontSize: 'clamp(1rem, 1.2vw, 1.15rem)', lineHeight: 1.6 }}>
+            Everything you need to know about trading skills, earning SkillCredits, platform safety, and getting help on SkillSwap.
           </p>
         </section>
 
-        {/* Segmented Category Filter Controls */}
-        <div className="faq-category-bar" role="tablist" aria-label="FAQ categories">
+        {/* Category Tabs */}
+        <div className="faq-category-bar" role="tablist" aria-label="FAQ categories" style={{ marginBottom: '2rem' }}>
           <button
             type="button"
             role="tab"
@@ -325,7 +377,7 @@ export function FAQPage({ onNavigate }: FAQPageProps) {
             <button
               type="button"
               className="action-button action-button--filled"
-              onClick={() => onNavigate?.('/signup')}
+              onClick={() => navigateTo('/signup')}
             >
               <span>Join SkillSwap Free</span>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -336,7 +388,7 @@ export function FAQPage({ onNavigate }: FAQPageProps) {
             <button
               type="button"
               className="action-button action-button--outline"
-              onClick={() => onNavigate?.('/explore')}
+              onClick={() => navigateTo('/explore')}
             >
               <span>Browse Marketplace</span>
             </button>
@@ -347,4 +399,4 @@ export function FAQPage({ onNavigate }: FAQPageProps) {
       <Footer onNavigate={onNavigate} />
     </div>
   );
-}
+};
