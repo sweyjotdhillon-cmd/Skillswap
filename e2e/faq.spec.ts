@@ -35,14 +35,17 @@ test.describe('FAQ Route Architecture & Visual Consistency E2E', () => {
 
     // 5. Test Category Filtering
     await trustTab.click();
-    const trustAccordionBtn = page.getByRole('button', { name: /How is SkillSwap free/i });
+    const trustAccordionBtn = page.getByRole('button', { name: /How do SkillCredits work/i });
     await expect(trustAccordionBtn).toBeVisible();
 
-    // 6. Test Accordion Toggle
-    await trustAccordionBtn.click();
-    const accordionContent = page.getByRole('region', { name: /How is SkillSwap free/i });
+    // 6. Test Accordion Toggle for a closed item (e.g. item 4)
+    const closedAccordionBtn = page.getByRole('button', { name: /Can I trade different types of skills/i });
+    await expect(closedAccordionBtn).toBeVisible();
+    await closedAccordionBtn.click();
+
+    const accordionContent = page.getByRole('region', { name: /Can I trade different types of skills/i });
     await expect(accordionContent).toBeVisible();
-    await expect(accordionContent).toContainText('SkillSwap is 100% free with zero transaction fees');
+    await expect(accordionContent).toContainText('SkillCredits remove the need for direct 1:1 barter');
 
     // 7. Contact Support Cards
     const emailCard = page.getByRole('link', { name: /Email Us at skillswap165@gmail.com/i });
