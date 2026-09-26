@@ -778,6 +778,11 @@ export async function getUserSwaps(userId: string): Promise<GetUserSwapsResult> 
   const supabase = getSupabaseBrowserClient();
   if (!supabase || !userId) return { data: [], error: !userId ? 'User ID is missing.' : 'Supabase client is unavailable.' };
   try {
+    const { data: authData, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !authData?.user || authData.user.id !== userId) {
+      return { data: [], error: 'You don’t have permission to perform this action.' };
+    }
+
     const { data, error } = await supabase
       .from('swaps')
       .select(`
