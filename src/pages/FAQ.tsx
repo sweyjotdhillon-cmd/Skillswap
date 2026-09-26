@@ -11,7 +11,6 @@ interface FAQItem {
   question: string;
   answer: string;
   category: 'trust' | 'use-cases';
-  categoryLabel: string;
   linkText?: string;
   linkHref?: string;
 }
@@ -21,7 +20,6 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     id: 1,
     category: 'trust',
-    categoryLabel: 'Category A',
     question: 'How is SkillSwap free? Is there a catch or hidden fee?',
     answer:
       'SkillSwap is 100% free with zero transaction fees. Members exchange skills directly using SkillCredits—our internal currency—rather than cash. When you complete your profile setup, you receive an initial welcome allocation of 100 SkillCredits to begin proposing and accepting swaps right away.',
@@ -29,7 +27,6 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     id: 2,
     category: 'trust',
-    categoryLabel: 'Category A',
     question: 'How do SkillCredits work?',
     answer:
       "SkillCredits are SkillSwap's internal unit of account. When you create a swap, the required SkillCredits are reserved from your balance and held safely during the swap lifecycle. Upon completing the swap, reserved credits transfer to the fulfiller. If a qualifying swap is cancelled before fulfillment, your reserved SkillCredits are released back to your balance.",
@@ -37,7 +34,6 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     id: 3,
     category: 'trust',
-    categoryLabel: 'Category A',
     question: "What happens if someone doesn't deliver or does a poor job?",
     answer:
       'SkillCredits are reserved for the swap and are only transferred when the swap is marked complete. If work is not submitted, reserved credits are released back to the requester according to platform lifecycle rules and automated timeouts. While SkillSwap holds credits in reserve during active swaps, the platform does not currently provide a dispute resolution mechanism for subjective quality disagreements, so we encourage setting clear requirements before accepting an exchange.',
@@ -45,7 +41,6 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     id: 4,
     category: 'trust',
-    categoryLabel: 'Category A',
     question: 'Can I trade different types of skills (e.g., writing for logo design)?',
     answer:
       'Yes! SkillCredits remove the need for direct 1:1 barter. You can earn SkillCredits by offering your expertise—like technical writing or coding—to one member, and then spend those earned credits to get logo design, video editing, or marketing strategy from anyone else in the community.',
@@ -55,7 +50,6 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     id: 5,
     category: 'trust',
-    categoryLabel: 'Category A',
     question: 'How do I get started and earn my first credits?',
     answer:
       'Signing up is fast and free. Complete your profile setup to receive your initial 100 SkillCredits. From there, you can spend credits to request a swap on the marketplace or list your own skills to fulfill swaps and earn additional credits.',
@@ -67,7 +61,6 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     id: 6,
     category: 'use-cases',
-    categoryLabel: 'Category B',
     question: 'Where can I find someone to design something if I offer my skills in return?',
     answer:
       'SkillSwap is a peer-to-peer platform where you can find designers for UI/UX, graphic design, logos, and branding by offering your own skills in return. Using SkillCredits, you can trade coding, writing, video editing, translation, or tech help for professional design work without using money.',
@@ -77,7 +70,6 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     id: 7,
     category: 'use-cases',
-    categoryLabel: 'Category B',
     question: 'Where can I find a skill-swap community?',
     answer:
       'SkillSwap provides a dedicated online skill-swap community where creators, freelancers, and learners exchange talents. On SkillSwap, you can browse open skill swaps across categories like design, development, writing, and video editing, connect with collaborators, and earn or spend SkillCredits in a fair, secure ecosystem.',
@@ -87,7 +79,6 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     id: 8,
     category: 'use-cases',
-    categoryLabel: 'Category B',
     question: 'Can I trade writing skills for logo/design help?',
     answer:
       'Yes! On SkillSwap, you can directly trade writing skills—such as copywriting, technical writing, or content creation—for logo design and graphic assets. You can post a custom swap offer describing what you need and what you offer, or request an existing design swap using your SkillCredits.',
@@ -97,7 +88,6 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     id: 9,
     category: 'use-cases',
-    categoryLabel: 'Category B',
     question: "Where can I trade my skills for someone else's skills?",
     answer:
       "You can trade your skills for someone else's skills on SkillSwap. The platform features an open marketplace where members offer and request services in design, web development, content writing, video production, language learning, and technical support using SkillCredits.",
@@ -107,7 +97,6 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     id: 10,
     category: 'use-cases',
-    categoryLabel: 'Category B',
     question: 'Where can I get free tech help by offering my own skills in return?',
     answer:
       'SkillSwap allows you to get free technical support, software troubleshooting, website debugging, or coding assistance by offering your own skills in return. You earn SkillCredits by helping others with your talents and spend those credits to receive tech help from experienced community members.',
@@ -248,23 +237,17 @@ export const FAQPage: React.FC<FAQPageProps> = ({ onNavigate }) => {
                   aria-controls={`faq-page-ans-${item.id}`}
                   onClick={() => toggleItem(item.id)}
                 >
-                  <div className="faq-question-leading">
-                    <span className="faq-badge" aria-hidden="true">
-                      {index + 1}
-                    </span>
-                    <h2 className="faq-question-heading">
-                      {item.question}
-                    </h2>
-                  </div>
-
-                  <div className="faq-question-controls">
-                    <span className="faq-card-tag">{item.categoryLabel}</span>
-                    <span className={`home-faq-icon ${isOpen ? 'home-faq-icon--open' : ''}`} aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
-                    </span>
-                  </div>
+                  <span className="faq-badge" aria-hidden="true">
+                    {index + 1}
+                  </span>
+                  <h2 className="faq-question-heading">
+                    {item.question}
+                  </h2>
+                  <span className={`home-faq-icon ${isOpen ? 'home-faq-icon--open' : ''}`} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </span>
                 </button>
 
                 {isOpen && (
