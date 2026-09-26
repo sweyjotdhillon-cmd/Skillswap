@@ -114,4 +114,78 @@ test.describe('C6 — Responsive Layout Regression Suite', () => {
     await checkViewportNoOverflow(page);
     assertNoUncaughtErrors(diagnostics);
   });
+
+  test('modal body scroll-lock acquires on open and releases on close allowing normal page scrolling', async ({ page }) => {
+    const diagnostics = setupPageDiagnostics(page);
+
+    await page.goto('/explore');
+    await page.waitForLoadState('domcontentloaded');
+
+    // Initial body overflow should not be 'hidden'
+    const initialOverflow = await page.evaluate(() => document.body.style.overflow);
+    expect(initialOverflow).not.toBe('hidden');
+
+    // If chat buttons or credit modal button exist, test open and close scroll lock cycle
+    const chatBtn = page.locator('button:has-text("Workspace & Chat"), button:has-text("Chat"), button:has-text("Chat with creator")').first();
+    const creditBtn = page.locator('.mobile-credit-btn, .nav-credit-indicator-btn').first();
+
+    if (await chatBtn.isVisible()) {
+      // Scroll page down
+      await page.evaluate(() => window.scrollTo(0, 200));
+      const scrollPosBefore = await page.evaluate(() => window.scrollY);
+
+      // Open Chat Modal
+      await chatBtn.click();
+      const chatModal = page.locator('.chat-workspace-content');
+      await expect(chatModal).toBeVisible();
+
+      // Body overflow MUST be 'hidden' when modal is open
+      const overflowDuringChat = await page.evaluate(() => document.body.style.overflow);
+      expect(overflowDuringChat).toBe('hidden');
+
+      // Close Chat Modal
+      const closeBtn = page.locator('.chat-close-btn').first();
+      await closeBtn.click();
+      await expect(chatModal).not.toBeVisible();
+
+      // Body overflow MUST be restored (not 'hidden')
+      const overflowAfterChat = await page.evaluate(() => document.body.style.overflow);
+      expect(overflowAfterChat).not.toBe('hidden');
+
+      // Scroll position preserved and page remains scrollable in both directions
+      const scrollPosAfter = await page.evaluate(() => window.scrollY);
+      expect(scrollPosAfter).toBe(scrollPosBefore);
+
+      await page.evaluate(() => window.scrollBy(0, 100));
+      const scrolledDown = await page.evaluate(() => window.scrollY);
+      expect(scrolledDown).toBeGreaterThan(scrollPosBefore);
+
+      await page.evaluate(() => window.scrollBy(0, -100));
+      const scrolledUp = await page.evaluate(() => window.scrollY);
+      expect(scrolledUp).toBeLessThan(scrolledDown);
+    } else if (await creditBtn.isVisible()) {
+      // Test using Credit Modal
+      await page.evaluate(() => window.scrollTo(0, 200));
+      const scrollPosBefore = await page.evaluate(() => window.scrollY);
+
+      await creditBtn.click();
+      const creditModal = page.locator('.credit-history-modal');
+      await expect(creditModal).toBeVisible();
+
+      const modalActiveOverflow = await page.evaluate(() => document.body.style.overflow);
+      expect(modalActiveOverflow).toBe('hidden');
+
+      const closeBtn = page.locator('.credit-modal-close-btn');
+      await closeBtn.click();
+      await expect(creditModal).not.toBeVisible();
+
+      const modalClosedOverflow = await page.evaluate(() => document.body.style.overflow);
+      expect(modalClosedOverflow).not.toBe('hidden');
+
+      const scrollPosAfter = await page.evaluate(() => window.scrollY);
+      expect(scrollPosAfter).toBe(scrollPosBefore);
+    }
+
+    assertNoUncaughtErrors(diagnostics);
+  });
 });

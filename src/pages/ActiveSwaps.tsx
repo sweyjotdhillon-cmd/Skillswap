@@ -28,6 +28,7 @@ import { SwapChatModal } from '../components/chat/SwapChatModal';
 import { TransactionProgress } from '../components/transaction/TransactionProgress';
 import { PendingTransactionVault } from '../components/transaction/PendingTransactionVault';
 import { useScaffolding } from '../hooks/useScaffolding';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { VerificationBadge } from '../components/ui/VerificationBadge';
 import { FileExpiryIndicator } from '../components/ui/FileExpiryIndicator';
 import { ProfileAvatar } from '../components/ui/ProfileAvatar';
@@ -134,11 +135,10 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
       activeChatSwap
   );
 
+  useBodyScrollLock(isAnyActiveSwapsModalOpen);
+
   useEffect(() => {
     if (!isAnyActiveSwapsModalOpen) return;
-
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -152,7 +152,6 @@ export function ActiveSwapsPage({ onNavigate }: ActiveSwapsPageProps) {
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [

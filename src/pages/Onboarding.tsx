@@ -18,6 +18,7 @@ import {
 } from '../lib/supabase/profile';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { getSafeRedirect } from '../lib/safeRedirect';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { ProfileAvatar } from '../components/ui/ProfileAvatar';
 
 type OnboardingProps = {
@@ -63,11 +64,10 @@ export function OnboardingPage({ onNavigate, redirectTo: propsRedirectTo }: Onbo
   const [selectedSkills, setSelectedSkills] = useState<SelectedSkill[]>([]);
   const [customSkillModalOpen, setCustomSkillModalOpen] = useState<boolean>(false);
 
+  useBodyScrollLock(customSkillModalOpen);
+
   useEffect(() => {
     if (!customSkillModalOpen) return;
-
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -77,7 +77,6 @@ export function OnboardingPage({ onNavigate, redirectTo: propsRedirectTo }: Onbo
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [customSkillModalOpen]);
