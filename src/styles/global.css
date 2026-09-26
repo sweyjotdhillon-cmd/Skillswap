@@ -1286,24 +1286,22 @@ h1 span { color: #a8781d; }
 .faq-accordion-btn {
   width: 100%;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: flex-start;
-  gap: 1rem;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  grid-template-areas: "badge heading chevron";
+  align-items: center;
+  gap: 1.25rem;
   padding: 1.5rem 1.85rem;
   background: transparent;
   border: none;
   text-align: left;
   cursor: pointer;
-  box-sizing: border-border-box;
-}
-
-.faq-question-leading {
-  display: contents; /* Flattens badge and question into grid columns 1 and 2 on desktop */
+  box-sizing: border-box;
 }
 
 .faq-badge {
-  width: 30px;
-  height: 30px;
+  grid-area: badge;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
   background: rgba(214, 166, 74, 0.15);
   color: #a8781d;
@@ -1313,10 +1311,11 @@ h1 span { color: #a8781d; }
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-top: 2px;
+  justify-self: start;
 }
 
 .faq-question-heading {
+  grid-area: heading;
   font-family: Playfair Display, Georgia, serif;
   font-size: clamp(1.15rem, 2vw, 1.35rem);
   font-weight: 700;
@@ -1333,29 +1332,13 @@ h1 span { color: #a8781d; }
   color: #a8781d;
 }
 
-.faq-question-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  flex-shrink: 0;
-  margin-left: auto;
-  margin-top: 2px;
-}
-
-.faq-card-tag {
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #a8781d;
-  background: rgba(214, 166, 74, 0.15);
-  padding: 0.25rem 0.65rem;
-  border-radius: 6px;
-  white-space: nowrap;
+.faq-accordion-btn .home-faq-icon {
+  grid-area: chevron;
+  justify-self: end;
 }
 
 .faq-accordion-content {
-  padding: 0 1.85rem 1.5rem 4.3rem;
+  padding: 0 1.85rem 1.5rem 4.7rem;
   font-size: 1rem;
   line-height: 1.65;
   color: var(--text-muted, rgba(17, 22, 28, 0.65));
@@ -1445,54 +1428,38 @@ h1 span { color: #a8781d; }
   }
 
   .faq-accordion-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.85rem;
-    padding: 1.15rem 1.1rem;
-  }
-
-  .faq-question-leading {
-    display: contents; /* Allows badge and heading to unstack */
-  }
-
-  /* Row 1 Container on Mobile: Badge on Left, Controls on Right */
-  .faq-accordion-btn::before {
-    content: "";
-    display: none;
-  }
-
-  /* On mobile, controls flex across Row 1 */
-  .faq-question-controls {
-    order: 1;
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "badge . chevron"
+      "heading heading heading";
     align-items: center;
-    justify-content: flex-end;
-    width: 100%;
-    margin: 0;
-    padding-left: 2rem; /* Reserves space so badge is on left of Row 1 */
-    position: relative;
+    row-gap: 0.85rem;
+    column-gap: 0.5rem;
+    padding: 1.25rem 1.15rem;
   }
 
-  /* Position Badge in Row 1 Left */
   .faq-badge {
-    order: 0;
-    position: absolute;
-    top: 1.15rem;
-    left: 1.1rem;
-    margin-top: 0;
+    grid-area: badge;
+    width: 30px;
+    height: 30px;
+    font-size: 0.825rem;
   }
 
-  /* Question Heading occupies Row 2 spanning full available card width */
   .faq-question-heading {
-    order: 2;
+    grid-area: heading;
     width: 100%;
     font-size: clamp(1.1rem, 4.2vw, 1.25rem);
     line-height: 1.38;
   }
 
+  .faq-accordion-btn .home-faq-icon {
+    grid-area: chevron;
+    justify-self: end;
+  }
+
   .faq-accordion-content {
-    padding: 0 1.1rem 1.15rem 1.1rem;
+    padding: 0 1.15rem 1.25rem 1.15rem;
     font-size: 0.95rem;
   }
 
