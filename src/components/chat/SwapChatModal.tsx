@@ -22,6 +22,7 @@ import { getTagLabel } from '../../constants/tags';
 import { getFileExpiryStatus } from '../../lib/fileExpiry';
 import { TransactionProgress } from '../transaction/TransactionProgress';
 import { PendingTransactionVault } from '../transaction/PendingTransactionVault';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { VerificationBadge } from '../ui/VerificationBadge';
 import { ProfileAvatar } from '../ui/ProfileAvatar';
 import { FileExpiryIndicator } from '../ui/FileExpiryIndicator';
@@ -169,11 +170,11 @@ export function SwapChatModal({
     };
   }, [swap.id, swap.status]);
 
-  // Modal Escape key listener & Body scroll lock
-  useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+  // Body scroll lock
+  useBodyScrollLock(true);
 
+  // Modal Escape key listener
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
@@ -181,7 +182,6 @@ export function SwapChatModal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [onClose]);

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Logo } from '../brand/Logo';
 import { useAuth } from '../../context/AuthContext';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { CreditHistoryModal } from '../credits/CreditHistoryModal';
 
 const navItems = [
@@ -24,7 +25,9 @@ export function Navbar({ onNavigate, ctaLabel, ctaPath, currentPath }: NavbarPro
   const activePath = currentPath || window.location.pathname;
   const { user, account, accountLoading, signOut } = useAuth();
 
-  // Accessibility & UX: Handle Escape key to close mobile drawer & body scroll lock
+  useBodyScrollLock(mobileMenuOpen);
+
+  // Accessibility & UX: Handle Escape key to close mobile drawer
   useEffect(() => {
     if (!mobileMenuOpen) return;
 
@@ -34,12 +37,9 @@ export function Navbar({ onNavigate, ctaLabel, ctaPath, currentPath }: NavbarPro
       }
     };
 
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [mobileMenuOpen]);

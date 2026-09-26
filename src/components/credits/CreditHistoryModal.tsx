@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { getCreditTransactions, type CreditTransaction } from '../../lib/supabase/credits';
 
 interface CreditHistoryModalProps {
@@ -60,18 +61,16 @@ export function CreditHistoryModal({ isOpen, onClose }: CreditHistoryModalProps)
     };
   }, [isOpen, refreshAccount]);
 
+  useBodyScrollLock(isOpen);
+
   useEffect(() => {
     if (!isOpen) return;
-
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);

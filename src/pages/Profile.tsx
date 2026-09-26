@@ -18,6 +18,7 @@ import {
   formatFriendlyErrorMessage,
 } from '../lib/supabase/profile';
 import { getUserCompletedSwapsCount } from '../lib/supabase/credits';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { VerificationBadge } from '../components/ui/VerificationBadge';
 import { ProfileAvatar } from '../components/ui/ProfileAvatar';
 
@@ -43,11 +44,10 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
   const isAnyProfileModalOpen = isEditProfileOpen || isManageSkillsOpen || isDeleteAccountOpen;
 
+  useBodyScrollLock(isAnyProfileModalOpen);
+
   useEffect(() => {
     if (!isAnyProfileModalOpen) return;
-
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -59,7 +59,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isAnyProfileModalOpen]);
