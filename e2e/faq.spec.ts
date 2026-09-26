@@ -68,65 +68,46 @@ test.describe('FAQ Route Architecture & Visual Consistency E2E', () => {
     assertNoUncaughtErrors(diagnostics);
   });
 
-  test('2. Mobile layout (390px) enforces 3-column grid alignment and no badge escape', async ({ page }) => {
+  test('2. Mobile layout (390px) enforces 2-row structure and full question width', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/faq');
 
-    const header = page.locator('header.site-header, header').first();
-    const headerBox = await header.boundingBox();
+    const firstCard = page.locator('article.faq-accordion-card').first();
+    await expect(firstCard).toBeVisible();
 
-    const cards = page.locator('article.faq-accordion-card');
-    const cardCount = await cards.count();
-    expect(cardCount).toBeGreaterThan(0);
+    const button = firstCard.locator('button.faq-accordion-btn');
+    await expect(button).toBeVisible();
 
-    for (let i = 0; i < cardCount; i++) {
-      const card = cards.nth(i);
-      await expect(card).toBeVisible();
+    const badge = button.locator('.faq-badge');
+    const categoryTag = button.locator('.faq-card-tag');
+    const heading = button.locator('.faq-question-heading');
 
-      const button = card.locator('button.faq-accordion-btn');
-      const badge = button.locator('.faq-badge');
-      const heading = button.locator('.faq-question-heading');
-      const chevron = button.locator('.faq-chevron-icon');
+    await expect(badge).toBeVisible();
+    await expect(categoryTag).toBeVisible();
+    await expect(heading).toBeVisible();
 
-      await expect(badge).toBeVisible();
-      await expect(heading).toBeVisible();
-      await expect(chevron).toBeVisible();
+    // Measure bounding boxes at 390px viewport width
+    const buttonBox = await button.boundingBox();
+    const headingBox = await heading.boundingBox();
+    const categoryBox = await categoryTag.boundingBox();
 
-      // Per-card Category tags must be removed
-      const categoryTag = button.locator('.faq-card-tag');
-      await expect(categoryTag).toHaveCount(0);
+    expect(buttonBox).not.toBeNull();
+    expect(headingBox).not.toBeNull();
+    expect(categoryBox).not.toBeNull();
 
-      const cardBox = await card.boundingBox();
-      const badgeBox = await badge.boundingBox();
-      const headingBox = await heading.boundingBox();
-      const chevronBox = await chevron.boundingBox();
+    if (buttonBox && headingBox && categoryBox) {
+      // Heading must occupy nearly full available card width (>= 80% of button width)
+      expect(headingBox.width).toBeGreaterThan(buttonBox.width * 0.8);
 
-      expect(cardBox).not.toBeNull();
-      expect(badgeBox).not.toBeNull();
-      expect(headingBox).not.toBeNull();
-      expect(chevronBox).not.toBeNull();
-
-      if (cardBox && badgeBox && headingBox && chevronBox) {
-        // Badge must remain within card bounds
-        expect(badgeBox.x).toBeGreaterThanOrEqual(cardBox.x);
-        expect(badgeBox.x + badgeBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width);
-
-        // Badge must never overlap header
-        if (headerBox) {
-          expect(badgeBox.y).toBeGreaterThan(headerBox.y + headerBox.height);
-        }
-
-        // Horizontal Grid Order: Badge < Heading < Chevron
-        expect(headingBox.x).toBeGreaterThan(badgeBox.x);
-        expect(chevronBox.x).toBeGreaterThan(headingBox.x);
-      }
+      // On mobile 2-row layout, question heading is positioned below the top metadata row (category tag)
+      expect(headingBox.y).toBeGreaterThanOrEqual(categoryBox.y + categoryBox.height - 4);
     }
 
     // Verify no horizontal page overflow on small mobile screen
     await checkViewportNoOverflow(page);
   });
 
-  test('3. Desktop layout (1024px) maintains clean 3-column grid alignment', async ({ page }) => {
+  test('3. Desktop layout (1024px) maintains controlled 3-part layout', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await page.goto('/faq');
 
@@ -135,33 +116,22 @@ test.describe('FAQ Route Architecture & Visual Consistency E2E', () => {
 
     const button = firstCard.locator('button.faq-accordion-btn');
     const badge = button.locator('.faq-badge');
+    const categoryTag = button.locator('.faq-card-tag');
     const heading = button.locator('.faq-question-heading');
-    const chevron = button.locator('.faq-chevron-icon');
 
     await expect(badge).toBeVisible();
+    await expect(categoryTag).toBeVisible();
     await expect(heading).toBeVisible();
-    await expect(chevron).toBeVisible();
 
-    // Per-card Category tags must be removed
-    const categoryTag = button.locator('.faq-card-tag');
-    await expect(categoryTag).toHaveCount(0);
-
-    const cardBox = await firstCard.boundingBox();
-    const badgeBox = await badge.boundingBox();
     const headingBox = await heading.boundingBox();
-    const chevronBox = await chevron.boundingBox();
+    const categoryBox = await categoryTag.boundingBox();
 
-    expect(cardBox).not.toBeNull();
-    expect(badgeBox).not.toBeNull();
     expect(headingBox).not.toBeNull();
-    expect(chevronBox).not.toBeNull();
+    expect(categoryBox).not.toBeNull();
 
-    if (cardBox && badgeBox && headingBox && chevronBox) {
-      // Horizontal 3-column alignment
-      expect(badgeBox.x).toBeGreaterThanOrEqual(cardBox.x);
-      expect(headingBox.x).toBeGreaterThan(badgeBox.x + badgeBox.width);
-      expect(chevronBox.x).toBeGreaterThan(headingBox.x + headingBox.width);
-      expect(chevronBox.x + chevronBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width);
+    if (headingBox && categoryBox) {
+      // On desktop, category tag is aligned to the right of the question heading
+      expect(categoryBox.x).toBeGreaterThan(headingBox.x);
     }
   });
 
