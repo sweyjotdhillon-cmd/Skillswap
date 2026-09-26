@@ -509,6 +509,11 @@ export async function getAccount(userId: string): Promise<Account | null> {
   if (!supabase || !userId) return null;
 
   try {
+    const { data: authData, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !authData?.user || authData.user.id !== userId) {
+      return null;
+    }
+
     const { data, error } = await supabase
       .from('accounts')
       .select('*')
@@ -533,6 +538,11 @@ export async function getPrivateContact(userId: string): Promise<UserPrivateCont
   if (!supabase || !userId) return null;
 
   try {
+    const { data: authData, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !authData?.user || authData.user.id !== userId) {
+      return null;
+    }
+
     const { data, error } = await supabase
       .from('user_private_contacts')
       .select('*')
